@@ -108,12 +108,13 @@ function strataTitle(s: StrataLayer) {
     </div>
 
     <!-- ========= SVG Core Column ========= -->
-    <div class="flex-shrink-0 position-relative" style="border-radius:4px;overflow:hidden;border:1.5px solid rgba(0,0,0,0.2)">
+    <div class="flex-shrink-0 position-relative strata-svg-container" style="border-radius:4px;overflow:hidden;border:1.5px solid rgba(0,0,0,0.2)">
       <svg
         :width="SVG_COL_W"
         :height="totalH"
         :viewBox="`0 0 ${SVG_COL_W} ${totalH}`"
         xmlns="http://www.w3.org/2000/svg"
+        style="display:block;max-width:100%;height:auto"
       >
         <!-- ---- Pattern Defs ---- -->
         <defs>

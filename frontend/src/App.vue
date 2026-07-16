@@ -68,6 +68,9 @@ const pageTitle = computed(() => (route.meta.label as string) || "ระบบ�
 
     <AppBottomNav v-if="!isAuthPage && mobile" />
 
+    <!-- Bottom safe-area spacer on mobile -->
+    <div v-if="!isAuthPage && mobile" class="d-sm-none" style="height:var(--safe-bottom)" />
+
     <v-snackbar v-model="ui.snackbar.show" :color="ui.snackbar.color" location="top" timeout="2600">
       {{ ui.snackbar.text }}
     </v-snackbar>

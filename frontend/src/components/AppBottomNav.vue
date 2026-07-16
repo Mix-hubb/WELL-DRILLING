@@ -32,7 +32,10 @@ function goMore(to: string) {
 </script>
 
 <template>
-  <v-bottom-navigation grow :model-value="activeIndex" color="primary" mode="shift">
+  <v-bottom-navigation
+    grow :model-value="activeIndex" color="primary" mode="shift"
+    class="app-bottom-nav"
+  >
     <v-btn v-for="item in primary" :key="item.to" :to="item.to" :value="item.to">
       <v-icon :icon="item.icon" />
       <span class="text-caption">{{ item.label }}</span>
@@ -56,3 +59,9 @@ function goMore(to: string) {
     </v-menu>
   </v-bottom-navigation>
 </template>
+
+<style scoped>
+.app-bottom-nav {
+  padding-bottom: var(--safe-bottom, 0px);
+}
+</style>

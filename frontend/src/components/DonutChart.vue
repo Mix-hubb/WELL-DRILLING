@@ -25,7 +25,11 @@ const arcs = computed(() => {
 
 <template>
   <div class="d-flex align-center ga-4 flex-wrap">
-    <svg :width="size" :height="size" :viewBox="`0 0 ${size} ${size}`">
+    <svg
+      :width="size" :height="size"
+      :viewBox="`0 0 ${size} ${size}`"
+      style="max-width:100%;height:auto"
+    >
       <g :transform="`translate(${size / 2}, ${size / 2}) rotate(-90)`">
         <circle
           v-for="(a, i) in arcs"

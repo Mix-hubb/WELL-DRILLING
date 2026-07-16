@@ -24,11 +24,11 @@ function fmtDate(d: string) {
     </div>
 
     <div v-else>
-      <div
-        v-for="(log, idx) in logs"
-        :key="log.maintenance_id"
-        class="d-flex ga-3"
-      >
+          <div
+            v-for="(log, idx) in logs"
+            :key="log.maintenance_id"
+            class="d-flex ga-3 maint-log-item"
+          >
         <!-- Timeline track -->
         <div class="d-flex flex-column align-center flex-shrink-0" style="width:18px">
           <div class="timeline-dot" :style="{ background: log.is_warranty_claim ? '#7A3A2A' : '#4A6278' }" />
@@ -53,14 +53,14 @@ function fmtDate(d: string) {
             </div>
             <v-btn
               icon="mdi-delete-outline"
-              size="x-small"
+              size="small"
               variant="text"
               color="error"
               @click="$emit('delete', log.maintenance_id)"
             />
           </div>
 
-          <div class="text-body-2 mt-1 pa-3 rounded-lg" style="background:rgba(0,0,0,0.04)">
+          <div class="text-body-2 mt-1 pa-3 rounded-lg" style="background:rgba(0,0,0,0.04);word-break:break-word">
             {{ log.description }}
           </div>
 
@@ -73,3 +73,9 @@ function fmtDate(d: string) {
     </div>
   </div>
 </template>
+
+<style scoped>
+@media (max-width: 480px) {
+  .maint-log-item { gap: 8px !important; }
+}
+</style>

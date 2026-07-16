@@ -56,7 +56,7 @@ function fmtDate(d: string) {
   <div>
     <!-- Toolbar -->
     <div class="d-flex flex-wrap ga-3 align-center mb-4">
-      <v-tabs v-model="tab" density="comfortable" color="primary" class="flex-grow-0">
+      <v-tabs v-model="tab" density="comfortable" color="primary" class="flex-grow-0" show-arrows>
         <v-tab value="ALL">ทั้งหมด ({{ jobsStore.jobs.length }})</v-tab>
         <v-tab value="PENDING">{{ STATUS.PENDING.label }}</v-tab>
         <v-tab value="DRILLING">{{ STATUS.DRILLING.label }}</v-tab>

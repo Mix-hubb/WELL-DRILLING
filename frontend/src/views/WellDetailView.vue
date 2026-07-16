@@ -209,15 +209,15 @@ function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
       <div v-if="!store.current.pipes.length" class="text-center py-6 text-medium-emphasis">ยังไม่มีข้อมูลท่อ</div>
       <div
         v-for="p in store.current.pipes" :key="p.pipe_id"
-        class="d-flex justify-space-between align-center text-body-2 py-2"
+        class="d-flex justify-space-between align-center text-body-2 py-2 flex-wrap ga-1"
         style="border-bottom:1px solid rgba(0,0,0,0.06)"
       >
-        <div>
+        <div style="min-width:0;word-break:break-word">
           <span class="font-mono text-caption text-medium-emphasis">{{ p.depth_from }}–{{ p.depth_to }} ม.</span>
           {{ " " }}{{ PIPE_TYPE[p.pipe_type as keyof typeof PIPE_TYPE] }}
           <span class="text-medium-emphasis">· {{ PIPE_SIZE[p.pipe_size as keyof typeof PIPE_SIZE] }} · {{ THICKNESS[p.thickness_class as keyof typeof THICKNESS] }}</span>
         </div>
-        <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error" @click="removePipe(p.pipe_id)" />
+        <v-btn icon="mdi-delete-outline" size="small" variant="text" color="error" @click="removePipe(p.pipe_id)" />
       </div>
     </v-card>
 
@@ -227,16 +227,16 @@ function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
       <div v-if="!store.current.pumps.length" class="text-center py-6 text-medium-emphasis">ยังไม่มีข้อมูลปั๊ม</div>
       <div
         v-for="p in store.current.pumps" :key="p.pump_id"
-        class="d-flex justify-space-between align-center text-body-2 py-2"
+        class="d-flex justify-space-between align-center text-body-2 py-2 flex-wrap ga-1"
         style="border-bottom:1px solid rgba(0,0,0,0.06)"
       >
-        <div>
+        <div style="min-width:0;word-break:break-word">
           <div>{{ PUMP_TYPE[p.pump_type as keyof typeof PUMP_TYPE] }} · {{ p.brand }}</div>
           <div class="text-caption text-medium-emphasis">
             {{ p.horsepower }} HP · {{ p.impeller_stages }} ใบพัด · หย่อนที่ {{ p.installation_depth }} ม. · ติดตั้ง {{ fmtDate(p.installed_date) }}
           </div>
         </div>
-        <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error" @click="removePump(p.pump_id)" />
+        <v-btn icon="mdi-delete-outline" size="small" variant="text" color="error" @click="removePump(p.pump_id)" />
       </div>
     </v-card>
 

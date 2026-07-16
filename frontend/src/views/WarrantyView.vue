@@ -91,15 +91,16 @@ function cardClass(tier: string) {
     </v-row>
 
     <!-- Filter + Search bar -->
-    <div class="d-flex ga-2 mb-4 flex-wrap">
+    <div class="mb-4">
       <v-text-field
         v-model="search"
         prepend-inner-icon="mdi-magnify"
         placeholder="ค้นหาชื่อลูกค้า, โทร, รหัสงาน, จังหวัด"
         hide-details clearable
+        class="mb-2"
         style="max-width:360px"
       />
-      <v-btn-toggle v-model="filter" @update:model-value="load" rounded="lg" mandatory density="comfortable">
+      <v-btn-toggle v-model="filter" @update:model-value="load" rounded="lg" mandatory density="comfortable" class="warranty-filter-toggle">
         <v-btn value="">ทั้งหมด</v-btn>
         <v-btn value="active" color="success">ในประกัน</v-btn>
         <v-btn value="expiring" color="warning">ใกล้หมด</v-btn>
@@ -170,3 +171,17 @@ function cardClass(tier: string) {
     </v-row>
   </div>
 </template>
+
+<style scoped>
+.warranty-filter-toggle {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+@media (max-width: 480px) {
+  .warranty-filter-toggle .v-btn {
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+    padding: 0 10px;
+  }
+}
+</style>

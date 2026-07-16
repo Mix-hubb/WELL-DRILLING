@@ -69,6 +69,9 @@ html, body {
   overflow-x: auto;
   overflow-y: auto;
 }
+.strata-svg-container {
+  min-width: 0;
+}
 .strata-svg text {
   font-family: var(--font-primary);
   font-size: 10px;
@@ -91,10 +94,25 @@ html, body {
   flex-grow: 1;
 }
 
-/* ---------- Mobile touch targets ---------- */
+/* ---------- iOS safe-area ---------- */
+:root {
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+/* ---------- Phone breakpoints + touch targets ---------- */
 @media (max-width: 768px) {
   .v-btn { min-height: 48px !important; }
   .v-list-item { min-height: 56px !important; }
+  .v-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .v-btn-toggle { overflow-x: auto; flex-wrap: nowrap; }
+  .v-btn-toggle .v-btn { flex: 0 0 auto; white-space: nowrap; }
+}
+@media (max-width: 480px) {
+  .v-card { border-radius: 8px !important; }
+  .text-h4 { font-size: 1.4rem !important; }
+  .text-h5 { font-size: 1.2rem !important; }
+  .text-h6 { font-size: 1.05rem !important; }
 }
 
 /* ---------- Scrollbar (Webkit) ---------- */

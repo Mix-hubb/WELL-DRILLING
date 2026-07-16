@@ -18,7 +18,7 @@ const filteredJobs = computed(() => jobsStore.jobs.filter((j) => activeFilters.v
 </script>
 
 <template>
-  <div>
+  <div style="display:flex;flex-direction:column;height:calc(100vh - 120px)">
     <div class="d-flex flex-wrap align-center ga-2 mb-4">
       <span class="text-subtitle-1 font-display font-weight-bold mr-2">แผนที่คิวงาน</span>
       <v-chip-group v-model="activeFilters" multiple filter color="primary">
@@ -27,7 +27,7 @@ const filteredJobs = computed(() => jobsStore.jobs.filter((j) => activeFilters.v
         </v-chip>
       </v-chip-group>
     </div>
-    <v-card variant="outlined" class="pa-2" style="height: 70vh;">
+    <v-card variant="outlined" class="pa-2" style="flex:1 1 0;min-height:300px;max-height:80vh;">
       <JobMap :jobs="filteredJobs" />
     </v-card>
   </div>
