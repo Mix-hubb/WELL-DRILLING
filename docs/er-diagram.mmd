@@ -1,0 +1,164 @@
+---
+title: ER Diagram — ระบบจัดการบ่อบาดาล (DGWM)
+---
+erDiagram
+
+    users {
+        INT UNSIGNED user_id PK "AUTO_INCREMENT"
+        VARCHAR_150 email UK "NOT NULL, UNIQUE"
+        VARCHAR_255 password_hash "NOT NULL, bcrypt"
+        VARCHAR_150 full_name "NOT NULL"
+        ENUM role "ADMIN | DRILLER, DEFAULT DRILLER"
+        TIMESTAMP created_at "DEFAULT CURRENT_TIMESTAMP"
+        TIMESTAMP updated_at "ON UPDATE CURRENT_TIMESTAMP"
+    }
+
+    customers {
+        INT UNSIGNED customer_id PK "AUTO_INCREMENT"
+        INT UNSIGNED user_id FK "NOT NULL → users"
+        VARCHAR_150 customer_name "NOT NULL, INDEX"
+        VARCHAR_20 phone "NOT NULL, INDEX"
+        VARCHAR_20 phone_alt "NULL"
+        TEXT address "NULL"
+        TIMESTAMP created_at "DEFAULT CURRENT_TIMESTAMP"
+    }
+
+    drilling_jobs {
+        INT UNSIGNED job_id PK "AUTO_INCREMENT"
+        VARCHAR_20 job_reference UK "NOT NULL, WEL-YYYY-NNNN"
+        INT UNSIGNED customer_id FK "NOT NULL → customers"
+        VARCHAR_200 job_title "NOT NULL"
+        TEXT site_address "NOT NULL"
+        VARCHAR_80 province "DEFAULT ''"
+        VARCHAR_80 district "DEFAULT ''"
+        DECIMAL_10_8 latitude "NULL"
+        DECIMAL_11_8 longitude "NULL"
+        DATE scheduled_date "NOT NULL"
+        SMALLINT UNSIGNED requested_depth_m "DEFAULT 0"
+        ENUM status "PENDING|DRILLING|COMPLETED|ARCHIVED"
+        ENUM priority "NORMAL|HIGH|URGENT"
+        TEXT notes "NULL"
+        TIMESTAMP created_at "DEFAULT CURRENT_TIMESTAMP"
+        TIMESTAMP updated_at "ON UPDATE CURRENT_TIMESTAMP"
+    }
+
+    well_logs {
+        INT UNSIGNED well_id PK "AUTO_INCREMENT"
+        INT UNSIGNED job_id FK UK "NOT NULL → drilling_jobs, 1:1"
+        DECIMAL_6_2 total_depth "NOT NULL, meters"
+        DECIMAL_6_2 casing_depth "NULL"
+        DECIMAL_8_2 water_quantity "DEFAULT 0, m³/hr"
+        DECIMAL_8_2 yield_lpm "NULL, liters/min"
+        DECIMAL_6_2 static_water_level "DEFAULT 0"
+        DECIMAL_6_2 pumping_water_level "DEFAULT 0"
+        DECIMAL_6_2 pump_depth "NULL"
+        DECIMAL_5_2 pump_power_kw "NULL"
+        VARCHAR_100 pump_brand "NULL"
+        ENUM pump_type "AC_SUBMERSIBLE|DC_SOLAR|OTHER"
+        ENUM drilling_method "ROTARY|DTH|CABLE_TOOL|AUGER|JETTING|OTHER"
+        ENUM formation_water_type "FRESH|BRACKISH|SALINE|UNKNOWN"
+        VARCHAR_120 driller_name "NULL"
+        DATE completion_date "NOT NULL, INDEX"
+        DATE warranty_expire_date "GENERATED: completion_date + 2 YEAR, INDEX"
+        DECIMAL_5_1 gps_accuracy_m "NULL"
+        TEXT notes "NULL"
+        TIMESTAMP created_at "DEFAULT CURRENT_TIMESTAMP"
+        TIMESTAMP updated_at "ON UPDATE CURRENT_TIMESTAMP"
+    }
+
+    well_strata_logs {
+        INT UNSIGNED strata_id PK "AUTO_INCREMENT"
+        INT UNSIGNED well_id FK "NOT NULL → well_logs"
+        TINYINT UNSIGNED lithology_type_id FK "NOT NULL → lithology_types"
+        DECIMAL_6_2 depth_from "NOT NULL"
+        DECIMAL_6_2 depth_to "NOT NULL, CHECK depth_to > depth_from"
+        CHAR_7 color_override "NULL"
+        ENUM hardness "VERY_SOFT|SOFT|MEDIUM|HARD|VERY_HARD"
+        TINYINT UNSIGNED rqd_percent "NULL"
+        TINYINT is_water_bearing "DEFAULT 0"
+        DECIMAL_8_2 conductivity_us "NULL"
+        DECIMAL_4_2 ph_value "NULL"
+        DECIMAL_8_2 tds_ppm "NULL"
+        VARCHAR_255 description "NULL"
+    }
+
+    well_pipes {
+        INT UNSIGNED pipe_id PK "AUTO_INCREMENT"
+        INT UNSIGNED well_id FK "NOT NULL → well_logs"
+        TINYINT UNSIGNED pipe_type_id FK "NULL → pipe_types, SET NULL"
+        ENUM pipe_type "CASING_PVC|SCREEN_PVC|CASING_STEEL|SCREEN_STEEL"
+        ENUM pipe_size "4_INCH|5_INCH|6_INCH|8_INCH"
+        ENUM thickness_class "CLASS_8_5|CLASS_13_5|STEEL_STANDARD|NONE"
+        DECIMAL_6_1 diameter_mm "NULL"
+        DECIMAL_5_2 wall_thickness_mm "NULL"
+        DECIMAL_6_2 depth_from "NOT NULL"
+        DECIMAL_6_2 depth_to "NOT NULL, CHECK depth_to > depth_from"
+        SMALLINT UNSIGNED quantity "DEFAULT 1"
+        DECIMAL_5_2 joint_length_m "DEFAULT 3.00"
+        TEXT notes "NULL"
+    }
+
+    well_pumps {
+        INT UNSIGNED pump_id PK "AUTO_INCREMENT"
+        INT UNSIGNED well_id FK "NOT NULL → well_logs"
+        ENUM pump_type "AC_SUBMERSIBLE|DC_SOLAR_SUBMERSIBLE|OTHER"
+        VARCHAR_100 brand "NULL"
+        DECIMAL_5_2 horsepower "DEFAULT 0"
+        DECIMAL_5_2 power_kw "NULL"
+        INT impeller_stages "NULL"
+        DECIMAL_6_2 installation_depth "DEFAULT 0"
+        DATE installed_date "NOT NULL"
+        TEXT notes "NULL"
+    }
+
+    maintenance_logs {
+        INT UNSIGNED maintenance_id PK "AUTO_INCREMENT"
+        INT UNSIGNED well_id FK "NOT NULL → well_logs"
+        TINYINT UNSIGNED event_type_id FK "NOT NULL → maintenance_event_types"
+        DATE event_date "NOT NULL"
+        TEXT description "NOT NULL"
+        VARCHAR_120 performed_by "NOT NULL"
+        DATE next_service_date "NULL, INDEX"
+        TINYINT is_warranty_claim "DEFAULT 0"
+        TIMESTAMP created_at "DEFAULT CURRENT_TIMESTAMP"
+        TIMESTAMP updated_at "ON UPDATE CURRENT_TIMESTAMP"
+    }
+
+    lithology_types {
+        TINYINT UNSIGNED type_id PK "AUTO_INCREMENT"
+        VARCHAR_80 type_name UK "NOT NULL, English"
+        VARCHAR_120 type_name_th "NOT NULL, Thai"
+        CHAR_7 color_hex "DEFAULT '#A0856C'"
+        VARCHAR_40 pattern "DEFAULT 'solid'"
+        TEXT description "NULL"
+        TIMESTAMP created_at "DEFAULT CURRENT_TIMESTAMP"
+    }
+
+    pipe_types {
+        TINYINT UNSIGNED type_id PK "AUTO_INCREMENT"
+        VARCHAR_80 type_name UK "NOT NULL"
+        ENUM material "PVC|STEEL|STAINLESS_STEEL|HDPE|OTHER"
+        TINYINT is_screen "DEFAULT 0"
+        TEXT description "NULL"
+        TIMESTAMP created_at "DEFAULT CURRENT_TIMESTAMP"
+    }
+
+    maintenance_event_types {
+        TINYINT UNSIGNED event_type_id PK "AUTO_INCREMENT"
+        VARCHAR_80 type_name UK "NOT NULL, English"
+        VARCHAR_120 type_name_th "NOT NULL, Thai"
+        TEXT description "NULL"
+        TIMESTAMP created_at "DEFAULT CURRENT_TIMESTAMP"
+    }
+
+    %% ===== Relationships =====
+    users ||--o{ customers : "สร้าง"
+    customers ||--o{ drilling_jobs : "ว่าจ้าง"
+    drilling_jobs ||--|| well_logs : "มีผลลัพธ์ 1:1"
+    well_logs ||--o{ well_strata_logs : "บันทึกชั้นดิน"
+    well_logs ||--o{ well_pipes : "ติดตั้งท่อ"
+    well_logs ||--o{ well_pumps : "ติดตั้งปั๊ม"
+    well_logs ||--o{ maintenance_logs : "ซ่อมบำรุง"
+    lithology_types ||--o{ well_strata_logs : "จำแนกประเภท"
+    pipe_types ||--o{ well_pipes : "จำแนกประเภท"
+    maintenance_event_types ||--o{ maintenance_logs : "จำแนกประเภท"

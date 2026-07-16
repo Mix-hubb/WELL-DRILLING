@@ -1,0 +1,107 @@
+---
+title: Use Case Diagram — ระบบจัดการบ่อบาดาล (DGWM)
+---
+flowchart TB
+    %% ===== Actors =====
+    ADMIN([👤 ผู้ดูแลระบบ<br/>ADMIN])
+    DRILLER([👷 เจ้าหน้าที่ขุดเจาะ<br/>DRILLER])
+    SYSTEM((🖥️ ระบบ))
+
+    %% ===== Authentication =====
+    subgraph AUTH["🔐 การเข้าสู่ระบบ"]
+        direction TB
+        UC01["UC01 ลงทะเบียน"]
+        UC02["UC02 เข้าสู่ระบบ"]
+        UC03["UC03 ออกจากระบบ"]
+        UC04["UC04 ดูข้อมูลส่วนตัว"]
+    end
+
+    %% ===== Dashboard =====
+    subgraph DASH["📊 แดชบอร์ด"]
+        direction TB
+        UC05["UC05 ดูสถิติภาพรวม<br/>จำนวนงาน / บ่อ / ลูกค้า / การประกัน"]
+    end
+
+    %% ===== Jobs =====
+    subgraph JOBS["🔨 คิวงาน"]
+        direction TB
+        UC06["UC06 ดูรายการคิวงาน"]
+        UC07["UC07 สร้างคิวงาน"]
+        UC08["UC08 เปลี่ยนสถานะคิวงาน"]
+        UC09["UC09 ลบคิวงาน"]
+        UC10["UC10 ค้นหา / กรองคิวงาน"]
+    end
+
+    %% ===== Wells =====
+    subgraph WELLS["💧 บ่อบาดาล"]
+        direction TB
+        UC11["UC11 ดูรายการบ่อ"]
+        UC12["UC12 ดูรายละเอียดบ่อ"]
+        UC13["UC13 เพิ่มข้อมูลชั้นดิน/หิน"]
+        UC14["UC14 เพิ่มข้อมูลท่อบ่อ"]
+        UC15["UC15 เพิ่มข้อมูลปั๊ม"]
+        UC16["UC16 ออกรายงาน PDF"]
+    end
+
+    %% ===== Warranty =====
+    subgraph WARRANTY["🛡️ การประกัน 2 ปี"]
+        direction TB
+        UC17["UC17 ดูสถานะประกัน"]
+        UC18["UC18 กรอง/ค้นหางานใกล้หมดประกัน"]
+    end
+
+    %% ===== Maintenance =====
+    subgraph MAINT["🔧 ซ่อมบำรุง"]
+        direction TB
+        UC19["UC19 ดูประวัติซ่อมบำรุง"]
+        UC20["UC20 บันทึกการซ่อม"]
+        UC21["UC21 ลบรายการซ่อม"]
+    end
+
+    %% ===== Map =====
+    subgraph MAP["🗺️ แผนที่"]
+        direction TB
+        UC22["UC22 ดูตำแหน่งงานบนแผนที่"]
+        UC23["UC23 กรองงานตามสถานะ"]
+    end
+
+    %% ===== Customers =====
+    subgraph CUSTOMERS["👥 ลูกค้า"]
+        direction TB
+        UC24["UC24 ดูรายการลูกค้า"]
+        UC25["UC25 เพิ่ม / แก้ไข / ลบลูกค้า"]
+    end
+
+    %% ===== Actor Connections =====
+    ADMIN --> AUTH
+    ADMIN --> DASH
+    ADMIN --> JOBS
+    ADMIN --> WELLS
+    ADMIN --> WARRANTY
+    ADMIN --> MAINT
+    ADMIN --> MAP
+    ADMIN --> CUSTOMERS
+
+    DRILLER --> AUTH
+    DRILLER --> DASH
+    DRILLER --> JOBS
+    DRILLER --> WELLS
+    DRILLER --> WARRANTY
+    DRILLER --> MAINT
+    DRILLER --> MAP
+    DRILLER --> CUSTOMERS
+
+    %% ===== Stereotypes =====
+    AUTH -.- INCLUDE["&lt;&lt;include&gt;&gt;<br/>ทั้งสองบทบาทต้องเข้าสู่ระบบก่อน"]
+    JOBS -.- SCOPE_ADMIN["&lt;&lt;extend&gt;&gt;<br/>ADMIN: เห็นข้อมูลทั้งหมด"]
+    JOBS -.- SCOPE_DRILLER["&lt;&lt;extend&gt;&gt;<br/>DRILLER: เห็นเฉพาะข้อมูลตัวเอง"]
+
+    %% ===== Styles =====
+    style AUTH fill:#E8F5E9,stroke:#4CAF50,stroke-width:2px
+    style DASH fill:#E3F2FD,stroke:#2196F3,stroke-width:2px
+    style JOBS fill:#FFF3E0,stroke:#FF9800,stroke-width:2px
+    style WELLS fill:#E0F7FA,stroke:#00BCD4,stroke-width:2px
+    style WARRANTY fill:#F3E5F5,stroke:#9C27B0,stroke-width:2px
+    style MAINT fill:#FBE9E7,stroke:#FF5722,stroke-width:2px
+    style MAP fill:#E8EAF6,stroke:#3F51B5,stroke-width:2px
+    style CUSTOMERS fill:#F1F8E9,stroke:#8BC34A,stroke-width:2px
