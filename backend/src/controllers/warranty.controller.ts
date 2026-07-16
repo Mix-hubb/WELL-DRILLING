@@ -1,13 +1,14 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
 import { RowDataPacket } from "mysql2";
+import { userFilter } from "../utils/userFilter";
 
 // ============================================================
 // GET /api/warranty
-// Dashboard ประกัน: แสดงทุกบ่อพร้อม status จริง
 // ============================================================
 export async function list(req: Request, res: Response) {
-  const { filter } = req.query; // filter: active | expiring_soon | expired
+  const { filter } = req.query;
+  const { sql, params } = userFilter(req);
 
   let having = "";
   if (filter === "active")        having = "HAVING alert_tier = 'ACTIVE'";
@@ -40,21 +41,22 @@ export async function list(req: Request, res: Response) {
     FROM well_logs w
     INNER JOIN drilling_jobs j  ON j.job_id       = w.job_id
     INNER JOIN customers      c ON c.customer_id  = j.customer_id
-    WHERE j.status = 'COMPLETED'
+    WHERE j.status = 'COMPLETED' ${sql}
     ${having}
     ORDER BY
       CASE WHEN w.warranty_expire_date >= CURDATE() THEN 0 ELSE 1 END ASC,
       remaining_days ASC
-  `);
+  `, params);
 
   res.json(rows);
 }
 
 // ============================================================
 // GET /api/warranty/summary
-// ตัวเลขรวมสำหรับ Dashboard card
 // ============================================================
 export async function summary(req: Request, res: Response) {
+  const { sql, params } = userFilter(req);
+
   const [[counts]] = await pool.query<RowDataPacket[]>(`
     SELECT
       COUNT(*)                                                    AS total_wells,
@@ -64,8 +66,9 @@ export async function summary(req: Request, res: Response) {
       SUM(w.warranty_expire_date < CURDATE())                     AS expired
     FROM well_logs w
     INNER JOIN drilling_jobs j ON j.job_id = w.job_id
-    WHERE j.status = 'COMPLETED'
-  `);
+    INNER JOIN customers c ON c.customer_id = j.customer_id
+    WHERE j.status = 'COMPLETED' ${sql}
+  `, params);
 
   res.json({
     total:       Number(counts.total_wells)   || 0,

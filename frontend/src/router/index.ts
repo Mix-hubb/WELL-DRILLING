@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 const routes = [
+  { path: "/login", name: "login", component: () => import("@/views/LoginView.vue"), meta: { public: true } },
+  { path: "/register", name: "register", component: () => import("@/views/RegisterView.vue"), meta: { public: true } },
   { path: "/", redirect: "/dashboard" },
   {
     path: "/dashboard", name: "dashboard",
@@ -54,4 +56,15 @@ const routes = [
 export const router = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+router.beforeEach((to, _from, next) => {
+  const token = localStorage.getItem("dgwm-token");
+  if (!to.meta.public && !token) {
+    return next("/login");
+  }
+  if ((to.name === "login" || to.name === "register") && token) {
+    return next("/dashboard");
+  }
+  next();
 });

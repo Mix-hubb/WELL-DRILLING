@@ -1,0 +1,74 @@
+import { Request, Response } from "express";
+import bcrypt from "bcryptjs";
+import { pool } from "../config/db";
+import { RowDataPacket, ResultSetHeader } from "mysql2";
+import { signToken } from "../middleware/auth";
+
+export async function register(req: Request, res: Response) {
+  const { email, password, full_name, role } = req.body;
+  if (!email || !password || !full_name) {
+    return res.status(400).json({ error: "ต้องระบุ email, password, full_name" });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร" });
+  }
+
+  const [existing] = await pool.query<RowDataPacket[]>(
+    "SELECT user_id FROM users WHERE email = ?", [email]
+  );
+  if (existing.length) {
+    return res.status(409).json({ error: "อีเมลนี้ถูกใช้แล้ว" });
+  }
+
+  const password_hash = await bcrypt.hash(password, 10);
+  const userRole = role === "ADMIN" ? "ADMIN" : "DRILLER";
+
+  const [result] = await pool.query<ResultSetHeader>(
+    "INSERT INTO users (email, password_hash, full_name, role) VALUES (?, ?, ?, ?)",
+    [email, password_hash, full_name, userRole]
+  );
+
+  const token = signToken({ userId: result.insertId, email, role: userRole as "ADMIN" | "DRILLER" });
+  res.status(201).json({
+    token,
+    user: { user_id: result.insertId, email, full_name, role: userRole },
+  });
+}
+
+export async function login(req: Request, res: Response) {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "ต้องระบุ email และ password" });
+  }
+
+  const [rows] = await pool.query<RowDataPacket[]>(
+    "SELECT user_id, email, password_hash, full_name, role FROM users WHERE email = ?",
+    [email]
+  );
+  if (!rows.length) {
+    return res.status(401).json({ error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
+  }
+
+  const user = rows[0];
+  const valid = await bcrypt.compare(password, user.password_hash);
+  if (!valid) {
+    return res.status(401).json({ error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
+  }
+
+  const token = signToken({ userId: user.user_id, email: user.email, role: user.role });
+  res.json({
+    token,
+    user: { user_id: user.user_id, email: user.email, full_name: user.full_name, role: user.role },
+  });
+}
+
+export async function me(req: Request, res: Response) {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    "SELECT user_id, email, full_name, role FROM users WHERE user_id = ?",
+    [req.user!.userId]
+  );
+  if (!rows.length) {
+    return res.status(404).json({ error: "ไม่พบผู้ใช้" });
+  }
+  res.json(rows[0]);
+}

@@ -1,18 +1,25 @@
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+const TOKEN_KEY = "dgwm-token";
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+  const token = localStorage.getItem(TOKEN_KEY);
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers: { ...headers, ...options.headers as any } });
+
+  if (res.status === 401) {
+    localStorage.removeItem(TOKEN_KEY);
+    window.location.href = "/login";
+    throw new Error("เซสชันหมดอายุ");
+  }
+
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
       const body = await res.json();
       message = body.error || message;
-    } catch {
-      /* ignore parse error */
-    }
+    } catch { /* ignore */ }
     throw new Error(message);
   }
   if (res.status === 204) return null as T;

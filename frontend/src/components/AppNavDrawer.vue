@@ -1,9 +1,19 @@
 <script setup lang="ts">
+import { useRouter } from "vue-router";
 import { router } from "@/router";
+import { useAuthStore } from "@/stores/auth";
+
+const auth = useAuthStore();
+const vueRouter = useRouter();
 
 const navItems = router.getRoutes()
   .filter((r) => r.meta?.label && !r.meta?.hidden)
   .map((r) => ({ to: r.path, label: r.meta.label as string, icon: r.meta.icon as string }));
+
+function handleLogout() {
+  auth.logout();
+  vueRouter.push("/login");
+}
 </script>
 
 <template>
@@ -25,5 +35,13 @@ const navItems = router.getRoutes()
         rounded="lg"
       />
     </v-list>
+
+    <template #append>
+      <div class="pa-2">
+        <v-list nav density="comfortable">
+          <v-list-item prepend-icon="mdi-logout" title="ออกจากระบบ" rounded="lg" @click="handleLogout" />
+        </v-list>
+      </div>
+    </template>
   </v-navigation-drawer>
 </template>

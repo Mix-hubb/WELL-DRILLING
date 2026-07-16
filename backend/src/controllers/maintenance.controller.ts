@@ -1,12 +1,27 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
+import { userFilter } from "../utils/userFilter";
+
+async function wellBelongsToUser(wellId: string | number, req: Request): Promise<boolean> {
+  if (req.user!.role === "ADMIN") return true;
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT 1 FROM well_logs w
+     JOIN drilling_jobs j ON j.job_id = w.job_id
+     JOIN customers c ON c.customer_id = j.customer_id
+     WHERE w.well_id = ? AND c.user_id = ?`,
+    [wellId, req.user!.userId]
+  );
+  return rows.length > 0;
+}
 
 // ============================================================
 // GET /api/maintenance/well/:wellId
-// ดึงประวัติซ่อมบำรุงของบ่อหนึ่งตาม timeline
 // ============================================================
 export async function listByWell(req: Request, res: Response) {
+  if (!await wellBelongsToUser(req.params.wellId, req)) {
+    return res.status(404).json({ error: "ไม่พบบ่อบาดาล" });
+  }
   const [rows] = await pool.query<RowDataPacket[]>(`
     SELECT
       m.*,
@@ -22,9 +37,9 @@ export async function listByWell(req: Request, res: Response) {
 
 // ============================================================
 // GET /api/maintenance/overdue
-// รายการบ่อที่เลยนัดซ่อมบำรุง
 // ============================================================
 export async function listOverdue(req: Request, res: Response) {
+  const { sql, params } = userFilter(req);
   const [rows] = await pool.query<RowDataPacket[]>(`
     SELECT
       m.maintenance_id,
@@ -43,17 +58,16 @@ export async function listOverdue(req: Request, res: Response) {
     INNER JOIN well_logs      w  ON w.well_id     = m.well_id
     INNER JOIN drilling_jobs  j  ON j.job_id      = w.job_id
     INNER JOIN customers      c  ON c.customer_id = j.customer_id
-    WHERE m.next_service_date < CURDATE()
+    WHERE m.next_service_date < CURDATE() ${sql}
     ORDER BY days_overdue DESC
-  `);
+  `, params);
   res.json(rows);
 }
 
 // ============================================================
 // GET /api/maintenance/event-types
-// รายการหมวดหมู่ซ่อมบำรุง (dropdown)
 // ============================================================
-export async function listEventTypes(req: Request, res: Response) {
+export async function listEventTypes(_req: Request, res: Response) {
   const [rows] = await pool.query<RowDataPacket[]>(
     "SELECT * FROM maintenance_event_types ORDER BY event_type_id"
   );
@@ -62,7 +76,6 @@ export async function listEventTypes(req: Request, res: Response) {
 
 // ============================================================
 // POST /api/maintenance/well/:wellId
-// เพิ่มประวัติซ่อมบำรุงใหม่
 // ============================================================
 export async function create(req: Request, res: Response) {
   const { event_type_id, event_date, description, performed_by, next_service_date, is_warranty_claim } = req.body;
@@ -71,6 +84,10 @@ export async function create(req: Request, res: Response) {
     return res.status(400).json({
       error: "ข้อมูลไม่ครบ: event_type_id, event_date, description, performed_by",
     });
+  }
+
+  if (!await wellBelongsToUser(req.params.wellId, req)) {
+    return res.status(404).json({ error: "ไม่พบบ่อบาดาล" });
   }
 
   const [result] = await pool.query<ResultSetHeader>(`
@@ -99,9 +116,16 @@ export async function create(req: Request, res: Response) {
 
 // ============================================================
 // DELETE /api/maintenance/:id
-// ลบรายการซ่อมบำรุง
 // ============================================================
 export async function remove(req: Request, res: Response) {
-  await pool.query("DELETE FROM maintenance_logs WHERE maintenance_id = ?", [req.params.id]);
+  const { sql, params } = userFilter(req);
+  await pool.query(
+    `DELETE m FROM maintenance_logs m
+     JOIN well_logs w ON w.well_id = m.well_id
+     JOIN drilling_jobs j ON j.job_id = w.job_id
+     JOIN customers c ON c.customer_id = j.customer_id
+     WHERE m.maintenance_id = ?${sql}`,
+    [req.params.id, ...params]
+  );
   res.status(204).end();
 }

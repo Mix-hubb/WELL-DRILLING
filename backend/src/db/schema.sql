@@ -56,14 +56,19 @@ CREATE TABLE IF NOT EXISTS maintenance_event_types (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS customers (
   customer_id   INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  user_id       INT UNSIGNED  NOT NULL,
   customer_name VARCHAR(150)  NOT NULL,
   phone         VARCHAR(20)   NOT NULL,
   phone_alt     VARCHAR(20)   NULL,
   address       TEXT          NULL,
   created_at    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (customer_id),
-  INDEX idx_customer_name (customer_name(40)),
-  INDEX idx_phone         (phone)
+  INDEX idx_customer_user     (user_id),
+  INDEX idx_customer_name     (customer_name(40)),
+  INDEX idx_phone             (phone),
+  CONSTRAINT fk_customers_user
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+    ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
@@ -231,4 +236,19 @@ CREATE TABLE IF NOT EXISTS maintenance_logs (
   CONSTRAINT fk_maintenance_type
     FOREIGN KEY (event_type_id) REFERENCES maintenance_event_types(event_type_id)
     ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- AUTH: users — ระบบยืนยันตัวตน
+-- ============================================================
+CREATE TABLE IF NOT EXISTS users (
+  user_id       INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  email         VARCHAR(150)  NOT NULL,
+  password_hash VARCHAR(255)  NOT NULL,
+  full_name     VARCHAR(150)  NOT NULL,
+  role          ENUM('ADMIN','DRILLER') NOT NULL DEFAULT 'DRILLER',
+  created_at    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id),
+  UNIQUE KEY uq_user_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -2,11 +2,13 @@ import { Request, Response } from "express";
 import { pool } from "../config/db";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 import { streamWellReportPdf } from "../utils/pdfReport";
+import { userFilter } from "../utils/userFilter";
 
 // ============================================================
 // Helper: ดึงข้อมูลบ่อเต็มพร้อม strata + pipes + pumps + maintenance
 // ============================================================
-async function getFullWell(wellId: number | string) {
+async function getFullWell(wellId: number | string, userId?: number) {
+  const userCond = userId ? ` AND c.user_id = ${userId}` : "";
   const [wells] = await pool.query<RowDataPacket[]>(
     `SELECT w.*,
             j.job_reference, j.job_title, j.site_address, j.province, j.district,
@@ -20,13 +22,12 @@ async function getFullWell(wellId: number | string) {
      FROM well_logs w
      JOIN drilling_jobs j ON j.job_id = w.job_id
      JOIN customers c     ON c.customer_id = j.customer_id
-     WHERE w.well_id = ?`,
+     WHERE w.well_id = ?${userCond}`,
     [wellId]
   );
   const well = wells[0];
   if (!well) return null;
 
-  // strata พร้อม lithology join
   const [strata] = await pool.query<RowDataPacket[]>(`
     SELECT s.*,
            lt.type_name_th AS lithology_name,
@@ -62,10 +63,15 @@ async function getFullWell(wellId: number | string) {
   };
 }
 
+function getEffectiveUserId(req: Request): number | undefined {
+  return req.user!.role === "ADMIN" ? undefined : req.user!.userId;
+}
+
 // ============================================================
 // GET /api/wells
 // ============================================================
-export async function list(_req: Request, res: Response) {
+export async function list(req: Request, res: Response) {
+  const { sql, params } = userFilter(req);
   const [wells] = await pool.query<RowDataPacket[]>(`
     SELECT w.well_id, w.total_depth, w.water_quantity, w.completion_date,
            w.warranty_expire_date,
@@ -79,8 +85,9 @@ export async function list(_req: Request, res: Response) {
     FROM well_logs w
     JOIN drilling_jobs j ON j.job_id = w.job_id
     JOIN customers c     ON c.customer_id = j.customer_id
+    WHERE 1=1 ${sql}
     ORDER BY w.completion_date DESC
-  `);
+  `, params);
   res.json(wells);
 }
 
@@ -88,7 +95,7 @@ export async function list(_req: Request, res: Response) {
 // GET /api/wells/:id
 // ============================================================
 export async function getOne(req: Request, res: Response) {
-  const well = await getFullWell(req.params.id);
+  const well = await getFullWell(req.params.id, getEffectiveUserId(req));
   if (!well) return res.status(404).json({ error: "ไม่พบบ่อบาดาล" });
   res.json(well);
 }
@@ -97,11 +104,17 @@ export async function getOne(req: Request, res: Response) {
 // GET /api/wells/by-job/:jobId
 // ============================================================
 export async function getByJob(req: Request, res: Response) {
+  const userId = getEffectiveUserId(req);
+  const userCond = userId ? ` AND c.user_id = ${userId}` : "";
   const [rows] = await pool.query<RowDataPacket[]>(
-    "SELECT well_id FROM well_logs WHERE job_id = ?", [req.params.jobId]
+    `SELECT w.well_id FROM well_logs w
+     JOIN drilling_jobs j ON j.job_id = w.job_id
+     JOIN customers c ON c.customer_id = j.customer_id
+     WHERE w.job_id = ?${userCond}`,
+    [req.params.jobId]
   );
   if (!rows.length) return res.status(404).json({ error: "งานนี้ยังไม่มีประวัติบ่อบาดาล" });
-  const well = await getFullWell(rows[0].well_id);
+  const well = await getFullWell(rows[0].well_id, userId);
   res.json(well);
 }
 
@@ -116,8 +129,13 @@ export async function create(req: Request, res: Response) {
     driller_name, completion_date, gps_accuracy_m, notes,
   } = req.body;
 
+  const userId = getEffectiveUserId(req);
+  const userCond = userId ? ` AND c.user_id = ${userId}` : "";
   const [jobs] = await pool.query<RowDataPacket[]>(
-    "SELECT * FROM drilling_jobs WHERE job_id = ?", [job_id]
+    `SELECT j.* FROM drilling_jobs j
+     JOIN customers c ON c.customer_id = j.customer_id
+     WHERE j.job_id = ?${userCond}`,
+    [job_id]
   );
   if (!jobs.length) return res.status(404).json({ error: "ไม่พบคิวงาน" });
   if (jobs[0].status !== "COMPLETED") {
@@ -142,10 +160,9 @@ export async function create(req: Request, res: Response) {
       driller_name || null, completion_date, gps_accuracy_m || null, notes || null,
     ]);
 
-    // อัปเดต job status เป็น COMPLETED อัตโนมัติ
     await pool.query("UPDATE drilling_jobs SET status = 'COMPLETED' WHERE job_id = ?", [job_id]);
 
-    const well = await getFullWell(result.insertId);
+    const well = await getFullWell(result.insertId, userId);
     res.status(201).json(well);
   } catch (err: any) {
     if (err.code === "ER_DUP_ENTRY") {
@@ -167,6 +184,9 @@ export async function addStrata(req: Request, res: Response) {
     return res.status(400).json({ error: "ต้องระบุ lithology_type_id, depth_from, depth_to" });
   }
 
+  const well = await getFullWell(req.params.wellId, getEffectiveUserId(req));
+  if (!well) return res.status(404).json({ error: "ไม่พบบ่อบาดาล" });
+
   await pool.query(`
     INSERT INTO well_strata_logs
       (well_id, lithology_type_id, depth_from, depth_to, color_override,
@@ -177,52 +197,69 @@ export async function addStrata(req: Request, res: Response) {
     hardness || null, rqd_percent || null, is_water_bearing ? 1 : 0,
     conductivity_us || null, ph_value || null, tds_ppm || null, description || null,
   ]);
-  res.status(201).json(await getFullWell(req.params.wellId));
+  res.status(201).json(await getFullWell(req.params.wellId, getEffectiveUserId(req)));
 }
 
 export async function removeStrata(req: Request, res: Response) {
+  const well = await getFullWell(req.params.wellId, getEffectiveUserId(req));
+  if (!well) return res.status(404).json({ error: "ไม่พบบ่อบาดาล" });
+
   await pool.query(
     "DELETE FROM well_strata_logs WHERE strata_id = ? AND well_id = ?",
     [req.params.strataId, req.params.wellId]
   );
-  res.json(await getFullWell(req.params.wellId));
+  res.json(await getFullWell(req.params.wellId, getEffectiveUserId(req)));
 }
 
 /* ---------- Pipes ---------- */
 export async function addPipe(req: Request, res: Response) {
   const { depth_from, depth_to, pipe_type, pipe_size, thickness_class, quantity, notes } = req.body;
+
+  const well = await getFullWell(req.params.wellId, getEffectiveUserId(req));
+  if (!well) return res.status(404).json({ error: "ไม่พบบ่อบาดาล" });
+
   await pool.query(`
     INSERT INTO well_pipes (well_id, depth_from, depth_to, pipe_type, pipe_size, thickness_class, quantity, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `, [req.params.wellId, depth_from, depth_to, pipe_type, pipe_size, thickness_class || "NONE", quantity || 1, notes || null]);
-  res.status(201).json(await getFullWell(req.params.wellId));
+  res.status(201).json(await getFullWell(req.params.wellId, getEffectiveUserId(req)));
 }
 
 export async function removePipe(req: Request, res: Response) {
+  const well = await getFullWell(req.params.wellId, getEffectiveUserId(req));
+  if (!well) return res.status(404).json({ error: "ไม่พบบ่อบาดาล" });
+
   await pool.query(
     "DELETE FROM well_pipes WHERE pipe_id = ? AND well_id = ?",
     [req.params.pipeId, req.params.wellId]
   );
-  res.json(await getFullWell(req.params.wellId));
+  res.json(await getFullWell(req.params.wellId, getEffectiveUserId(req)));
 }
 
 /* ---------- Pumps ---------- */
 export async function addPump(req: Request, res: Response) {
   const { pump_type, brand, horsepower, power_kw, impeller_stages, installation_depth, installed_date, notes } = req.body;
+
+  const well = await getFullWell(req.params.wellId, getEffectiveUserId(req));
+  if (!well) return res.status(404).json({ error: "ไม่พบบ่อบาดาล" });
+
   await pool.query(`
     INSERT INTO well_pumps (well_id, pump_type, brand, horsepower, power_kw, impeller_stages, installation_depth, installed_date, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, [req.params.wellId, pump_type, brand || null, horsepower || 0, power_kw || null,
       impeller_stages || null, installation_depth || 0, installed_date, notes || null]);
-  res.status(201).json(await getFullWell(req.params.wellId));
+  res.status(201).json(await getFullWell(req.params.wellId, getEffectiveUserId(req)));
 }
 
 export async function removePump(req: Request, res: Response) {
+  const well = await getFullWell(req.params.wellId, getEffectiveUserId(req));
+  if (!well) return res.status(404).json({ error: "ไม่พบบ่อบาดาล" });
+
   await pool.query(
     "DELETE FROM well_pumps WHERE pump_id = ? AND well_id = ?",
     [req.params.pumpId, req.params.wellId]
   );
-  res.json(await getFullWell(req.params.wellId));
+  res.json(await getFullWell(req.params.wellId, getEffectiveUserId(req)));
 }
 
 /* ---------- Lithology Types (dropdown) ---------- */
@@ -235,7 +272,7 @@ export async function getLithologyTypes(_req: Request, res: Response) {
 
 /* ---------- PDF report ---------- */
 export async function exportReport(req: Request, res: Response) {
-  const well = await getFullWell(req.params.id);
+  const well = await getFullWell(req.params.id, getEffectiveUserId(req));
   if (!well) return res.status(404).json({ error: "ไม่พบบ่อบาดาล" });
 
   const [rows] = await pool.query<RowDataPacket[]>(`
