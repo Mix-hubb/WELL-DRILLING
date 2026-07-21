@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useWellsStore } from "@/stores/wells";
 import { useUiStore } from "@/stores/ui";
 import { wellsApi } from "@/api/wells";
+import { api } from "@/api/client";
 import { maintenanceApi, type MaintenanceLog, type MaintenanceEventType } from "@/api/maintenance";
 import { PIPE_TYPE, PIPE_SIZE, THICKNESS, PUMP_TYPE } from "@/constants";
 import StrataColumn from "@/components/StrataColumn.vue";
@@ -93,7 +94,7 @@ async function deleteMaintenance(id: number) {
   } catch (e) { ui.notifyError(e); }
 }
 
-function downloadReport() { window.open(wellsApi.reportUrl(wellId()), "_blank"); }
+function downloadReport() { api.download(`/wells/${wellId()}/report.pdf`, `report-${wellId()}.pdf`).catch(e => ui.notifyError(e)); }
 
 function fmtDate(d: string) {
   if (!d) return "-";

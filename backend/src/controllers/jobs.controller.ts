@@ -32,7 +32,7 @@ export async function list(req: Request, res: Response) {
 export async function getOne(req: Request, res: Response) {
   const { select, params } = jobSelect(req);
   const [rows] = await pool.query<RowDataPacket[]>(
-    `${select} WHERE j.job_id = ?`, [...params, req.params.id]
+    `${select} AND j.job_id = ?`, [...params, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ error: "ไม่พบคิวงาน" });
   res.json(rows[0]);
@@ -84,7 +84,7 @@ export async function create(req: Request, res: Response) {
 
   const { select, params } = jobSelect(req);
   const [rows] = await pool.query<RowDataPacket[]>(
-    `${select} WHERE j.job_id = ?`, [...params, result.insertId]
+    `${select} AND j.job_id = ?`, [...params, result.insertId]
   );
   res.status(201).json(rows[0]);
 }
@@ -103,7 +103,7 @@ export async function updateStatus(req: Request, res: Response) {
   );
   const { select, params } = jobSelect(req);
   const [rows] = await pool.query<RowDataPacket[]>(
-    `${select} WHERE j.job_id = ?`, [...params, req.params.id]
+    `${select} AND j.job_id = ?`, [...params, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ error: "ไม่พบคิวงาน" });
   res.json(rows[0]);
