@@ -2,25 +2,24 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { jobsApi }       from "@/api/jobs";
-import { useWellsStore } from "@/stores/wells";
+import { wellsApi }      from "@/api/wells";
 import { useUiStore }    from "@/stores/ui";
-import type { DrillingJob, JobStatus } from "@/types";
-import { STATUS } from "@/constants";
+import type { DrillingJob, DrillingJobStatus } from "@/types";
+import { JOB_STATUS } from "@/constants";
 import StatusChip      from "@/components/StatusChip.vue";
-import WarrantyBadge   from "@/components/WarrantyBadge.vue";
+import DrillerLinkChip from "@/components/DrillerLinkChip.vue";
 import WellLogFormDialog from "@/components/forms/WellLogFormDialog.vue";
 
-const route      = useRoute();
-const router     = useRouter();
-const wellsStore = useWellsStore();
-const ui         = useUiStore();
+const route  = useRoute();
+const router = useRouter();
+const ui     = useUiStore();
 
-const job         = ref<DrillingJob | null>(null);
-const wellId      = ref<number | null>(null);
+const job          = ref<DrillingJob | null>(null);
+const wellId       = ref<number | null>(null);
 const showWellForm = ref(false);
 
-const STEPS: JobStatus[] = ["PENDING", "DRILLING", "COMPLETED"];
-const currentStepIndex = computed(() => (job.value ? STEPS.indexOf(job.value.status as JobStatus) : 0));
+const STEPS: DrillingJobStatus[] = ["QUEUED", "DRILLING", "SUCCESS", "FAILED", "CLOSED"];
+const currentStepIndex = computed(() => (job.value ? STEPS.indexOf(job.value.status as DrillingJobStatus) : 0));
 
 async function load() {
   try {
@@ -33,45 +32,36 @@ async function load() {
 
 onMounted(load);
 
-async function setStatus(status: JobStatus) {
+async function setStatus(status: DrillingJobStatus) {
   if (!job.value) return;
   try {
     job.value = await jobsApi.updateStatus(job.value.job_id, status);
-    if (status === "COMPLETED") await load(); // reload to get well_id if exists
+    if (status === "SUCCESS" || status === "FAILED" || status === "CLOSED") await load();
   } catch (e) { ui.notifyError(e); }
 }
 
 async function createWellLog(form: any) {
   if (!job.value) return;
   try {
-    const well = await wellsStore.create({ job_id: job.value.job_id, ...form });
+    const well = await wellsApi.create({ customer_id: job.value.customer_id, job_id: job.value.job_id, ...form });
     showWellForm.value = false;
-    ui.notify("บันทึกข้อมูลบ่อบาดาลแล้ว ประกัน 2 ปีเริ่มนับจากวันนี้", "success");
+    ui.notify("บันทึกข้อมูลบ่อบาดาลแล้ว ประกัน 2 ปีเริ่มนับจากวันเจาะเสร็จ", "success");
     router.push(`/wells/${well.well_id}`);
   } catch (e) { ui.notifyError(e); }
 }
 
-function copyCoords() {
-  if (!job.value?.latitude) return;
-  navigator.clipboard.writeText(`${job.value.latitude}, ${job.value.longitude}`);
-  ui.notify("คัดลอกพิกัดแล้ว", "success");
+async function regenerateMagicLink() {
+  if (!job.value) return;
+  try {
+    const { token } = await jobsApi.generateMagicLink(job.value.job_id);
+    job.value.magic_link_token = token;
+    ui.notify("สร้างลิงก์ช่างใหม่แล้ว", "success");
+  } catch (e) { ui.notifyError(e); }
 }
-
-const mapsUrl = computed(() =>
-  job.value?.latitude ? `https://www.google.com/maps?q=${job.value.latitude},${job.value.longitude}` : "#"
-);
 
 function fmtDate(d: string) {
   if (!d) return "-";
   return new Date(d).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
-}
-
-function alertTier(w: DrillingJob): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
-  if (!w.warranty_expire_date) return "EXPIRED";
-  const days = Math.ceil((new Date(w.warranty_expire_date).getTime() - Date.now()) / 86400000);
-  if (days < 0)   return "EXPIRED";
-  if (days <= 30) return "EXPIRING_SOON";
-  return "ACTIVE";
 }
 </script>
 
@@ -86,37 +76,16 @@ function alertTier(w: DrillingJob): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
       <div class="d-flex justify-space-between align-start mb-2 flex-wrap ga-2">
         <div>
           <StatusChip :status="job.status" />
-          <div class="text-h6 font-display font-weight-bold mt-2">{{ job.job_title }}</div>
-          <div class="font-mono text-caption text-medium-emphasis">{{ job.job_reference }}</div>
+          <div class="text-h6 font-display font-weight-bold mt-2">{{ job.job_title || `คิวงาน #${job.job_id}` }}</div>
         </div>
-        <WarrantyBadge
-          v-if="job.warranty_expire_date"
-          :alert-tier="alertTier(job)"
-          :remaining-days="Math.ceil((new Date(job.warranty_expire_date!).getTime() - Date.now()) / 86400000)"
-          :expiry-date="job.warranty_expire_date!"
-        />
       </div>
-
-      <!-- Priority -->
-      <v-chip
-        v-if="job.priority !== 'NORMAL'"
-        :color="job.priority === 'URGENT' ? 'error' : 'warning'"
-        size="x-small" variant="tonal" class="mb-3"
-      >{{ job.priority === "URGENT" ? "🔴 เร่งด่วน" : "🟡 สำคัญ" }}</v-chip>
 
       <div class="text-body-2 text-medium-emphasis d-flex flex-column ga-2 mt-2">
         <div class="d-flex align-center ga-2">
           <v-icon icon="mdi-map-marker-outline" size="16" />
-          <span>{{ job.province ? `${job.province} · ` : "" }}{{ job.site_address }}</span>
+          <span>{{ job.province ? `${job.province} · ` : "" }}{{ job.site_address || "ไม่ระบุที่ตั้ง" }}</span>
         </div>
-        <div v-if="job.latitude" class="d-flex align-center ga-2 font-mono text-caption">
-          <span>{{ job.latitude }}, {{ job.longitude }}</span>
-          <v-btn icon="mdi-content-copy" size="x-small" variant="text" @click="copyCoords" />
-          <a :href="mapsUrl" target="_blank" class="text-primary" style="text-decoration:none">
-            <v-btn icon="mdi-map-search-outline" size="x-small" variant="text" />
-          </a>
-        </div>
-        <div class="d-flex align-center ga-2">
+        <div v-if="job.scheduled_date" class="d-flex align-center ga-2">
           <v-icon icon="mdi-calendar-outline" size="16" />
           <span>นัดหมาย {{ fmtDate(job.scheduled_date) }}</span>
         </div>
@@ -127,9 +96,12 @@ function alertTier(w: DrillingJob): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
             {{ job.customer_phone }}
           </a>
         </div>
-        <div v-if="job.requested_depth_m" class="d-flex align-center ga-2">
-          <v-icon icon="mdi-ruler" size="16" />
-          <span>ความลึกที่ขอ {{ job.requested_depth_m }} ม.</span>
+        <div v-if="job.request_id" class="d-flex align-center ga-2">
+          <v-icon icon="mdi-file-document-outline" size="16" />
+          <span>จากคำร้องแจ้งเจาะ #{{ job.request_id }}</span>
+        </div>
+        <div class="pt-1">
+          <DrillerLinkChip :token="job.magic_link_token || null" path="/d/" @regenerate="regenerateMagicLink" />
         </div>
       </div>
 
@@ -144,26 +116,41 @@ function alertTier(w: DrillingJob): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
       <div class="d-flex align-center">
         <template v-for="(s, i) in STEPS" :key="s">
           <div
-            class="d-flex flex-column align-center cursor-pointer"
-            style="min-width:80px"
-            @click="setStatus(s)"
+            class="d-flex flex-column align-center"
+            style="min-width:70px"
           >
-            <v-avatar :color="i <= currentStepIndex ? STATUS[s as keyof typeof STATUS]?.color || 'primary' : 'surface-variant'" size="34">
-              <v-icon :icon="i < currentStepIndex ? 'mdi-check' : 'mdi-circle-medium'" color="white" />
+            <v-avatar :color="i <= currentStepIndex ? JOB_STATUS[s].color || 'primary' : 'surface-variant'" size="30">
+              <v-icon :icon="i < currentStepIndex ? 'mdi-check' : 'mdi-circle-medium'" color="white" size="16" />
             </v-avatar>
             <span
               class="text-caption mt-1 text-center"
               :class="i === currentStepIndex ? 'font-weight-bold' : 'text-medium-emphasis'"
-            >{{ STATUS[s as keyof typeof STATUS]?.label || s }}</span>
+            >{{ JOB_STATUS[s].label }}</span>
           </div>
-          <v-divider v-if="i < STEPS.length - 1" thickness="2" class="flex-grow-1" style="margin-top:-20px" />
+          <v-divider v-if="i < STEPS.length - 1" thickness="2" class="flex-grow-1" style="margin-top:-18px" />
         </template>
+      </div>
+
+      <!-- Actions -->
+      <div class="d-flex flex-wrap ga-2 mt-4">
+        <v-btn v-if="job.status === 'QUEUED'" color="deep-orange-darken-1" variant="flat" prepend-icon="mdi-play"
+          @click="setStatus('DRILLING')">เริ่มเจาะ</v-btn>
+
+        <template v-if="job.status === 'DRILLING'">
+          <v-btn color="teal-darken-2" variant="flat" prepend-icon="mdi-check-circle-outline"
+            @click="setStatus('SUCCESS')">เจาะสำเร็จ</v-btn>
+          <v-btn color="red-darken-2" variant="flat" prepend-icon="mdi-close-circle-outline"
+            @click="setStatus('FAILED')">เจาะไม่สำเร็จ</v-btn>
+        </template>
+
+        <v-btn v-if="job.status === 'SUCCESS' || job.status === 'FAILED'" variant="tonal" prepend-icon="mdi-archive"
+          @click="setStatus('CLOSED')">ปิดคิว</v-btn>
       </div>
     </v-card>
 
     <!-- Well Log link -->
     <v-card
-      v-if="job.status === 'COMPLETED'"
+      v-if="job.status === 'SUCCESS'"
       variant="tonal" color="primary"
       class="pa-5 cursor-pointer"
       @click="wellId ? router.push(`/wells/${wellId}`) : (showWellForm = true)"

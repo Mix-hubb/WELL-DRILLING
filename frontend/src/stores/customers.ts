@@ -21,5 +21,15 @@ export const useCustomersStore = defineStore("customers", {
       this.customers.unshift(c);
       return c;
     },
+    async update(id: number, data: Partial<Customer>) {
+      const c = await customersApi.update(id, data);
+      const idx = this.customers.findIndex((x) => x.customer_id === id);
+      if (idx !== -1) this.customers[idx] = c;
+      return c;
+    },
+    async remove(id: number) {
+      await customersApi.remove(id);
+      this.customers = this.customers.filter((x) => x.customer_id !== id);
+    },
   },
 });

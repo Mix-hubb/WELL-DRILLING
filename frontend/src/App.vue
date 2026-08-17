@@ -41,9 +41,11 @@ const pageTitle = computed(() => (route.meta.label as string) || "ระบบ�
     <template v-if="!isAuthPage">
       <AppNavDrawer v-if="!mobile" />
 
-      <v-app-bar flat :border="'b'" density="comfortable">
+      <v-app-bar flat :border="'b'" density="comfortable" class="app-topbar">
         <template v-if="mobile" #prepend>
-          <v-icon icon="mdi-layers-triple" class="ml-2" color="primary" />
+          <v-avatar rounded="lg" size="32" class="brand-tile ml-2">
+            <v-icon icon="mdi-layers-triple" size="18" />
+          </v-avatar>
         </template>
         <v-app-bar-title class="font-display font-weight-bold">
           {{ mobile ? "ระบบจัดการบ่อบาดาล" : pageTitle }}
@@ -61,8 +63,12 @@ const pageTitle = computed(() => (route.meta.label as string) || "ระบบ�
     </template>
 
     <v-main>
-      <v-container fluid :class="isAuthPage ? '' : 'pa-4 pa-md-6'" :style="isAuthPage ? 'background: rgb(var(--v-theme-background))' : ''">
-        <router-view />
+      <v-container fluid :class="isAuthPage ? '' : 'pa-4 pa-md-6'" :style="isAuthPage ? 'background: transparent' : ''">
+        <router-view v-slot="{ Component }">
+          <transition name="page" mode="out-in">
+            <component :is="Component" :key="route.path" />
+          </transition>
+        </router-view>
       </v-container>
     </v-main>
 

@@ -1,10 +1,10 @@
 import { defineStore } from "pinia";
 import { wellsApi } from "@/api/wells";
-import type { WellLog, FullWell, WellStrataLog, WellPipe, WellPump } from "@/types";
+import type { Well, FullWell, WellStrataLog, WellPipe, WellPump, WellControlBox } from "@/types";
 
 export const useWellsStore = defineStore("wells", {
   state: () => ({
-    wells: [] as WellLog[],
+    wells: [] as Well[],
     current: null as FullWell | null,
     loading: false,
   }),
@@ -25,7 +25,7 @@ export const useWellsStore = defineStore("wells", {
       this.current = await wellsApi.getByJob(jobId);
       return this.current;
     },
-    async create(data: { job_id: number } & Partial<WellLog>) {
+    async create(data: { customer_id: number } & Partial<Well>) {
       const well = await wellsApi.create(data);
       this.current = well;
       return well;
@@ -47,6 +47,12 @@ export const useWellsStore = defineStore("wells", {
     },
     async removePump(wellId: number, pumpId: number) {
       this.current = await wellsApi.removePump(wellId, pumpId);
+    },
+    async addControlBox(wellId: number, data: Partial<WellControlBox>) {
+      this.current = await wellsApi.addControlBox(wellId, data);
+    },
+    async removeControlBox(wellId: number, controlBoxId: number) {
+      this.current = await wellsApi.removeControlBox(wellId, controlBoxId);
     },
   },
 });

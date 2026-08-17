@@ -1,5 +1,5 @@
 /* ============================================================
-   DGWM Global Styles — Earth Tone Design System
+   Well-Drilling Global Styles — Earth Tone Design System
    ============================================================ */
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 
@@ -31,8 +31,9 @@
   --space-6: 48px;
 
   /* Elevation */
-  --shadow-card: 0 1px 8px rgba(46, 36, 24, 0.08);
-  --shadow-lg:   0 4px 24px rgba(46, 36, 24, 0.14);
+  --shadow-card: 0 1px 2px rgba(46, 36, 24, 0.06), 0 4px 16px rgba(46, 36, 24, 0.08);
+  --shadow-lg:   0 8px 30px rgba(46, 36, 24, 0.16);
+  --shadow-glow: 0 6px 20px -4px rgb(var(--v-theme-primary) / 0.45);
 
   /* Radius */
   --radius-card: 12px;
@@ -42,20 +43,140 @@
 /* ---------- Base ---------- */
 * { box-sizing: border-box; }
 
+html { background: #F0EAE0; }
+html:has(.v-theme--dark) { background: #1C1814; }
+
 html, body {
   font-family: var(--font-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ---------- Ambient page background (adapts to light/dark) ---------- */
+.v-application {
+  background:
+    radial-gradient(1100px 560px at 88% -12%, rgb(var(--v-theme-primary) / 0.10), transparent 60%),
+    radial-gradient(900px 520px at -12% 18%, rgb(var(--v-theme-secondary) / 0.08), transparent 55%),
+    radial-gradient(700px 500px at 110% 100%, rgb(var(--v-theme-success) / 0.06), transparent 60%),
+    rgb(var(--v-theme-background)) !important;
+}
+
 /* ---------- Typography helpers ---------- */
 .font-display { font-family: var(--font-display) !important; }
 .font-mono    { font-family: var(--font-mono)    !important; }
 
-/* ---------- Vuetify overrides ---------- */
-.v-card { box-shadow: var(--shadow-card) !important; }
+.gradient-text {
+  background: linear-gradient(120deg, rgb(var(--v-theme-primary)), rgb(var(--v-theme-secondary)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 
-/* Leaflet */
+::selection { background: rgb(var(--v-theme-primary) / 0.22); }
+
+/* ---------- Vuetify overrides ---------- */
+.v-card {
+  box-shadow: var(--shadow-card) !important;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+@media (hover: hover) {
+  .v-card:not(.v-dialog .v-card):not(.v-menu .v-card):not(.v-navigation-drawer .v-card):hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg) !important;
+  }
+}
+
+/* Primary buttons: gradient + soft glow */
+.v-btn--variant-flat.v-btn--color-primary {
+  background-image: linear-gradient(120deg, rgb(var(--v-theme-primary)), rgb(var(--v-theme-primary-darken-1)));
+}
+.v-btn--variant-flat.v-btn--color-primary:hover:not(.v-btn--disabled) {
+  filter: brightness(1.07);
+}
+
+/* Inputs: focus glow */
+.v-field--focused {
+  box-shadow: 0 0 0 3px rgb(var(--v-theme-primary) / 0.12);
+  border-radius: 8px;
+}
+
+/* App bar: frosted + soft gradient */
+.app-topbar {
+  background: linear-gradient(90deg, rgb(var(--v-theme-surface)), rgb(var(--v-theme-surface-variant))) !important;
+  backdrop-filter: blur(12px);
+}
+
+/* Navigation drawer: frosted + active indicator */
+.v-navigation-drawer {
+  background: rgb(var(--v-theme-surface) / 0.92) !important;
+  backdrop-filter: blur(12px);
+}
+.v-navigation-drawer .v-list-item--active {
+  background: linear-gradient(90deg, rgb(var(--v-theme-primary) / 0.18), rgb(var(--v-theme-primary) / 0.06)) !important;
+  box-shadow: inset 3px 0 0 rgb(var(--v-theme-primary));
+}
+.v-navigation-drawer .v-list-item--active .v-list-item__prepend,
+.v-navigation-drawer .v-list-item--active .v-list-item__content {
+  color: rgb(var(--v-theme-primary));
+}
+
+/* Bottom navigation: frosted */
+.v-bottom-navigation.app-bottom-nav {
+  background: rgb(var(--v-theme-surface) / 0.92) !important;
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgb(var(--v-theme-surface-variant));
+}
+
+/* Brand tile (drawer / app bar) */
+.brand-tile {
+  background: linear-gradient(135deg, rgb(var(--v-theme-primary)), rgb(var(--v-theme-secondary)));
+  color: rgb(var(--v-theme-on-primary)) !important;
+}
+
+/* Section header icon tile */
+.section-head-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgb(var(--v-theme-primary) / 0.12);
+  color: rgb(var(--v-theme-primary));
+  flex-shrink: 0;
+}
+
+/* Dashboard track rows (theme-aware) */
+.track-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface-variant) / 0.5);
+  border: 1px solid rgb(var(--v-theme-surface-variant));
+  transition: transform .15s ease, background .15s ease;
+}
+@media (hover: hover) {
+  .track-item:hover { transform: translateX(3px); background: rgb(var(--v-theme-surface-variant) / 0.8); }
+}
+
+/* ---------- Page transition ---------- */
+.page-enter-active, .page-leave-active {
+  transition: opacity .18s ease, transform .18s ease;
+}
+.page-enter-from { opacity: 0; transform: translateY(8px); }
+.page-leave-to   { opacity: 0; transform: translateY(-4px); }
+
+/* ---------- Stagger fade-up (ทุกองค์ประกอบมี motion) ---------- */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+.fade-up { animation: fadeUp .55s cubic-bezier(.22, .61, .36, 1) both; }
+
+/* ---------- Leaflet ---------- */
 .leaflet-popup-content-wrapper { border-radius: 10px; }
 .leaflet-container { font-family: var(--font-primary); }
 
@@ -109,7 +230,7 @@ html, body {
   .v-btn-toggle .v-btn { flex: 0 0 auto; white-space: nowrap; }
 }
 @media (max-width: 480px) {
-  .v-card { border-radius: 8px !important; }
+  .v-card { border-radius: 10px !important; }
   .text-h4 { font-size: 1.4rem !important; }
   .text-h5 { font-size: 1.2rem !important; }
   .text-h6 { font-size: 1.05rem !important; }

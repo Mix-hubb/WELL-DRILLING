@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { authApi, type AuthUser } from "@/api/auth";
 import { useUiStore } from "./ui";
 
-const TOKEN_KEY = "dgwm-token";
+const TOKEN_KEY = "welldrill-token";
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({
@@ -11,7 +11,6 @@ export const useAuthStore = defineStore("auth", {
   }),
   getters: {
     isLoggedIn: (state) => !!state.token,
-    isAdmin: (state) => state.user?.role === "ADMIN",
     fullName: (state) => state.user?.full_name || "",
   },
   actions: {
@@ -30,8 +29,8 @@ export const useAuthStore = defineStore("auth", {
       this.user = res.user;
       return res;
     },
-    async register(email: string, password: string, full_name: string, role?: string) {
-      const res = await authApi.register(email, password, full_name, role);
+    async register(email: string, password: string, full_name: string) {
+      const res = await authApi.register(email, password, full_name);
       this.setToken(res.token);
       this.user = res.user;
       return res;

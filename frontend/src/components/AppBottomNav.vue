@@ -8,16 +8,14 @@ const moreMenu = ref(false);
 
 // 4 ปุ่มหลัก mobile bottom nav
 const primary = [
-  { to: "/dashboard",   label: "แดชบอร์ด", icon: "mdi-view-dashboard-outline" },
-  { to: "/jobs",        label: "คิวงาน",   icon: "mdi-hammer-wrench" },
-  { to: "/wells",       label: "บ่อบาดาล", icon: "mdi-layers-outline" },
-  { to: "/warranty",    label: "ประกัน",   icon: "mdi-shield-check-outline" },
+  { to: "/dashboard",          label: "แดชบอร์ด",   icon: "mdi-view-dashboard-outline" },
+  { to: "/jobs",               label: "คิวงาน",     icon: "mdi-hammer-wrench" },
+  { to: "/drilling-requests",  label: "คำร้องเจาะ", icon: "mdi-file-document-plus-outline" },
+  { to: "/wells",              label: "ประวัติบ่อ",  icon: "mdi-layers-outline" },
 ];
 
 const more = [
-  { to: "/maintenance", label: "ซ่อมบำรุง", icon: "mdi-tools" },
-  { to: "/map",         label: "แผนที่",    icon: "mdi-map-marker-outline" },
-  { to: "/customers",   label: "ลูกค้า",   icon: "mdi-account-group-outline" },
+  { to: "/repair-requests", label: "รายการแจ้งซ่อม", icon: "mdi-wrench-outline" },
 ];
 
 const activeIndex = computed(() => {

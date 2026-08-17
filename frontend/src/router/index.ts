@@ -4,6 +4,8 @@ const routes = [
   { path: "/login", name: "login", component: () => import("@/views/LoginView.vue"), meta: { public: true } },
   { path: "/register", name: "register", component: () => import("@/views/RegisterView.vue"), meta: { public: true } },
   { path: "/", redirect: "/dashboard" },
+
+  // ===== ผู้ประกอบการ =====
   {
     path: "/dashboard", name: "dashboard",
     component: () => import("@/views/DashboardView.vue"),
@@ -21,9 +23,31 @@ const routes = [
     meta: { hidden: true },
   },
   {
+    path: "/drilling-requests", name: "drilling-requests",
+    component: () => import("@/views/DrillingRequestsView.vue"),
+    meta: { label: "คำร้องแจ้งเจาะ", icon: "mdi-file-document-plus-outline" },
+  },
+  {
+    path: "/repair-requests", name: "repair-requests",
+    component: () => import("@/views/RepairRequestsView.vue"),
+    meta: { label: "รายการแจ้งซ่อม", icon: "mdi-wrench-outline" },
+  },
+  {
+    path: "/repair-requests/:id", name: "repair-detail",
+    component: () => import("@/views/RepairDetailView.vue"),
+    props: true,
+    meta: { hidden: true },
+  },
+  {
     path: "/wells", name: "wells",
     component: () => import("@/views/WellsView.vue"),
-    meta: { label: "บ่อบาดาล", icon: "mdi-layers-outline" },
+    meta: { label: "ดูประวัติบ่อบาดาล", icon: "mdi-layers-outline" },
+  },
+  {
+    path: "/wells/customer/:id", name: "customer-wells",
+    component: () => import("@/views/CustomerWellsView.vue"),
+    props: true,
+    meta: { hidden: true },
   },
   {
     path: "/wells/:id", name: "well-detail",
@@ -31,25 +55,26 @@ const routes = [
     props: true,
     meta: { hidden: true },
   },
+
+  // ===== ลูกค้า (public) =====
   {
-    path: "/warranty", name: "warranty",
-    component: () => import("@/views/WarrantyView.vue"),
-    meta: { label: "ประกัน 2 ปี", icon: "mdi-shield-check-outline" },
+    path: "/repair-form", name: "repair-form",
+    component: () => import("@/views/RepairFormView.vue"),
+    meta: { public: true, hidden: true },
+  },
+
+  // ===== ช่าง (magic link, public) =====
+  {
+    path: "/d/:token", name: "driller-well",
+    component: () => import("@/views/DrillerWellView.vue"),
+    props: true,
+    meta: { public: true, hidden: true },
   },
   {
-    path: "/maintenance", name: "maintenance",
-    component: () => import("@/views/MaintenanceView.vue"),
-    meta: { label: "ซ่อมบำรุง", icon: "mdi-tools" },
-  },
-  {
-    path: "/map", name: "map",
-    component: () => import("@/views/MapView.vue"),
-    meta: { label: "แผนที่", icon: "mdi-map-marker-outline" },
-  },
-  {
-    path: "/customers", name: "customers",
-    component: () => import("@/views/CustomersView.vue"),
-    meta: { label: "ลูกค้า", icon: "mdi-account-group-outline" },
+    path: "/d/repair/:token", name: "driller-repair",
+    component: () => import("@/views/DrillerRepairView.vue"),
+    props: true,
+    meta: { public: true, hidden: true },
   },
 ];
 
@@ -59,7 +84,7 @@ export const router = createRouter({
 });
 
 router.beforeEach((to, _from, next) => {
-  const token = localStorage.getItem("dgwm-token");
+  const token = localStorage.getItem("welldrill-token");
   if (!to.meta.public && !token) {
     return next("/login");
   }

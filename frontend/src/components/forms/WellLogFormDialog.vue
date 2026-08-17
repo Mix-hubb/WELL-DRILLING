@@ -1,49 +1,47 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { DRILLING_METHOD, WATER_TYPE } from "@/constants";
 
 const props = defineProps<{ modelValue: boolean }>();
 const emit  = defineEmits<{ "update:modelValue": [boolean]; submit: [Record<string, any>] }>();
 
 const empty = () => ({
-  total_depth:         "",
-  casing_depth:        "",
-  water_quantity:      "",
-  yield_lpm:           "",
-  static_water_level:  "",
-  pumping_water_level: "",
-  completion_date:     new Date().toISOString().slice(0, 10),
-  drilling_method:     "ROTARY",
-  driller_name:        "",
-  notes:               "",
+  well_name:          "",
+  total_depth_m:      "",
+  water_quantity_m3hr: "",
+  yield_lpm:          "",
+  static_water_level_m:  "",
+  pumping_water_level_m: "",
+  completion_date:    new Date().toISOString().slice(0, 10),
+  drilling_method:    "ROTARY",
+  formation_water_type: "FRESH",
+  driller_name:       "",
+  notes:              "",
 });
 const form         = ref(empty());
 const showAdvanced = ref(false);
 
+const methodOptions  = Object.entries(DRILLING_METHOD).map(([value, title]) => ({ value, title }));
+const waterOptions   = Object.entries(WATER_TYPE).map(([value, title]) => ({ value, title }));
+
 watch(() => props.modelValue, (v) => { if (v) { form.value = empty(); showAdvanced.value = false; } });
 
 function submit() {
-  if (!form.value.total_depth || !form.value.completion_date) return;
+  if (!form.value.well_name || !form.value.total_depth_m || !form.value.completion_date) return;
   emit("submit", {
-    total_depth:         Number(form.value.total_depth),
-    casing_depth:        form.value.casing_depth ? Number(form.value.casing_depth) : null,
-    water_quantity:      Number(form.value.water_quantity) || 0,
-    yield_lpm:           form.value.yield_lpm ? Number(form.value.yield_lpm) : null,
-    static_water_level:  Number(form.value.static_water_level)  || 0,
-    pumping_water_level: Number(form.value.pumping_water_level) || 0,
-    completion_date:     form.value.completion_date,
-    drilling_method:     form.value.drilling_method || null,
-    driller_name:        form.value.driller_name   || null,
-    notes:               form.value.notes          || null,
+    well_name:            form.value.well_name,
+    total_depth_m:        Number(form.value.total_depth_m),
+    water_quantity_m3hr:  Number(form.value.water_quantity_m3hr) || null,
+    yield_lpm:            form.value.yield_lpm ? Number(form.value.yield_lpm) : null,
+    static_water_level_m: Number(form.value.static_water_level_m)  || null,
+    pumping_water_level_m: Number(form.value.pumping_water_level_m) || null,
+    completion_date:      form.value.completion_date,
+    drilling_method:      form.value.drilling_method || null,
+    formation_water_type: form.value.formation_water_type || null,
+    driller_name:         form.value.driller_name   || null,
+    notes:                form.value.notes          || null,
   });
 }
-
-const drillingMethods = [
-  { title: "Rotary Drilling",      value: "ROTARY"      },
-  { title: "Down-the-Hole (DTH)",  value: "DTH"         },
-  { title: "Cable Tool",           value: "CABLE_TOOL"  },
-  { title: "Direct Mud Rotary",    value: "MUD_ROTARY"  },
-  { title: "Air Rotary",           value: "AIR_ROTARY"  },
-];
 </script>
 
 <template>
@@ -53,31 +51,31 @@ const drillingMethods = [
       <v-divider />
       <v-card-text class="pa-4">
         <!-- Required -->
+        <v-text-field v-model="form.well_name" label="ชื่อบ่อ *" class="mb-3" />
         <v-row dense class="mb-1">
           <v-col cols="6">
-            <v-text-field v-model="form.total_depth" type="number" label="ความลึกรวม (ม.) *" />
+            <v-text-field v-model="form.total_depth_m" type="number" label="ความลึกรวม (ม.) *" />
           </v-col>
           <v-col cols="6">
-            <v-text-field v-model="form.casing_depth" type="number" label="ความลึกปลอก (ม.)" />
+            <v-text-field v-model="form.water_quantity_m3hr" type="number" label="ปริมาณน้ำ (ม³/ชม.)" />
           </v-col>
         </v-row>
         <v-row dense class="mb-1">
-          <v-col cols="6">
-            <v-text-field v-model="form.water_quantity" type="number" label="ปริมาณน้ำ (ม³/ชม.)" />
-          </v-col>
           <v-col cols="6">
             <v-text-field v-model="form.yield_lpm" type="number" label="อัตราไหล (L/min)" />
           </v-col>
+          <v-col cols="6">
+            <v-text-field v-model="form.static_water_level_m" type="number" label="ระดับน้ำนิ่ง (ม.)" />
+          </v-col>
         </v-row>
         <v-row dense class="mb-1">
           <v-col cols="6">
-            <v-text-field v-model="form.static_water_level" type="number" label="ระดับน้ำนิ่ง (ม.)" />
+            <v-text-field v-model="form.pumping_water_level_m" type="number" label="ระดับน้ำลด (ม.)" />
           </v-col>
           <v-col cols="6">
-            <v-text-field v-model="form.pumping_water_level" type="number" label="ระดับน้ำลด (ม.)" />
+            <v-text-field v-model="form.completion_date" type="date" label="วันที่เจาะเสร็จ *" />
           </v-col>
         </v-row>
-        <v-text-field v-model="form.completion_date" type="date" label="วันที่เจาะเสร็จ *" class="mb-3" />
 
         <!-- Advanced -->
         <v-btn
@@ -88,7 +86,8 @@ const drillingMethods = [
         >ข้อมูลเพิ่มเติม</v-btn>
 
         <div v-if="showAdvanced">
-          <v-select v-model="form.drilling_method" :items="drillingMethods" label="วิธีการเจาะ" class="mb-2" />
+          <v-select v-model="form.drilling_method" :items="methodOptions" label="วิธีการเจาะ" class="mb-2" />
+          <v-select v-model="form.formation_water_type" :items="waterOptions" label="ประเภทน้ำบาดาล" class="mb-2" />
           <v-text-field v-model="form.driller_name" label="ช่างผู้รับผิดชอบ" class="mb-2" />
           <v-textarea v-model="form.notes" label="บันทึกช่าง" rows="2" />
         </div>
@@ -99,7 +98,7 @@ const drillingMethods = [
         <v-btn variant="text" @click="$emit('update:modelValue', false)">ยกเลิก</v-btn>
         <v-btn
           color="primary" variant="flat"
-          :disabled="!form.total_depth || !form.completion_date"
+          :disabled="!form.well_name || !form.total_depth_m || !form.completion_date"
           @click="submit"
         >บันทึก</v-btn>
       </v-card-actions>

@@ -5,7 +5,7 @@ import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 
 // ============================================================
-// DGWM — Minimalist Earth Tone Design System
+// Well-Drilling — Minimalist Earth Tone Design System
 // Cream Beige · Warm Grey · Clay Brown · Dim Slate Blue
 // ============================================================
 const lightTheme = {
@@ -80,7 +80,7 @@ export const vuetify = createVuetify({
   defaults: {
     VCard: {
       elevation: 0,
-      rounded: "lg",
+      rounded: "xl",
       border: true,
     },
     VBtn: {

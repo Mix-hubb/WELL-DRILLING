@@ -3,17 +3,15 @@ import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useWellsStore } from "@/stores/wells";
 import { useUiStore } from "@/stores/ui";
-import { wellsApi } from "@/api/wells";
 import { api } from "@/api/client";
-import { maintenanceApi, type MaintenanceLog, type MaintenanceEventType } from "@/api/maintenance";
-import { PIPE_TYPE, PIPE_SIZE, THICKNESS, PUMP_TYPE } from "@/constants";
+import { PIPE_MATERIAL, PIPE_TYPE, PUMP_TYPE, DRILLING_METHOD, WATER_TYPE, LITHOLOGY_TYPE, PROTECTION_TYPE } from "@/constants";
 import StrataColumn from "@/components/StrataColumn.vue";
 import SectionHeader from "@/components/SectionHeader.vue";
 import WarrantyBadge from "@/components/WarrantyBadge.vue";
-import MaintenanceTimeline from "@/components/MaintenanceTimeline.vue";
 import StrataFormDialog from "@/components/forms/StrataFormDialog.vue";
 import PipeFormDialog from "@/components/forms/PipeFormDialog.vue";
 import PumpFormDialog from "@/components/forms/PumpFormDialog.vue";
+import ControlBoxFormDialog from "@/components/forms/ControlBoxFormDialog.vue";
 
 const route  = useRoute();
 const router = useRouter();
@@ -21,43 +19,18 @@ const store  = useWellsStore();
 const ui     = useUiStore();
 
 /* ---- dialogs ---- */
-const showStrata = ref(false);
-const showPipe   = ref(false);
-const showPump   = ref(false);
-const showMaint  = ref(false);
-
-/* ---- maintenance ---- */
-const maintenance  = ref<MaintenanceLog[]>([]);
-const eventTypes   = ref<MaintenanceEventType[]>([]);
-const maintLoading = ref(false);
-const maintForm    = ref({
-  event_type_id: null as number | null,
-  event_date: new Date().toISOString().slice(0, 10),
-  description: "",
-  performed_by: "",
-  next_service_date: "",
-  is_warranty_claim: false,
-});
+const showStrata    = ref(false);
+const showPipe      = ref(false);
+const showPump      = ref(false);
+const showCtrl      = ref(false);
 
 const wellId = () => Number(route.params.id);
 
 onMounted(async () => {
   try {
     await store.fetchOne(String(route.params.id));
-    await loadMaintenance();
-    const et = await maintenanceApi.listEventTypes();
-    eventTypes.value = et;
   } catch (e) { ui.notifyError(e); }
 });
-
-async function loadMaintenance() {
-  maintLoading.value = true;
-  try {
-    maintenance.value = await maintenanceApi.listByWell(wellId());
-  } finally {
-    maintLoading.value = false;
-  }
-}
 
 async function addStrata(form: any) {
   try { await store.addStrata(wellId(), form); showStrata.value = false; ui.notify("เพิ่มชั้นดิน/หินแล้ว", "success"); }
@@ -71,28 +44,14 @@ async function addPump(form: any) {
   try { await store.addPump(wellId(), form); showPump.value = false; ui.notify("เพิ่มปั๊มแล้ว", "success"); }
   catch (e) { ui.notifyError(e); }
 }
+async function addControlBox(form: any) {
+  try { await store.addControlBox(wellId(), form); showCtrl.value = false; ui.notify("เพิ่มตู้คอนโทรลแล้ว", "success"); }
+  catch (e) { ui.notifyError(e); }
+}
 async function removeStrata(id: number) { try { await store.removeStrata(wellId(), id); } catch (e) { ui.notifyError(e); } }
 async function removePipe(id: number)   { try { await store.removePipe(wellId(), id); } catch (e) { ui.notifyError(e); } }
 async function removePump(id: number)   { try { await store.removePump(wellId(), id); } catch (e) { ui.notifyError(e); } }
-
-async function submitMaintenance() {
-  if (!maintForm.value.event_type_id) return;
-  try {
-    await maintenanceApi.create(wellId(), maintForm.value as any);
-    ui.notify("บันทึกซ่อมบำรุงแล้ว", "success");
-    showMaint.value = false;
-    maintForm.value = { event_type_id: null, event_date: new Date().toISOString().slice(0, 10), description: "", performed_by: "", next_service_date: "", is_warranty_claim: false };
-    await loadMaintenance();
-  } catch (e) { ui.notifyError(e); }
-}
-
-async function deleteMaintenance(id: number) {
-  try {
-    await maintenanceApi.remove(id);
-    ui.notify("ลบรายการแล้ว", "success");
-    await loadMaintenance();
-  } catch (e) { ui.notifyError(e); }
-}
+async function removeControlBox(id: number) { try { await store.removeControlBox(wellId(), id); } catch (e) { ui.notifyError(e); } }
 
 function downloadReport() { api.download(`/wells/${wellId()}/report.pdf`, `report-${wellId()}.pdf`).catch(e => ui.notifyError(e)); }
 
@@ -102,8 +61,8 @@ function fmtDate(d: string) {
 }
 
 function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
-  const days = Number(w.warranty_remaining_days);
-  if (w.warranty_status !== "IN_WARRANTY") return "EXPIRED";
+  const days = Number(w.days_left);
+  if (w.warranty_status !== "ACTIVE") return "EXPIRED";
   if (days <= 30) return "EXPIRING_SOON";
   return "ACTIVE";
 }
@@ -125,17 +84,20 @@ function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
     <v-card class="pa-5 mb-4">
       <div class="d-flex align-start justify-space-between flex-wrap ga-2 mb-3">
         <div>
-          <div class="text-h6 font-display font-weight-bold">{{ store.current.job_title || `บ่อบาดาล #${store.current.well_id}` }}</div>
+          <div class="text-h6 font-display font-weight-bold">{{ store.current.well_name || `บ่อบาดาล #${store.current.well_id}` }}</div>
           <div class="text-caption text-medium-emphasis mt-1">
+            <v-icon icon="mdi-account-outline" size="14" />
+            {{ store.current.customer_name || `ลูกค้า #${store.current.customer_id}` }}
+          </div>
+          <div v-if="store.current.address" class="text-caption text-medium-emphasis mt-1">
             <v-icon icon="mdi-map-marker-outline" size="14" />
-            {{ store.current.site_address || store.current.province }}
-            <span v-if="store.current.job_reference"> · {{ store.current.job_reference }}</span>
+            {{ store.current.address }}
           </div>
         </div>
         <WarrantyBadge
-          v-if="store.current.warranty_expire_date"
+          v-if="store.current.warranty_expire_date && store.current.warranty_status"
           :alert-tier="alertTier(store.current)"
-          :remaining-days="Number(store.current.warranty_remaining_days)"
+          :remaining-days="Number(store.current.days_left ?? 0)"
           :expiry-date="store.current.warranty_expire_date"
         />
       </div>
@@ -143,23 +105,23 @@ function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
       <v-row dense>
         <v-col cols="6" sm="4" md="2">
           <div class="text-caption text-uppercase text-medium-emphasis font-weight-bold">ความลึกรวม</div>
-          <div class="font-mono font-weight-bold">{{ store.current.total_depth }} ม.</div>
+          <div class="font-mono font-weight-bold">{{ store.current.total_depth_m }} ม.</div>
         </v-col>
         <v-col cols="6" sm="4" md="2">
           <div class="text-caption text-uppercase text-medium-emphasis font-weight-bold">ปริมาณน้ำ</div>
-          <div class="font-mono font-weight-bold">{{ store.current.water_quantity }} ม³/ชม.</div>
+          <div class="font-mono font-weight-bold">{{ store.current.water_quantity_m3hr }} ม³/ชม.</div>
         </v-col>
         <v-col cols="6" sm="4" md="2">
           <div class="text-caption text-uppercase text-medium-emphasis font-weight-bold">ระดับน้ำนิ่ง</div>
-          <div class="font-mono font-weight-bold">{{ store.current.static_water_level }} ม.</div>
+          <div class="font-mono font-weight-bold">{{ store.current.static_water_level_m }} ม.</div>
         </v-col>
         <v-col cols="6" sm="4" md="2">
           <div class="text-caption text-uppercase text-medium-emphasis font-weight-bold">ระดับน้ำลด</div>
-          <div class="font-mono font-weight-bold">{{ store.current.pumping_water_level }} ม.</div>
+          <div class="font-mono font-weight-bold">{{ store.current.pumping_water_level_m }} ม.</div>
         </v-col>
         <v-col cols="6" sm="4" md="2">
           <div class="text-caption text-uppercase text-medium-emphasis font-weight-bold">วันเสร็จ</div>
-          <div class="font-mono font-weight-bold">{{ fmtDate(store.current.completion_date) }}</div>
+          <div class="font-mono font-weight-bold">{{ fmtDate(store.current.completion_date ?? '') }}</div>
         </v-col>
         <v-col cols="6" sm="4" md="2">
           <div class="text-caption text-uppercase text-medium-emphasis font-weight-bold">หมดประกัน</div>
@@ -167,14 +129,14 @@ function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
         </v-col>
       </v-row>
 
-      <div v-if="store.current.notes" class="text-caption text-medium-emphasis mt-3 pt-3" style="border-top:1px solid rgba(128,128,128,0.15)">
-        <v-icon icon="mdi-note-text-outline" size="14" class="mr-1" />{{ store.current.notes }}
+      <div v-if="store.current.result" class="text-caption text-medium-emphasis mt-3">
+        <v-icon icon="mdi-information-outline" size="14" class="mr-1" />
+        ผลการเจาะ: {{ store.current.result === "SUCCESS" ? "สำเร็จ" : "ไม่สำเร็จ" }}
+        <template v-if="store.current.failure_reason"> — {{ store.current.failure_reason }}</template>
       </div>
 
-      <!-- GPS -->
-      <div v-if="store.current.latitude" class="text-caption text-medium-emphasis mt-1">
-        <v-icon icon="mdi-crosshairs-gps" size="14" class="mr-1" />
-        {{ Number(store.current.latitude).toFixed(6) }}, {{ Number(store.current.longitude).toFixed(6) }}
+      <div v-if="store.current.notes" class="text-caption text-medium-emphasis mt-3 pt-3" style="border-top:1px solid rgba(128,128,128,0.15)">
+        <v-icon icon="mdi-note-text-outline" size="14" class="mr-1" />{{ store.current.notes }}
       </div>
     </v-card>
 
@@ -184,7 +146,7 @@ function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
       <StrataColumn
         v-if="store.current.strata.length"
         :strata="(store.current.strata as any[])"
-        :total-depth="Number(store.current.total_depth)"
+        :total-depth="Number(store.current.total_depth_m) || 0"
         :pipes="(store.current.pipes as any[])"
       />
       <div v-else class="text-center py-6 text-medium-emphasis">ยังไม่มีข้อมูลชั้นดิน/หิน</div>
@@ -196,9 +158,11 @@ function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
           class="d-flex justify-space-between align-center text-caption py-1"
           style="border-bottom:1px solid rgba(0,0,0,0.06)"
         >
-          <span class="font-mono text-medium-emphasis" style="min-width:90px">{{ s.depth_from }}–{{ s.depth_to }} ม.</span>
-          <span class="flex-grow-1 px-2">{{ s.lithology_name_th || s.lithology_name }}</span>
-          <span v-if="s.is_water_bearing" class="text-primary mr-2">💧</span>
+          <span class="font-mono text-medium-emphasis" style="min-width:90px">{{ s.depth_from_m }}–{{ s.depth_to_m }} ม.</span>
+          <span class="flex-grow-1 px-2">
+            {{ s.lithology_type ? (LITHOLOGY_TYPE[s.lithology_type as keyof typeof LITHOLOGY_TYPE] || s.lithology_name || "-") : (s.lithology_name || "-") }}
+          </span>
+          <span v-if="s.water_bearing" class="text-primary mr-2">💧</span>
           <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error" @click="removeStrata(s.strata_id)" />
         </div>
       </div>
@@ -214,9 +178,9 @@ function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
         style="border-bottom:1px solid rgba(0,0,0,0.06)"
       >
         <div style="min-width:0;word-break:break-word">
-          <span class="font-mono text-caption text-medium-emphasis">{{ p.depth_from }}–{{ p.depth_to }} ม.</span>
-          {{ " " }}{{ PIPE_TYPE[p.pipe_type as keyof typeof PIPE_TYPE] }}
-          <span class="text-medium-emphasis">· {{ PIPE_SIZE[p.pipe_size as keyof typeof PIPE_SIZE] }} · {{ THICKNESS[p.thickness_class as keyof typeof THICKNESS] }}</span>
+          <span class="font-mono text-caption text-medium-emphasis">{{ p.depth_from_m }}–{{ p.depth_to_m }} ม.</span>
+          {{ " " }}{{ PIPE_MATERIAL[p.material as keyof typeof PIPE_MATERIAL] || "-" }}
+          <span class="text-medium-emphasis">· {{ PIPE_TYPE[p.pipe_type as keyof typeof PIPE_TYPE] || "-" }} · {{ p.size_mm }} มม. × {{ p.quantity }} ชิ้น</span>
         </div>
         <v-btn icon="mdi-delete-outline" size="small" variant="text" color="error" @click="removePipe(p.pipe_id)" />
       </div>
@@ -232,58 +196,48 @@ function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
         style="border-bottom:1px solid rgba(0,0,0,0.06)"
       >
         <div style="min-width:0;word-break:break-word">
-          <div>{{ PUMP_TYPE[p.pump_type as keyof typeof PUMP_TYPE] }} · {{ p.brand }}</div>
+          <div>{{ PUMP_TYPE[p.pump_type as keyof typeof PUMP_TYPE] || "-" }} · {{ p.brand }} {{ p.pump_model || "" }}</div>
           <div class="text-caption text-medium-emphasis">
-            {{ p.horsepower }} HP · {{ p.impeller_stages }} ใบพัด · หย่อนที่ {{ p.installation_depth }} ม. · ติดตั้ง {{ fmtDate(p.installed_date) }}
+            {{ p.horsepower }} HP · {{ p.impeller_stages }} ใบพัด · หย่อนที่ {{ p.installation_depth_m }} ม.
+            <template v-if="p.voltage"> · {{ p.voltage }} V</template>
+            <template v-if="p.phase"> · {{ p.phase }} เฟส</template>
+            <template v-if="p.rated_flow_m3hr"> · ไหล {{ p.rated_flow_m3hr }} ม³/ชม.</template>
+            <template v-if="p.rated_head_m"> · เฮด {{ p.rated_head_m }} ม.</template>
+            <template v-if="p.installed_date"> · ติดตั้ง {{ fmtDate(p.installed_date) }}</template>
           </div>
         </div>
         <v-btn icon="mdi-delete-outline" size="small" variant="text" color="error" @click="removePump(p.pump_id)" />
       </div>
     </v-card>
 
-    <!-- ===== Maintenance History ===== -->
-    <SectionHeader title="ประวัติซ่อมบำรุง" icon="mdi-tools" @add="showMaint = true" />
+    <!-- ===== Control Boxes ===== -->
+    <SectionHeader title="ตู้คอนโทรล" icon="mdi-electronics-outline" @add="showCtrl = true" />
     <v-card class="pa-4 mb-6">
-      <MaintenanceTimeline
-        :logs="maintenance"
-        :loading="maintLoading"
-        @delete="deleteMaintenance"
-      />
+      <div v-if="!store.current.control_boxes.length" class="text-center py-6 text-medium-emphasis">ยังไม่มีข้อมูลตู้คอนโทรล</div>
+      <div
+        v-for="c in store.current.control_boxes" :key="c.control_box_id"
+        class="d-flex justify-space-between align-center text-body-2 py-2 flex-wrap ga-1"
+        style="border-bottom:1px solid rgba(0,0,0,0.06)"
+      >
+        <div style="min-width:0;word-break:break-word">
+          <div>{{ c.brand }} {{ c.model }}</div>
+          <div class="text-caption text-medium-emphasis">
+            {{ c.capacity || "-" }}
+            <template v-if="c.voltage"> · {{ c.voltage }} V</template>
+            <template v-if="c.protection_type"> · ป้องกัน: {{ PROTECTION_TYPE[c.protection_type as keyof typeof PROTECTION_TYPE] || c.protection_type }}</template>
+            <template v-if="c.features"> · {{ c.features }}</template>
+            <template v-if="c.installed_date"> · ติดตั้ง {{ fmtDate(c.installed_date) }}</template>
+          </div>
+        </div>
+        <v-btn icon="mdi-delete-outline" size="small" variant="text" color="error" @click="removeControlBox(c.control_box_id)" />
+      </div>
     </v-card>
 
     <!-- Dialogs -->
     <StrataFormDialog v-model="showStrata" @submit="addStrata" />
     <PipeFormDialog   v-model="showPipe"   @submit="addPipe"   />
     <PumpFormDialog   v-model="showPump"   @submit="addPump"   />
-
-    <!-- Maintenance Dialog -->
-    <v-dialog v-model="showMaint" max-width="520" :persistent="true">
-      <v-card>
-        <v-card-title class="pa-4 font-display font-weight-bold">บันทึกซ่อมบำรุง</v-card-title>
-        <v-divider />
-        <v-card-text class="pa-4">
-          <v-select
-            v-model="maintForm.event_type_id"
-            :items="eventTypes"
-            item-title="type_name_th"
-            item-value="event_type_id"
-            label="ประเภทงาน *"
-            class="mb-3"
-          />
-          <v-text-field v-model="maintForm.event_date"       type="date" label="วันที่ซ่อม *" class="mb-3" />
-          <v-textarea   v-model="maintForm.description"      label="รายละเอียดงาน *" rows="3"  class="mb-3" />
-          <v-text-field v-model="maintForm.performed_by"     label="ช่าง / ผู้รับเหมา *"      class="mb-3" />
-          <v-text-field v-model="maintForm.next_service_date" type="date" label="นัดครั้งต่อไป (ถ้ามี)" class="mb-3" />
-          <v-checkbox   v-model="maintForm.is_warranty_claim" label="เป็นการเคลมประกัน" color="error" />
-        </v-card-text>
-        <v-divider />
-        <v-card-actions class="pa-4 ga-2">
-          <v-spacer />
-          <v-btn variant="text" @click="showMaint = false">ยกเลิก</v-btn>
-          <v-btn color="primary" variant="flat" @click="submitMaintenance">บันทึก</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <ControlBoxFormDialog v-model="showCtrl" @submit="addControlBox" />
   </div>
 
   <div v-else class="text-center py-10 text-medium-emphasis">

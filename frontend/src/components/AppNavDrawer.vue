@@ -21,9 +21,12 @@ function handleLogout() {
     <v-list nav density="comfortable">
       <v-list-item class="mb-2">
         <template #prepend>
-          <v-icon icon="mdi-layers-triple" color="primary" size="28" />
+          <v-avatar rounded="lg" size="34" class="brand-tile">
+            <v-icon icon="mdi-layers-triple" size="22" />
+          </v-avatar>
         </template>
         <v-list-item-title class="font-display font-weight-bold text-body-1">บ่อบาดาล</v-list-item-title>
+        <v-list-item-subtitle class="text-caption">Well-Drilling</v-list-item-subtitle>
       </v-list-item>
       <v-divider class="mb-2" />
       <v-list-item

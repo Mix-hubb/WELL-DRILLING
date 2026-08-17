@@ -1,31 +1,23 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-/* ----------------------------------------------------------------
-   Props — ใช้ข้อมูล strata ที่ join lithology_types มาแล้วจาก API
-   fill_color, svg_pattern, lithology_name มาจาก wells.controller
-   ---------------------------------------------------------------- */
 interface StrataLayer {
   strata_id: number;
-  depth_from: number;
-  depth_to: number;
-  fill_color: string;
-  svg_pattern: string;          // solid | hatched | dotted | crossed
-  lithology_name: string;
-  lithology_name_th: string;
-  is_water_bearing: number;     // 0 | 1
-  hardness?: string;
-  conductivity_us?: number;
-  ph_value?: number;
-  tds_ppm?: number;
-  description?: string;
+  depth_from_m: number;
+  depth_to_m: number;
+  lithology_name?: string | null;
+  color_hex?: string | null;
+  water_bearing?: number;       // 0 | 1
+  hardness?: string | null;
+  description?: string | null;
 }
 interface PipeLayer {
   pipe_id: number;
-  depth_from: number;
-  depth_to: number;
-  pipe_type: string;            // CASING_PVC | SCREEN_PVC | CASING_STEEL | SCREEN_STEEL
-  pipe_size: string;
+  depth_from_m: number;
+  depth_to_m: number;
+  material?: string | null;     // PVC | STEEL | STAINLESS_STEEL | HDPE | OTHER
+  pipe_type?: string | null;    // CASING | SCREEN
+  size_mm?: number | null;
 }
 
 const props = defineProps<{
@@ -59,24 +51,26 @@ const ticks = computed(() => {
 const legend = computed(() => {
   const seen = new Set<string>();
   return props.strata.filter((s) => {
-    if (seen.has(s.lithology_name)) return false;
-    seen.add(s.lithology_name);
+    const key = s.lithology_name || "ชั้น";
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 });
 
+const isSteel = (p: PipeLayer) => (p.material === "STEEL" || p.material === "STAINLESS_STEEL");
+const isScreen = (p: PipeLayer) => (p.pipe_type === "SCREEN");
+
 function yPos(depth: number) { return depth * SCALE.value; }
 function layerH(s: StrataLayer) {
-  return Math.max((s.depth_to - s.depth_from) * SCALE.value, 2);
+  return Math.max((s.depth_to_m - s.depth_from_m) * SCALE.value, 2);
 }
 
 // Tooltip text
 function strataTitle(s: StrataLayer) {
-  let t = `${s.depth_from}–${s.depth_to} ม. · ${s.lithology_name_th}`;
-  if (s.is_water_bearing) t += " 💧 ชั้นน้ำ";
-  if (s.ph_value)         t += ` · pH ${s.ph_value}`;
-  if (s.tds_ppm)          t += ` · TDS ${s.tds_ppm} mg/L`;
-  if (s.description)      t += `\n${s.description}`;
+  let t = `${s.depth_from_m}–${s.depth_to_m} ม. · ${s.lithology_name || "-"}`;
+  if (s.water_bearing) t += " 💧 ชั้นน้ำ";
+  if (s.description)   t += `\n${s.description}`;
   return t;
 }
 </script>
@@ -118,18 +112,7 @@ function strataTitle(s: StrataLayer) {
       >
         <!-- ---- Pattern Defs ---- -->
         <defs>
-          <!-- hatched: หินผุ -->
-          <pattern id="pat-hatched" patternUnits="userSpaceOnUse" width="8" height="8">
-            <path d="M-1,1 l2,-2 M0,8 l8,-8 M7,9 l2,-2" stroke="#00000028" stroke-width="1.2"/>
-          </pattern>
-          <!-- dotted: ทราย/กรวด -->
-          <pattern id="pat-dotted" patternUnits="userSpaceOnUse" width="7" height="7">
-            <circle cx="3.5" cy="3.5" r="1.3" fill="#00000030"/>
-          </pattern>
-          <!-- crossed: หินแข็ง -->
-          <pattern id="pat-crossed" patternUnits="userSpaceOnUse" width="8" height="8">
-            <path d="M0,0 L8,8 M8,0 L0,8" stroke="#00000022" stroke-width="1"/>
-          </pattern>
+          <!-- (textures removed: new schema uses flat color_hex) -->
         </defs>
 
         <!-- ---- Strata Rectangles ---- -->
@@ -138,31 +121,23 @@ function strataTitle(s: StrataLayer) {
 
           <!-- Base fill -->
           <rect
-            :x="0" :y="yPos(s.depth_from)"
+            :x="0" :y="yPos(s.depth_from_m)"
             :width="SVG_COL_W" :height="layerH(s)"
-            :fill="s.fill_color"
-          />
-
-          <!-- Texture overlay (non-solid patterns) -->
-          <rect
-            v-if="s.svg_pattern && s.svg_pattern !== 'solid'"
-            :x="0" :y="yPos(s.depth_from)"
-            :width="SVG_COL_W" :height="layerH(s)"
-            :fill="`url(#pat-${s.svg_pattern})`"
+            :fill="s.color_hex || '#A0856C'"
           />
 
           <!-- Water-bearing: แถบฟ้าซ้าย -->
           <rect
-            v-if="s.is_water_bearing"
-            :x="0" :y="yPos(s.depth_from)"
+            v-if="s.water_bearing"
+            :x="0" :y="yPos(s.depth_from_m)"
             :width="7" :height="layerH(s)"
             fill="#4A8AB0" opacity="0.85"
           />
 
           <!-- Layer border -->
           <line
-            :x1="0" :y1="yPos(s.depth_from)"
-            :x2="SVG_COL_W" :y2="yPos(s.depth_from)"
+            :x1="0" :y1="yPos(s.depth_from_m)"
+            :x2="SVG_COL_W" :y2="yPos(s.depth_from_m)"
             stroke="rgba(0,0,0,0.18)" stroke-width="1"
           />
 
@@ -170,26 +145,26 @@ function strataTitle(s: StrataLayer) {
           <text
             v-if="layerH(s) >= 18"
             :x="SVG_COL_W / 2 + 4"
-            :y="yPos(s.depth_from) + layerH(s) / 2"
+            :y="yPos(s.depth_from_m) + layerH(s) / 2"
             text-anchor="middle"
             dominant-baseline="central"
             font-size="9"
             fill="rgba(0,0,0,0.65)"
             font-family="'IBM Plex Sans Thai','Sarabun',sans-serif"
-          >{{ s.lithology_name_th }}</text>
+          >{{ s.lithology_name }}</text>
         </g>
 
         <!-- ---- Casing / Pipe Overlay (right side) ---- -->
         <g v-for="p in (pipes || [])" :key="p.pipe_id">
-          <title>{{ p.depth_from }}–{{ p.depth_to }} ม. · {{ p.pipe_type }} · {{ p.pipe_size }}</title>
+          <title>{{ p.depth_from_m }}–{{ p.depth_to_m }} ม. · {{ p.pipe_type }} · {{ p.size_mm }} mm</title>
           <rect
             :x="SVG_COL_W - 18"
-            :y="yPos(p.depth_from)"
+            :y="yPos(p.depth_from_m)"
             :width="16"
-            :height="Math.max((p.depth_to - p.depth_from) * SCALE, 2)"
-            :fill="p.pipe_type.includes('STEEL') ? '#9AADA8' : '#A8C4D0'"
-            :stroke="p.pipe_type.startsWith('SCREEN') ? 'rgba(0,80,120,0.6)' : 'rgba(0,60,80,0.4)'"
-            :stroke-dasharray="p.pipe_type.startsWith('SCREEN') ? '3,2' : 'none'"
+            :height="Math.max((p.depth_to_m - p.depth_from_m) * SCALE, 2)"
+            :fill="isSteel(p) ? '#9AADA8' : '#A8C4D0'"
+            :stroke="isScreen(p) ? 'rgba(0,80,120,0.6)' : 'rgba(0,60,80,0.4)'"
+            :stroke-dasharray="isScreen(p) ? '3,2' : 'none'"
             stroke-width="1.5"
             rx="2"
             opacity="0.9"
@@ -212,19 +187,18 @@ function strataTitle(s: StrataLayer) {
         <div style="width:10px;height:16px;background:#4A8AB0;border-radius:2px;flex-shrink:0"/>
         <span class="text-caption text-medium-emphasis">💧 ชั้นน้ำบาดาล</span>
       </div>
-      <div v-for="s in legend" :key="s.lithology_name" class="d-flex align-start ga-2 text-caption mb-2">
+      <div v-for="s in legend" :key="s.strata_id" class="d-flex align-start ga-2 text-caption mb-2">
         <span
           class="rounded-sm mt-1 flex-shrink-0"
           :style="{
             width: '12px', height: '12px',
-            background: s.fill_color,
+            background: s.color_hex || '#A0856C',
             border: '1px solid rgba(0,0,0,0.2)',
             display: 'inline-block'
           }"
         />
         <div>
-          <div class="font-weight-medium">{{ s.lithology_name_th }}</div>
-          <div class="text-medium-emphasis" style="font-size:10px">{{ s.lithology_name }}</div>
+          <div class="font-weight-medium">{{ s.lithology_name || "-" }}</div>
         </div>
       </div>
 

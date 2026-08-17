@@ -1,38 +1,75 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import { useCustomersStore } from "@/stores/customers";
 import { useWellsStore } from "@/stores/wells";
 import { useUiStore } from "@/stores/ui";
 
 const router = useRouter();
+const customersStore = useCustomersStore();
 const wellsStore = useWellsStore();
 const ui = useUiStore();
 
+const search = ref("");
+
 onMounted(async () => {
-  try { await wellsStore.fetchAll(); } catch (e) { ui.notifyError(e); }
+  try {
+    await Promise.all([customersStore.fetchAll(), wellsStore.fetchAll()]);
+  } catch (e) { ui.notifyError(e); }
 });
+
+const filtered = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  if (!q) return customersStore.customers;
+  return customersStore.customers.filter(
+    (c) => c.customer_name.toLowerCase().includes(q) || (c.phone || "").includes(q)
+  );
+});
+
+function wellCount(customerId: number) {
+  return wellsStore.wells.filter((w) => w.customer_id === customerId).length;
+}
 </script>
 
 <template>
   <div>
-    <div v-if="wellsStore.loading" class="text-center py-10 text-medium-emphasis">กำลังโหลด...</div>
-    <v-row v-else>
-      <v-col v-for="w in wellsStore.wells" :key="w.well_id" cols="12" sm="6" md="4">
-        <v-card variant="outlined" class="pa-4 cursor-pointer h-100" @click="router.push(`/wells/${w.well_id}`)">
-          <div class="d-flex align-center ga-3 mb-3">
+    <div class="d-flex flex-wrap ga-3 align-center mb-4">
+      <v-text-field
+        v-model="search"
+        density="compact"
+        variant="outlined"
+        hide-details
+        prepend-inner-icon="mdi-magnify"
+        placeholder="ค้นหาจากชื่อลูกค้า หรือเบอร์โทร..."
+        style="max-width: 360px"
+      />
+    </div>
+
+    <v-row v-if="!customersStore.loading">
+      <v-col v-for="c in filtered" :key="c.customer_id" cols="12" sm="6" md="4">
+        <v-card variant="outlined" class="pa-4 h-100 cursor-pointer" @click="router.push(`/wells/customer/${c.customer_id}`)">
+          <div class="d-flex align-center ga-3 mb-2">
             <v-avatar color="primary" variant="tonal" size="42">
-              <v-icon icon="mdi-water-outline" />
+              <v-icon icon="mdi-account-outline" />
             </v-avatar>
-            <div class="text-body-1 font-weight-bold">{{ w.job_title }}</div>
+            <div class="font-weight-bold">{{ c.customer_name }}</div>
           </div>
-          <div class="d-flex ga-4 text-caption text-medium-emphasis">
-            <span><v-icon icon="mdi-ruler" size="14" /> {{ w.total_depth }} ม.</span>
-            <span><v-icon icon="mdi-gauge" size="14" /> {{ w.water_quantity }} ม³/ชม.</span>
+          <div class="text-caption text-medium-emphasis">
+            <v-icon icon="mdi-phone-outline" size="14" /> {{ c.phone }}
+          </div>
+          <div v-if="c.address" class="text-caption text-medium-emphasis mt-1">
+            <v-icon icon="mdi-map-marker-outline" size="14" /> {{ c.address }}
+          </div>
+          <div class="d-flex align-center ga-2 mt-3">
+            <v-chip size="small" color="primary" variant="tonal">{{ wellCount(c.customer_id) }} บ่อ</v-chip>
+            <v-btn size="x-small" variant="text" color="primary" append-icon="mdi-arrow-right" class="ml-auto">
+              ดูประวัติบ่อ
+            </v-btn>
           </div>
         </v-card>
       </v-col>
-      <v-col v-if="!wellsStore.wells.length" cols="12">
-        <div class="text-center py-10 text-medium-emphasis">ยังไม่มีประวัติบ่อบาดาลที่เจาะสำเร็จ</div>
+      <v-col v-if="!filtered.length" cols="12">
+        <div class="text-center py-10 text-medium-emphasis">ไม่พบลูกค้า</div>
       </v-col>
     </v-row>
   </div>
