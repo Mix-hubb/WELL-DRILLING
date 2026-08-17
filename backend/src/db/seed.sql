@@ -1,205 +1,139 @@
 SET NAMES utf8mb4;
+-- ============================================================
+-- ระบบจัดการบ่อบาดาลดิจิทัล — ข้อมูลตัวอย่าง (Seed) สำหรับ schema v4
+-- ============================================================
 USE well_drilling;
 
 -- ============================================================
--- SEED: Lookup Tables
+-- AUTH: ผู้ประกอบการ (รายย่อย)
 -- ============================================================
-INSERT INTO lithology_types (type_name, type_name_th, color_hex, pattern, description) VALUES
-  ('Bangkok Clay',      'ดินเหนียวกรุงเทพ',    '#8B7355', 'solid',   'ดินเหนียวอ่อน High Plasticity'),
-  ('Silty Sand',        'ทรายปนตะกอน',          '#C8A86A', 'dotted',  'ทรายละเอียดถึงกลาง ซึมน้ำปานกลาง'),
-  ('Weathered Granite', 'หินแกรนิตผุ',          '#9E9480', 'hatched', 'หินแกรนิตผุพัง ความแข็งแปรปรวน'),
-  ('Fresh Granite',     'หินแกรนิตสด',          '#6B7070', 'crossed', 'หินแกรนิตสด RQD 70-95%'),
-  ('Laterite',          'ดินลูกรัง',            '#B85C30', 'solid',   'ดินลูกรังสีแดง ชั้นบนสุด'),
-  ('Clayey Sand',       'ทรายปนดินเหนียว',      '#BCA870', 'dotted',  'ทรายปนดินเหนียว ซึมน้ำน้อย'),
-  ('Gravel',            'กรวด',                  '#C0AA80', 'dotted',  'กรวดหยาบ ซึมน้ำดีมาก'),
-  ('Limestone',         'หินปูน',                '#D0CAB8', 'crossed', 'หินปูน Karst ซึมน้ำทุติยภูมิ'),
-  ('Sandstone',         'หินทราย',               '#C8AA80', 'hatched', 'หินทรายแข็งปานกลาง'),
-  ('Sandy Clay',        'ดินเหนียวปนทราย',      '#A89060', 'hatched', 'ชั้นเปลี่ยนผ่านดินเหนียวทราย');
-
-INSERT INTO pipe_types (type_name, material, is_screen, description) VALUES
-  ('PVC Class 13.5 (6")',   'PVC',   0, 'ท่อ PVC ชั้น 13.5 ขนาด 6 นิ้ว'),
-  ('PVC Slotted Screen 6"', 'PVC',   1, 'ท่อกรอง PVC 6 นิ้ว ช่อง 1.5 มม.'),
-  ('Mild Steel 6"',         'STEEL', 0, 'ปลอกเหล็กกล้า 6 นิ้ว ผนัง 8 มม.'),
-  ('Mild Steel 8"',         'STEEL', 0, 'ปลอกเหล็กกล้า 8 นิ้ว ผนัง 10 มม.'),
-  ('PVC Class 13.5 (4")',   'PVC',   0, 'ท่อ PVC ชั้น 13.5 ขนาด 4 นิ้ว'),
-  ('SS316 Screen 4"',       'STAINLESS_STEEL', 1, 'ตะแกรงสแตนเลส SS316 4 นิ้ว');
-
-INSERT INTO maintenance_event_types (type_name, type_name_th, description) VALUES
-  ('Pump Replacement',      'เปลี่ยนปั๊มน้ำ',         'เปลี่ยนชุดปั๊มซับเมอร์สทั้งชุด'),
-  ('Well Cleaning',         'ล้างบ่อน้ำบาดาล',         'Airlift, Surge และพัฒนาบ่อใหม่'),
-  ('Electrical Inspection', 'ตรวจสอบระบบไฟฟ้า',        'ตรวจตู้ควบคุม สายไฟ และ Breaker'),
-  ('Sensor Repair',         'ซ่อมเซ็นเซอร์',           'ปรับเทียบหรือเปลี่ยนเซ็นเซอร์วัดระดับน้ำ'),
-  ('Annual Inspection',     'ตรวจสอบประจำปี',           'ทดสอบอัตราไหลและรายงานประจำปี'),
-  ('Valve Replacement',     'เปลี่ยนวาล์ว',            'เปลี่ยน Foot Valve, Check Valve หรือ Gate Valve');
+INSERT INTO users (email, password_hash, full_name, phone, role) VALUES
+  ('owner@welldrill.com', '$2a$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'สมชาย เจ้าของกิจการ', '0811111111', 'USER'),
+  ('manager@welldrill.com', '$2a$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'ประหยัด ผู้จัดการงาน', '0822222222', 'USER');
 
 -- ============================================================
--- SEED: Customers (user_id=1 = admin, user_id=3 = driller)
+-- CUSTOMERS: ลูกค้าผ่าน LINE + ลูกค้าที่กรอกเอง
 -- ============================================================
-INSERT INTO customers (user_id, customer_name, phone, phone_alt, address) VALUES
-  (1, 'นายสมชาย วงศ์สุวรรณ',         '0891234567', '0812345678', '45 หมู่ 3 ซอยเพชรเกษม 83 แขวงแสมดำ เขตบางขุนเทียน กรุงเทพฯ'),
-  (1, 'บริษัท เกษตรไทยพัฒนา จำกัด',  '0623456789', NULL,         '199 หมู่ 7 ถนนบ่อทอง-พนัสนิคม ตำบลวัดสุวรรณ อำเภอบ่อทอง ชลบุรี'),
-  (1, 'นางสาวปริมประภา ทองดี',        '0934567890', '0845678901', '88 หมู่ 2 บ้านสันพระเนตร ตำบลสันพระเนตร อำเภอสันทราย เชียงใหม่'),
-  (1, 'วิสาหกิจชุมชนน้ำบาดาลโคกสำโรง','0756789012', NULL,         '12 หมู่ 5 ถนนลพบุรี-สระบุรี ตำบลหลุมข้าว อำเภอโคกสำโรง ลพบุรี'),
-  (1, 'นายประยุทธ์ แก้วมณี',          '0867890123', '0897890123', '234 ถนนมิตรภาพ ตำบลเมืองปัก อำเภอปักธงชัย นครราชสีมา');
+INSERT INTO customers (user_id, line_user_id, customer_name, phone, phone_alt, address, line_display_name, line_picture_url) VALUES
+  (NULL, 'U-line-abc123', 'สมหญิง', '0812345678', NULL, '123 หมู่ 5 ต.นครปฐม อ.เมือง จ.นครปฐม 73000', 'หญิง', 'https://profile.line-scdn.net/abc123.png'),
+  (NULL, NULL, 'สมปอง', '0899999999', '0866666666', '45 ถ.เพชรเกษม ต.สามพราน อ.สามพราน จ.นครปฐม 73110', NULL, NULL);
 
 -- ============================================================
--- SEED: Drilling Jobs
+-- FLOW A: แจ้งเจาะ → ตีราคา → ลูกค้ายอมรับ → คิว → เจาะสำเร็จ → บ่อ
 -- ============================================================
-INSERT INTO drilling_jobs
-  (job_reference, customer_id, job_title, site_address, province, district,
-   latitude, longitude, scheduled_date, requested_depth_m, status, priority, notes)
-VALUES
-  ('WEL-2024-0001', 1, 'เจาะบ่อบาดาลโรงงานอุตสาหกรรม',
-   '45 ซอยเพชรเกษม 83 แขวงแสมดำ เขตบางขุนเทียน กรุงเทพฯ',
-   'กรุงเทพมหานคร', 'บางขุนเทียน',
-   13.67235200, 100.43126700, '2024-03-10', 120, 'COMPLETED', 'NORMAL',
-   'พื้นที่อุตสาหกรรม ต้องการน้ำสำรองระบบหล่อเย็น'),
+INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m, status, notes) VALUES
+  (1, 'GOOGLE_FORM', 'สมหญิง', '0812345678', '123 หมู่ 5 ต.นครปฐม อ.เมือง จ.นครปฐม 73000', 60, 'ACCEPTED', 'มาจาก Google Form ผ่าน LINE'),
+  (2, 'MANUAL', 'สมปอง', '0899999999', '45 ถ.เพชรเกษม อ.สามพราน จ.นครปฐม', 30, 'NEW', 'ผู้ประกอบการกรอกเอง');
 
-  ('WEL-2024-0002', 2, 'เจาะบ่อบาดาลสวนผลไม้ขนาดใหญ่',
-   '199 หมู่ 7 ตำบลวัดสุวรรณ อำเภอบ่อทอง ชลบุรี',
-   'ชลบุรี', 'บ่อทอง',
-   13.36987400, 101.15643200, '2024-07-15', 180, 'COMPLETED', 'HIGH',
-   'สวนผลไม้ขนาดใหญ่ ต้องการปริมาณน้ำสูง'),
+INSERT INTO quotations (kind, drilling_request_id, price, status, notes) VALUES
+  ('DRILLING', 1, 45000, 'ACCEPTED', 'รวมท่อ PVC 6 นิ้ว 60 เมตร + ปั๊ม 1.5 HP');
 
-  ('WEL-2025-0001', 3, 'เจาะบ่อบาดาลบ้านพักอาศัย',
-   '88 หมู่ 2 ตำบลสันพระเนตร อำเภอสันทราย เชียงใหม่',
-   'เชียงใหม่', 'สันทราย',
-   18.84521300, 99.00467800, '2024-12-20', 80, 'COMPLETED', 'NORMAL',
-   'บ้านพักอาศัย พื้นที่แคบ ต้องระวังแนวท่อประปา'),
+INSERT INTO drilling_jobs (request_id, customer_id, status, job_title, site_address, province, district, magic_link_token, magic_link_expires_at) VALUES
+  (1, 1, 'SUCCESS', 'เจาะบ่อหลังบ้านคุณสมหญิง', '123 หมู่ 5 ต.นครปฐม อ.เมือง จ.นครปฐม', 'นครปฐม', 'เมืองนครปฐม', 'magic-drill-001', DATE_ADD(NOW(), INTERVAL 48 HOUR));
 
-  ('WEL-2025-0002', 4, 'เจาะบ่อบาดาลวิสาหกิจชุมชน',
-   '12 หมู่ 5 ตำบลหลุมข้าว อำเภอโคกสำโรง ลพบุรี',
-   'ลพบุรี', 'โคกสำโรง',
-   14.88745600, 100.65432100, '2026-07-25', 150, 'DRILLING', 'URGENT',
-   'ชั้นดินลูกรังหนา คาดว่าต้องระเบิดหินแกรนิต'),
+INSERT INTO wells (customer_id, well_name, address, total_depth_m, drilling_method, formation_water_type, water_quantity_m3hr, static_water_level_m, pumping_water_level_m, driller_name, completion_date, result, notes) VALUES
+  (1, 'บ่อหลังบ้าน', '123 หมู่ 5 ต.นครปฐม อ.เมือง จ.นครปฐม', 60, 'ROTARY', 'FRESH', 5.00, 12.5, 25.0, 'ช่างเอก', '2026-08-01', 'SUCCESS', 'น้ำดี คุณภาพใช้ได้');
 
-  ('WEL-2026-0001', 5, 'เจาะบ่อบาดาลโรงเรือนเลี้ยงไก่',
-   '234 ถนนมิตรภาพ ตำบลเมืองปัก อำเภอปักธงชัย นครราชสีมา',
-   'นครราชสีมา', 'ปักธงชัย',
-   14.12345600, 102.09876500, '2026-08-15', 100, 'PENDING', 'NORMAL',
-   'โรงเรือนเลี้ยงไก่ ต้องการน้ำสะอาดต่อเนื่อง');
+UPDATE drilling_jobs SET well_id = 1, result = 'SUCCESS' WHERE job_id = 1;
+
+INSERT INTO well_strata_logs (well_id, depth_from_m, depth_to_m, lithology_type, lithology_name, color_hex, hardness, water_bearing, description) VALUES
+  (1, 0, 4,  'TOP_SOIL', 'ดินบน', '#8B5E3C', 'SOFT', 0, 'ชั้นดินบน'),
+  (1, 4, 15, 'SAND', 'ทรายละเอียด', '#D9C89A', 'MEDIUM', 0, ''),
+  (1, 15, 60, 'GRAVEL', 'ทรายหยาบ + กรวด', '#A9A9A9', 'HARD', 1, 'ชั้นน้ำบาดาลหลัก');
+
+INSERT INTO well_pipes (well_id, material, pipe_type, size_mm, depth_from_m, depth_to_m, quantity, notes) VALUES
+  (1, 'PVC', 'CASING', 152.4, 0, 40, 14, 'ท่อทึบ 6 นิ้ว'),
+  (1, 'PVC', 'SCREEN', 152.4, 40, 60, 7, 'ท่อเซาะร่องช่วงชั้นน้ำ');
+
+INSERT INTO well_pumps (well_id, pump_type, brand, pump_model, horsepower, power_kw, impeller_stages, installation_depth_m, voltage, phase, discharge_size_mm, rated_flow_m3hr, rated_head_m, installed_date) VALUES
+  (1, 'AC_SUBMERSIBLE', 'HITACHI', 'HP150-5', 1.5, 1.1, 5, 55, '220', 1, 50, 6.0, 45, '2026-08-01');
+
+INSERT INTO well_control_boxes (well_id, brand, model, capacity, voltage, protection_type, features, installed_date) VALUES
+  (1, 'Mitsubishi', 'NC-1.5', '1.5 HP', '220V', 'OVERLOAD_RELAY', 'คอนแทคเตอร์ + รีเลย์กันโหลดเกิน + เบรกเกอร์', '2026-08-01');
 
 -- ============================================================
--- SEED: Well Logs (warranty_expire_date จะถูก generate อัตโนมัติ)
+-- FLOW B: แจ้งซ่อม → ตีราคา → ยอมรับ → รอวันนัด → ซ่อมเสร็จ → บันทึก
 -- ============================================================
-INSERT INTO well_logs
-  (job_id, total_depth, casing_depth, water_quantity, yield_lpm,
-   static_water_level, pumping_water_level, pump_depth, pump_power_kw,
-   pump_brand, pump_type, drilling_method, formation_water_type,
-   driller_name, completion_date, gps_accuracy_m, notes)
-VALUES
-  -- Well 1: กรุงเทพ (หมดประกัน 2026-03-15 — IN_WARRANTY)
-  (1, 118.50, 115.00, 5.10, 85.00,
-   18.50, 42.00, 55.00, 2.20,
-   'Grundfos SP5A-18', 'AC_SUBMERSIBLE', 'ROTARY', 'FRESH',
-   'นายวิชาญ บุญมา', '2024-03-15', 4.5,
-   'น้ำใสสะอาด ทดสอบปั๊มต่อเนื่อง 4 ชม. อัตราไหลคงที่'),
+INSERT INTO repair_requests (customer_id, well_id, problems, detail, photos, scheduled_date, status, magic_link_token, magic_link_expires_at) VALUES
+  (1, 1,
+   JSON_ARRAY('ปั๊มไม่ทำงาน', 'น้ำออกน้อย'),
+   'ปั๊มไม่ตัดเมื่อเปิดก๊อกน้ำ เปลี่ยนสายไม่เป็นน้ำ',
+   JSON_ARRAY('https://storage.example.com/photo1.jpg', 'https://storage.example.com/photo2.jpg'),
+   '2026-08-20', 'COMPLETED', 'magic-repair-001', DATE_ADD(NOW(), INTERVAL 48 HOUR));
 
-  -- Well 2: ชลบุรี (หมดประกัน 2026-07-20 — EXPIRING_SOON)
-  (2, 175.20, 172.00, 12.60, 210.00,
-   32.00, 68.00, 85.00, 5.50,
-   'Grundfos SP17-9', 'AC_SUBMERSIBLE', 'DTH', 'FRESH',
-   'นายสมศักดิ์ ชัยมงคล', '2024-07-20', 3.2,
-   'เจาะผ่านแกรนิตหนา 60 ม. ปริมาณน้ำสูงมาก เหมาะสำหรับเกษตรกรรม'),
+INSERT INTO quotations (kind, repair_request_id, price, status, notes) VALUES
+  ('REPAIR', 1, 3500, 'ACCEPTED', 'ค่าอะไหล่ + ค่าแรง');
 
-  -- Well 3: เชียงใหม่ (หมดประกัน 2027-01-10 — IN_WARRANTY นาน)
-  (3, 78.00, 74.00, 2.52, 42.00,
-   12.00, 28.00, 35.00, 1.10,
-   'Grundfos SP3A-14', 'AC_SUBMERSIBLE', 'ROTARY', 'FRESH',
-   'นายวิชาญ บุญมา', '2025-01-10', 6.1,
-   'ชั้นหินแกรนิตผุหนา บ่อผลิตน้ำได้ดีสำหรับบ้านพักอาศัย');
+INSERT INTO repair_records (repair_id, final_price, work_details, parts, pump, payment_slip_url, is_warranty_claim, completed_at) VALUES
+  (1, 3500, 'เปลี่ยนคาปาซิเตอร์ + ตรวจสวิทช์ลูกลอย + ล้างถังเก็บน้ำ',
+   JSON_ARRAY(
+     JSON_OBJECT('name', 'คาปาซิเตอร์ 30uF', 'qty', 1, 'unit_price', 1200),
+     JSON_OBJECT('name', 'ค่าแรงช่าง', 'qty', 1, 'unit_price', 1500)
+   ),
+   JSON_OBJECT(
+     'model_id', 13, 'brand', 'TORQUE', 'series', '4BM Series',
+     'model', 'TQ-SP 4BM14-4/S', 'motor_power', '1.5 HP (1.1 kW)',
+     'phase', '1 เฟส 220V', 'discharge_size', '1.5"',
+     'impeller_stages', '14 ใบ', 'max_head_m', '84 ม.',
+     'reference_price', 13623.00
+   ),
+   'https://storage.example.com/slip1.png', 0, NOW());
 
--- ============================================================
--- SEED: Strata Logs — Well 1 (กรุงเทพ 118.5 ม.)
--- ============================================================
-INSERT INTO well_strata_logs
-  (well_id, lithology_type_id, depth_from, depth_to, hardness, is_water_bearing,
-   conductivity_us, ph_value, tds_ppm, description)
-VALUES
-  (1, 1,   0.00, 12.00, 'VERY_SOFT', 0, NULL,  NULL, NULL,  'ดินเหนียวกรุงเทพสีเทาเข้ม อ่อนมาก'),
-  (1, 10, 12.00, 25.00, 'SOFT',      0, NULL,  NULL, NULL,  'ดินเหนียวปนทรายสีน้ำตาลแดง'),
-  (1, 2,  25.00, 40.00, 'MEDIUM',    1, 450.0, 7.2, 285.0, 'ทรายปนตะกอน ชั้นน้ำแรก อัตราไหลต่ำ'),
-  (1, 6,  40.00, 58.00, 'SOFT',      0, NULL,  NULL, NULL,  'ดินเหนียวปนทรายสีเทา'),
-  (1, 2,  58.00, 80.00, 'MEDIUM',    1, 380.0, 7.4, 240.0, 'ทรายปนตะกอนหยาบ ชั้นน้ำบาดาลหลัก'),
-  (1, 7,  80.00, 95.00, 'MEDIUM',    1, 320.0, 7.6, 200.0, 'กรวดหยาบ ให้น้ำดี'),
-  (1, 3,  95.00,112.00, 'HARD',      0, NULL,  NULL, NULL,  'หินแกรนิตผุสีน้ำตาลเหลือง'),
-  (1, 4, 112.00,118.50, 'VERY_HARD', 0, NULL,  NULL, NULL,  'หินแกรนิตสด RQD 85%');
-
--- SEED: Strata Logs — Well 2 (ชลบุรี 175.2 ม.)
-INSERT INTO well_strata_logs
-  (well_id, lithology_type_id, depth_from, depth_to, hardness, is_water_bearing,
-   conductivity_us, ph_value, tds_ppm, description)
-VALUES
-  (2, 5,   0.00,  6.00, 'MEDIUM',    0, NULL,  NULL, NULL,  'ดินลูกรังสีแดงส้ม'),
-  (2, 10,  6.00, 20.00, 'SOFT',      0, NULL,  NULL, NULL,  'ดินเหนียวปนทรายสีน้ำตาล'),
-  (2, 2,  20.00, 45.00, 'MEDIUM',    1, 520.0, 7.0, 330.0, 'ทรายปนตะกอน ชั้นน้ำแรก'),
-  (2, 6,  45.00, 75.00, 'MEDIUM',    0, NULL,  NULL, NULL,  'ดินเหนียวปนทรายหนา'),
-  (2, 7,  75.00, 95.00, 'MEDIUM',    1, 410.0, 7.3, 260.0, 'กรวดหยาบ ชั้นน้ำบาดาลหลัก'),
-  (2, 3,  95.00,115.00, 'HARD',      0, NULL,  NULL, NULL,  'หินแกรนิตผุ RQD 45%'),
-  (2, 4, 115.00,175.20, 'VERY_HARD', 0, NULL,  NULL, NULL,  'หินแกรนิตสด RQD 88% เจาะ DTH');
-
--- SEED: Strata Logs — Well 3 (เชียงใหม่ 78 ม.)
-INSERT INTO well_strata_logs
-  (well_id, lithology_type_id, depth_from, depth_to, hardness, is_water_bearing,
-   conductivity_us, ph_value, tds_ppm, description)
-VALUES
-  (3, 5,  0.00,  4.00, 'MEDIUM',    0, NULL,  NULL, NULL,  'ดินลูกรังบางชั้น'),
-  (3, 1,  4.00, 18.00, 'SOFT',      0, NULL,  NULL, NULL,  'ดินเหนียวสีเทา'),
-  (3, 3, 18.00, 45.00, 'HARD',      1, 290.0, 7.1, 180.0, 'หินแกรนิตผุ ให้น้ำดีปานกลาง'),
-  (3, 4, 45.00, 78.00, 'VERY_HARD', 0, NULL,  NULL, NULL,  'หินแกรนิตสด RQD 90%');
+UPDATE repair_requests SET status = 'COMPLETED' WHERE repair_id = 1;
 
 -- ============================================================
--- SEED: Well Pipes
+-- LINE LOG: บันทึกการส่งข้อความกลับหาลูกค้า
 -- ============================================================
-INSERT INTO well_pipes
-  (well_id, pipe_type, pipe_size, thickness_class, depth_from, depth_to, quantity, joint_length_m, notes)
-VALUES
-  (1, 'CASING_PVC',  '6_INCH', 'CLASS_13.5',    0.00,  80.00, 27, 3.00, 'ท่อ PVC Conductor ส่วนบน'),
-  (1, 'SCREEN_PVC',  '6_INCH', 'CLASS_13.5',   80.00, 115.00, 12, 3.00, 'ท่อกรอง PVC ช่วงชั้นน้ำ'),
-  (2, 'CASING_STEEL','6_INCH', 'STEEL_STANDARD', 0.00,  75.00, 25, 3.00, 'ปลอกเหล็กกล้า Conductor'),
-  (2, 'CASING_PVC',  '6_INCH', 'CLASS_13.5',   75.00, 160.00, 28, 3.00, 'ท่อ PVC ชั้นล่าง'),
-  (2, 'SCREEN_PVC',  '6_INCH', 'CLASS_13.5',  160.00, 172.00,  4, 3.00, 'ท่อกรองชั้นกรวด'),
-  (3, 'CASING_PVC',  '6_INCH', 'CLASS_13.5',    0.00,  55.00, 18, 3.00, 'ท่อ PVC ทั้งหมด'),
-  (3, 'SCREEN_PVC',  '6_INCH', 'CLASS_13.5',   55.00,  74.00,  7, 3.00, 'ท่อกรองชั้นแกรนิตผุ');
+INSERT INTO line_notifications (customer_id, kind, content, status) VALUES
+  (1, 'QUOTE', 'แจ้งราคาเจาะบ่อ 45,000 บาท กดยอมรับเพื่อเข้าคิวเจาะ', 'SENT'),
+  (1, 'QUOTE', 'แจ้งราคาซ่อมปั๊ม 3,500 บาท กดยอมรับเพื่อนัดช่าง', 'SENT'),
+  (1, 'STATUS', 'บ่อหลังบ้านเจาะสำเร็จเรียบร้อย รายละเอียดบ่อดูได้จากเมนู', 'SENT');
 
 -- ============================================================
--- SEED: Well Pumps
+-- MASTER: แคตตาล็อกปั๊มซับเมอร์ส (ปั๊มบ่อบาดาล)
+-- Franklin Electric (สหรัฐอเมริกา) + TORQUE (นำเข้าอิตาลี โดย SOIHA INTERGROUP)
+-- สำหรับ dropdown: เลือกยี่ห้อ → เลือกรุ่น → ข้อมูลปั๊มขึ้นอัตโนมัติ
 -- ============================================================
-INSERT INTO well_pumps
-  (well_id, pump_type, brand, horsepower, power_kw, impeller_stages, installation_depth, installed_date)
-VALUES
-  (1, 'AC_SUBMERSIBLE', 'Grundfos SP5A-18',  3.00, 2.20, 18, 55.00, '2024-03-15'),
-  (2, 'AC_SUBMERSIBLE', 'Grundfos SP17-9',   7.50, 5.50,  9, 85.00, '2024-07-20'),
-  (3, 'AC_SUBMERSIBLE', 'Grundfos SP3A-14',  1.50, 1.10, 14, 35.00, '2025-01-10');
+INSERT INTO pump_catalog_models
+  (brand, series, model, bore_size, flow_rate, motor_power, phase, discharge_size, impeller_stages, max_head_m, material, features, reference_price, notes, sort_order) VALUES
+-- ===== Franklin Electric =====
+('FRANKLIN', '3200 Series', '3200 Series (4")', '4', '5/7/10/15/25 gpm', '0.5-10 HP', '1/3 เฟส', '1.25" NPT', '6-44 สเตจ', 'สูงสุด ~500 ม.', 'สแตนเลส + เทอร์โมพลาสติก', 'ขนาดกะทัดรัด เส้นผ่านศูนย์กลาง 3.75" รวมสายไฟ', NULL, NULL, 1),
+('FRANKLIN', '4400 Tri Seal Series', '4400 Tri Seal Series (4")', '4', '18/25/30/45/60/70 LPM', '0.5-7.5 HP', '1/3 เฟส', '2" BSP', 'หลายสเตจ', 'สูงสุด ~430 ม.', 'AISI 304', 'ระบบ Tri-Seal ป้องกันทราย ใบพัดแบบ floating', NULL, NULL, 2),
+('FRANKLIN', '4400 High Capacity', '4400 High Capacity (4")', '4', '100/150/200/270 LPM', '0.75-7.5 HP', '1/3 เฟส', '2" BSP', 'หลายสเตจ', 'สูงสุด ~300 ม.', 'สแตนเลส', 'อัตราการไหลสูง เหมาะสำหรับบ่อ 4 นิ้ว', NULL, NULL, 3),
+('FRANKLIN', '6" Tri Seal High Capacity', '6" Tri Seal High Capacity', '6', '50/75/100/125 gpm', '1.5-40 HP', '1/3 เฟส', '2" NPT', '3-44 สเตจ', 'สูงสุด ~366 ม. (1,200 ft)', 'สแตนเลส', 'สำหรับงานอัตราการไหลสูง', NULL, NULL, 4),
+('FRANKLIN', 'SSI Series', 'SSI Series (6"/8"/10")', '6/8/10', '6-270 m³/h', '0.55-55 kW', '1/3 เฟส', 'Rp 2.5"/3"/4"/5"', '1-42 สเตจ', 'สูงสุด 377 ม.', 'AISI 304', 'ปั๊ม turbine แบบ stamped stainless steel ซ่อมบำรุงได้', NULL, NULL, 5),
+('FRANKLIN', 'SR Series', 'SR Series (6"/8")', '6/8', 'สูงสุด 80 m³/h (50Hz)', 'สูงสุด 400 kW', '3 เฟส', 'Rp 2"-4"', 'หลายสเตจ', 'สูงสุด 700 ม. (70 Bar)', 'AISI 304/316/904L', 'รองรับอุณหภูมิสูงสุด 90°C มีเวอร์ชัน high pressure', NULL, NULL, 6),
+('FRANKLIN', 'FS Series', 'FS Series (8"-16")', '8/10/12/14/16', '100-1,000 m³/h', 'สูงสุด 400 kW', '3 เฟส', 'หน้าแปลน (Flanged)', 'หลายสเตจ', 'สูงสุด 700 ม.', 'AISI 316', 'งานอุตสาหกรรมปริมาณน้ำมาก', NULL, NULL, 7),
+('FRANKLIN', 'J-Class', 'J-Class (4")', '4', '5/7/10/15/20/25 gpm', '0.5-5 HP', '1/3 เฟส', '1.25" NPT', 'หลายสเตจ', 'สูงสุด ~1,600 ft', 'สแตนเลส + เทอร์โมพลาสติก', 'ซีรีส์เก่าที่ทนทาน มีแคตตาล็อกครบรุ่น', NULL, NULL, 8),
+('FRANKLIN', 'High Capacity 4"', '100FH (High Capacity 4")', '4', '100 LPM', '0.75-7.5 HP', '1/3 เฟส', '2"', 'หลายสเตจ', 'สูงสุด ~250 ม.', 'สแตนเลส', NULL, NULL, NULL, 9),
+('FRANKLIN', 'J-Class 4"', '100FA2S4-PEXB (J-Class)', '4', NULL, '2 HP (1,500 W)', '1 เฟส 220V', '2"', '12 ใบ', NULL, 'สแตนเลส', NULL, 26490.00, NULL, 10),
+('FRANKLIN', 'High Capacity 4" (หัวปั๊ม)', '12AD26-75 (หัวปั๊ม)', '4', '160-260 LPM', '7.5 HP', NULL, '1.5"', '26 ใบ', '111-47 ม.', 'สแตนเลส', NULL, 10560.00, NULL, 11),
+('FRANKLIN', 'High Capacity 4"', 'High Capacity 4" 2HP (1 เฟส)', '4', NULL, '2 HP', '1 เฟส', NULL, NULL, '~200 ม.', NULL, NULL, NULL, NULL, 12),
+('FRANKLIN', 'High Capacity 4"', 'High Capacity 4" 2HP (3 เฟส)', '4', NULL, '2 HP', '3 เฟส', NULL, NULL, '~200 ม.', NULL, NULL, 31574.00, NULL, 13),
+('FRANKLIN', 'High Capacity 4"', 'High Capacity 4" 3HP (1 เฟส)', '4', NULL, '3 HP', '1 เฟส', NULL, NULL, '~250 ม.', NULL, NULL, 22950.00, NULL, 14),
+('FRANKLIN', 'High Capacity 4"', 'High Capacity 4" 3HP (3 เฟส)', '4', NULL, '3 HP', '3 เฟส', NULL, NULL, '~250 ม.', NULL, NULL, 23450.00, NULL, 15),
+('FRANKLIN', 'มอเตอร์ 6"', 'Y DELTA มอเตอร์ 6" 20HP', '6', NULL, '20 HP', '3 เฟส 380V', NULL, NULL, NULL, NULL, 'มอเตอร์ปั๊มขนาด 6 นิ้ว แบบ Y-Delta', 105800.00, NULL, 16),
 
--- ============================================================
--- SEED: Maintenance Logs
--- ============================================================
-INSERT INTO maintenance_logs
-  (well_id, event_type_id, event_date, description, performed_by, next_service_date, is_warranty_claim)
-VALUES
-  (1, 3, '2024-09-10',
-   'ตรวจสอบระบบควบคุมไฟฟ้า ทำความสะอาดตู้ควบคุม ปรับแรงดันน้ำ ไม่พบความผิดปกติ',
-   'นายสมพงษ์ ช่างไฟ', '2025-09-10', 0),
-
-  (1, 5, '2025-03-15',
-   'ตรวจสอบประจำปีครั้งที่ 1 วัดระดับน้ำ ทดสอบอัตราไหล ผลปกติ',
-   'นายวิชาญ บุญมา', '2026-03-15', 0),
-
-  (2, 1, '2024-11-05',
-   'เปลี่ยนปั๊มน้ำ Grundfos SP17-9 ชุดใหม่ เนื่องจากมอเตอร์ไหม้ ภายในระยะประกัน',
-   'นายสมศักดิ์ ชัยมงคล', '2025-05-05', 1),
-
-  (2, 2, '2025-02-20',
-   'ล้างบ่อด้วย Airlifting 6 ชั่วโมง ดูดตะกอนออก อัตราไหลดีขึ้น 15%',
-   'ทีมงาน DGWM Drilling', '2026-02-20', 0),
-
-  (3, 5, '2025-07-10',
-   'ตรวจสอบประจำปี วัดระดับน้ำคงที่ที่ 12 ม. อัตราไหล 42 LPM ปกติดี',
-   'นายวิชาญ บุญมา', '2026-07-10', 0);
-
--- ============================================================
--- SEED: Default Admin User (password: admin123)
--- ============================================================
-INSERT INTO users (email, password_hash, full_name, role) VALUES
-  ('admin@dgwm.co.th', '$2b$10$YGS9l1zRy5XoFUmZjfEQRut0lUsj/Mngud25gLBtZ2PEMjK8yckkK', 'แอดมิน', 'ADMIN');
+-- ===== TORQUE (นำเข้าอิตาลี โดย SOIHA INTERGROUP) =====
+('TORQUE', '2BM Series', '2BM Series (3")', '3', '50 LPM', '0.5-2 HP', '1/3 เฟส', NULL, '11-37 ใบ', 'สูงสุด 140 ม.', 'AISI 304', NULL, NULL, 'ขนาดบ่อ 3"/4"/6" | กำลังรวม 0.33-20 HP | ใบพัด 3-40 | อัตราไหล 50-1,200 LPM | AC 1 เฟส 220V / 3 เฟส 380V | ทนไฟ 1 เฟส 170-240V / 3 เฟส 350-380V | กันน้ำ IP68 Class F (155°C) | แรงกดเพลา 6,500 N สตาร์ท 30 ครั้ง/ชม. | รับประกัน 1 ปี (PRO SERIES 2 ปี) | มาตรฐาน FDA NEMA KTW ACS WRAS', 1),
+('TORQUE', '2BH/2BM Series', '2BH/2BM Series (4")', '4', '2 m³/h', '0.33-1.5 HP', '1/3 เฟส', NULL, 'หลายสเตจ', NULL, 'AISI 304', NULL, NULL, NULL, 2),
+('TORQUE', '4BH/4BM Series', '4BH/4BM Series (4")', '4', '4 m³/h', '1-3 HP', '1/3 เฟส', NULL, 'หลายสเตจ', NULL, 'AISI 304', NULL, NULL, NULL, 3),
+('TORQUE', '6BH/6BM Series', '6BH/6BM Series (4")', '4', '6 m³/h', '1.5-5 HP', '1/3 เฟส', NULL, 'หลายสเตจ', NULL, 'AISI 304', NULL, NULL, NULL, 4),
+('TORQUE', '8BH/8BM Series', '8BH/8BM Series (4")', '4', '8 m³/h', '3-7.5 HP', '1/3 เฟส', NULL, 'หลายสเตจ', NULL, 'AISI 304', NULL, NULL, NULL, 5),
+('TORQUE', '12/16 BH Series', '12/16 BH Series (4")', '4', '12/16 m³/h', '5-10 HP', '1/3 เฟส', NULL, 'หลายสเตจ', NULL, 'AISI 304', NULL, NULL, NULL, 6),
+('TORQUE', '14SP Series', '14SP Series (4")', '4', '14 m³/h', '7.5-10 HP', '1/3 เฟส', NULL, 'หลายสเตจ', NULL, 'AISI 304', NULL, NULL, NULL, 7),
+('TORQUE', '4BG Series', '4BG Series (3.5")', '3.5', '4 m³/h', '1-3 HP', '1/3 เฟส', NULL, 'หลายสเตจ', NULL, 'AISI 304', NULL, NULL, NULL, 8),
+('TORQUE', '30BP Series', '30BP Series (6")', '6', 'สูงสุด 1,200 LPM', '5.5-20 HP', '1/3 เฟส', '3"', '3-5 ใบ', 'สูงสุด 70 ม.', 'AISI 304', NULL, NULL, NULL, 9),
+('TORQUE', '2BM Series', 'TQ-SP 2BM16-3/S', '3', NULL, '0.75 HP (0.55 kW)', '1 เฟส 220V', '1.25"', '16 ใบ', '64 ม.', 'AISI 304', NULL, 10406.00, 'เหมาะสำหรับบ่อลึก 37-60 ม.', 10),
+('TORQUE', '2BM Series', 'TQ-SP 2BM20-4/ST', '4', NULL, '1.5 HP (1.1 kW)', '3 เฟส 220V', '1.5"', '20 ใบ', '130 ม.', 'AISI 304', NULL, 13915.00, 'เหมาะสำหรับบ่อลึก 53-119 ม.', 11),
+('TORQUE', '4BM Series', 'TQ-SP 4BM09-4', '4', NULL, '1 HP', NULL, NULL, '9 ใบ', NULL, 'AISI 304', NULL, 14190.00, NULL, 12),
+('TORQUE', '4BM Series', 'TQ-SP 4BM14-4/S', '4', NULL, '1.5 HP (1.1 kW)', '1 เฟส 220V', '1.5"', '14 ใบ', '84 ม.', 'AISI 304', NULL, 13623.00, 'ราคาโดยประมาณ ~11,800-13,623 บาท', 13),
+('TORQUE', '4BM Series', 'TQ-SP 4BM14-4', '4', NULL, '1.5 HP (1.1 kW)', '3 เฟส 220V', '1.5"', '14 ใบ', NULL, 'AISI 304', NULL, NULL, NULL, 14),
+('TORQUE', '6BM Series', 'TQ-SP 6BM10-4', '4', NULL, '1.5 HP', NULL, '2"', '10 ใบ', NULL, 'AISI 304', NULL, NULL, NULL, 15),
+('TORQUE', '30BP Series', 'TQ-SP 30BP03-6', '6', NULL, '3 HP (2.2 kW)', '3 เฟส 220V', '3"', '3 ใบ', '39 ม.', 'AISI 304', NULL, NULL, NULL, 16),
+('TORQUE', 'ปั๊มจุ่ม', 'TQ-SP-M120', NULL, '91 LPM', '100 W', '1 เฟส 220V', '3/4" - 1"', NULL, '6.5 ม.', NULL, 'ปั๊มจุ่มระบายน้ำ', NULL, NULL, 17),
+('TORQUE', 'ปั๊มจุ่ม', 'TQ-SP-M450', NULL, '250 LPM', '450 W', '1 เฟส 220V', '2"', NULL, '12 ม.', NULL, 'ปั๊มจุ่มระบายน้ำ', NULL, NULL, 18),
+('TORQUE', 'ปั๊มจุ่ม TDS', 'TQ-SP-TDS180', NULL, '120 LPM', '300 W (มอเตอร์ 180 W)', '1 เฟส 220V', '1"', NULL, '6 ม.', NULL, 'ปั๊มจุ่มระบายน้ำ', NULL, '2,860 rpm', 19),
+('TORQUE', 'ปั๊มจุ่ม TDS', 'TQ-SP-TDS550F', NULL, '300 LPM', '800 W (มอเตอร์ 550 W)', '1 เฟส 220V', '2"', NULL, '10 ม.', NULL, 'ปั๊มจุ่มระบายน้ำ', NULL, '2,860 rpm', 20),
+('TORQUE', 'ปั๊มจุ่ม TDS', 'TQ-SP-TDS750', NULL, '350 LPM', '1,000 W (มอเตอร์ 750 W)', '1 เฟส 220V', '2"', NULL, '12 ม.', NULL, 'ปั๊มจุ่มระบายน้ำ', NULL, '2,860 rpm', 21),
+('TORQUE', 'ปั๊มโซลาร์', 'TQ-SP-4DC0806-AD-A11/S', '4', NULL, '1.5 HP (1,100 W)', '1 เฟส 220V / DC', '2"', '6 ใบ', '75 ม.', 'AISI 304', 'ปั๊มโซลาร์ รองรับไฟ AC/DC ใช้ร่วมกับโซลาร์เซลล์', NULL, NULL, 22);
