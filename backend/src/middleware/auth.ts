@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dgwm-dev-secret-change-me";
+const JWT_SECRET = process.env.JWT_SECRET || "welldrill-dev-secret-change-me";
 
 export interface AuthPayload {
   userId: number;
   email: string;
-  role: "ADMIN" | "DRILLER";
+  role: "USER";
 }
 
 declare global {
@@ -36,13 +36,4 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   } catch {
     return res.status(401).json({ error: "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่" });
   }
-}
-
-export function requireRole(...roles: string[]) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ error: "ไม่มีสิทธิ์เข้าถึง" });
-    }
-    next();
-  };
 }

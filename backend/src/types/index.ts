@@ -1,89 +1,301 @@
-export type JobStatus = "PENDING" | "DRILLING" | "COMPLETED";
+export type UserRole = "USER";
 
-export type StrataType =
-  | "BANGKOK_CLAY" | "SILTY_SAND" | "GRAVEL" | "SANDSTONE"
-  | "MAHA_SARAKHAM_SALT" | "SHALE" | "LIMESTONE" | "GRANITE" | "OTHER";
-
-export type PipeType = "CASING_PVC" | "SCREEN_PVC" | "CASING_STEEL" | "SCREEN_STEEL";
-export type PipeSize = "4_INCH" | "5_INCH" | "6_INCH" | "8_INCH";
-export type ThicknessClass = "CLASS_8.5" | "CLASS_13.5" | "STEEL_STANDARD" | "NONE";
-export type PumpType = "AC_SUBMERSIBLE" | "DC_SOLAR_SUBMERSIBLE" | "OTHER";
-
-export interface Driller {
-  driller_id: number;
-  team_name: string;
-  leader_name: string;
-  phone: string;
-  created_at?: string;
-}
-
-export interface Customer {
-  customer_id: number;
-  customer_name: string;
-  phone: string;
-  address?: string;
-  created_at?: string;
-}
-
-export interface DrillingJob {
-  job_id: number;
-  driller_id: number;
-  customer_id: number;
-  job_title: string;
-  site_address: string;
-  latitude: number;
-  longitude: number;
-  scheduled_date: string;
-  status: JobStatus;
-  estimated_price: number;
-  final_price: number;
+export interface User {
+  user_id: number;
+  email: string;
+  password_hash: string;
+  full_name: string;
+  phone?: string | null;
+  role: UserRole;
   created_at?: string;
   updated_at?: string;
 }
 
-export interface WellLog {
-  well_id: number;
-  job_id: number;
-  total_depth: number;
-  water_quantity: number;
-  static_water_level: number;
-  pumping_water_level: number;
-  completion_date: string;
-  notes?: string;
+export type DrillingRequestSource = "GOOGLE_FORM" | "MANUAL" | "LINE";
+export type DrillingRequestStatus = "NEW" | "QUOTED" | "ACCEPTED" | "REJECTED" | "CANCELLED";
+export type DrillingJobStatus = "QUEUED" | "DRILLING" | "SUCCESS" | "FAILED" | "CLOSED";
+export type RepairRequestStatus = "NEW" | "QUOTED" | "ACCEPTED" | "REJECTED" | "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+export type QuotationKind = "DRILLING" | "REPAIR";
+export type QuotationStatus = "PENDING" | "ACCEPTED" | "REJECTED";
+export type WellResult = "SUCCESS" | "FAIL";
+export type DrillingMethod = "ROTARY" | "DTH" | "CABLE_TOOL" | "AUGER" | "JETTING" | "OTHER";
+export type FormationWaterType = "FRESH" | "BRACKISH" | "SALINE" | "UNKNOWN";
+export type PipeMaterial = "PVC" | "STEEL" | "STAINLESS_STEEL" | "HDPE" | "OTHER";
+export type PipeType = "CASING" | "SCREEN";
+export type PumpType = "AC_SUBMERSIBLE" | "DC_SOLAR_SUBMERSIBLE" | "OTHER";
+export type Hardness = "VERY_SOFT" | "SOFT" | "MEDIUM" | "HARD" | "VERY_HARD";
+export type LithologyType =
+  | "TOP_SOIL" | "CLAY" | "SAND" | "GRAVEL" | "LATERITE"
+  | "SANDSTONE" | "SHALE" | "LIMESTONE" | "GRANITE" | "BASALT"
+  | "HARDROCK" | "OTHER";
+export type PumpBrand =
+  | "FRANKLIN" | "TORQUE" | "GRUNDFOS" | "HITACHI" | "PEDROLLO"
+  | "MITSUBISHI" | "KSB" | "TSURUMI" | "LOWARA" | "OTHER";
+export type ControlBoxProtection =
+  | "OVERLOAD_RELAY" | "CIRCUIT_BREAKER" | "AUTO_RESTART" | "WATER_LEVEL"
+  | "LIGHTNING" | "NONE" | "OTHER";
+
+export interface Customer {
+  customer_id: number;
+  user_id?: number | null;
+  line_user_id?: string | null;
+  customer_name: string;
+  phone: string;
+  phone_alt?: string | null;
+  address?: string | null;
+  line_display_name?: string | null;
+  line_picture_url?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  total_wells?: number;
 }
 
-export interface WellStrataLog {
+export interface Well {
+  well_id: number;
+  customer_id: number;
+  well_name: string;
+  address?: string | null;
+  requested_depth_m?: number | null;
+  total_depth_m?: number | null;
+  drilling_method?: DrillingMethod | null;
+  formation_water_type: FormationWaterType;
+  water_quantity_m3hr?: number | null;
+  yield_lpm?: number | null;
+  static_water_level_m?: number | null;
+  pumping_water_level_m?: number | null;
+  driller_name?: string | null;
+  completion_date?: string | null;
+  warranty_expire_date?: string | null;
+  result: WellResult;
+  failure_reason?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface StrataSegment {
   strata_id: number;
   well_id: number;
-  depth_from: number;
-  depth_to: number;
-  strata_type: StrataType;
-  description?: string;
+  depth_from_m: number;
+  depth_to_m: number;
+  lithology_type?: LithologyType | null;
+  lithology_name?: string | null;
+  color_hex?: string | null;
+  hardness?: Hardness | null;
+  water_bearing: number;
+  description?: string | null;
 }
 
-export interface WellPipe {
+export interface PipeSegment {
   pipe_id: number;
   well_id: number;
-  depth_from: number;
-  depth_to: number;
-  pipe_type: PipeType;
-  pipe_size: PipeSize;
-  thickness_class: ThicknessClass;
+  material?: PipeMaterial | null;
+  pipe_type?: PipeType | null;
+  size_mm?: number | null;
+  depth_from_m: number;
+  depth_to_m: number;
+  quantity: number;
+  notes?: string | null;
 }
 
-export interface WellPump {
+export interface PumpSegment {
   pump_id: number;
   well_id: number;
-  pump_type: PumpType;
-  brand?: string;
-  horsepower: number;
-  impeller_stages?: number;
-  installation_depth: number;
-  installed_date: string;
+  pump_type?: PumpType | null;
+  brand?: string | null;
+  pump_model?: string | null;
+  horsepower?: number | null;
+  power_kw?: number | null;
+  impeller_stages?: number | null;
+  installation_depth_m?: number | null;
+  voltage?: string | null;
+  phase?: number | null;
+  discharge_size_mm?: number | null;
+  rated_flow_m3hr?: number | null;
+  rated_head_m?: number | null;
+  installed_date?: string | null;
+  notes?: string | null;
 }
 
-export interface FullWell extends WellLog {
-  strata: WellStrataLog[];
-  pipes: WellPipe[];
-  pumps: WellPump[];
+export interface ControlBoxSegment {
+  control_box_id: number;
+  well_id: number;
+  brand?: string | null;
+  model?: string | null;
+  capacity?: string | null;
+  voltage?: string | null;
+  protection_type?: ControlBoxProtection | null;
+  features?: string | null;
+  installed_date?: string | null;
+  notes?: string | null;
+}
+
+export interface FullWell extends Well {
+  customer_name?: string;
+  customer_phone?: string;
+  warranty_status?: "ACTIVE" | "EXPIRED" | "UNKNOWN";
+  days_left?: number;
+  strata?: StrataSegment[];
+  pipes?: PipeSegment[];
+  pumps?: PumpSegment[];
+  control_boxes?: ControlBoxSegment[];
+}
+
+export interface DrillingRequest {
+  request_id: number;
+  customer_id: number;
+  source: DrillingRequestSource;
+  name: string;
+  phone: string;
+  address: string;
+  requested_depth_m?: number | null;
+  status: DrillingRequestStatus;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  customer_name?: string;
+  customer_phone?: string;
+  quotation?: Quotation | null;
+  job?: DrillingJob | null;
+}
+
+export interface DrillingJob {
+  job_id: number;
+  request_id?: number | null;
+  customer_id: number;
+  well_id?: number | null;
+  status: DrillingJobStatus;
+  result?: WellResult | "FAILED" | null;
+  failure_reason?: string | null;
+  job_title?: string | null;
+  site_address?: string | null;
+  province?: string | null;
+  district?: string | null;
+  scheduled_date?: string | null;
+  magic_link_token?: string | null;
+  magic_link_expires_at?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  customer_name?: string;
+  customer_phone?: string;
+  well_name?: string;
+  warranty_expire_date?: string | null;
+  request?: DrillingRequest | null;
+}
+
+export interface RepairRequest {
+  repair_id: number;
+  customer_id: number;
+  well_id?: number | null;
+  problems: string[];
+  detail?: string | null;
+  photos?: string[] | null;
+  scheduled_date?: string | null;
+  status: RepairRequestStatus;
+  magic_link_token?: string | null;
+  magic_link_expires_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  customer_name?: string;
+  customer_phone?: string;
+  well_name?: string;
+  quotation?: Quotation | null;
+  records?: RepairRecord[];
+}
+
+export interface Quotation {
+  quotation_id: number;
+  kind: QuotationKind;
+  drilling_request_id?: number | null;
+  repair_request_id?: number | null;
+  price: number;
+  status: QuotationStatus;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface RepairRecord {
+  record_id: number;
+  repair_id: number;
+  final_price?: number | null;
+  work_details?: string | null;
+  parts?: { name: string; qty: number; unit_price: number }[] | null;
+  pump?: PumpCatalogModel | null;
+  payment_slip_url?: string | null;
+  is_warranty_claim: number;
+  completed_at?: string | null;
+  created_at?: string;
+}
+
+export interface PumpCatalogModel {
+  model_id: number;
+  brand: string;
+  series?: string | null;
+  model: string;
+  bore_size?: string | null;
+  flow_rate?: string | null;
+  motor_power?: string | null;
+  phase?: string | null;
+  discharge_size?: string | null;
+  impeller_stages?: string | null;
+  max_head_m?: string | null;
+  material?: string | null;
+  features?: string | null;
+  reference_price?: number | null;
+  notes?: string | null;
+  sort_order?: number;
+  is_active: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface LineNotification {
+  notification_id: number;
+  customer_id?: number | null;
+  kind?: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" | null;
+  content?: string | null;
+  line_message_id?: string | null;
+  status: "SENT" | "FAILED";
+  sent_at?: string;
+}
+
+export interface StatsOverview {
+  requests: {
+    new: number;
+    quoted: number;
+    accepted: number;
+  };
+  jobs: {
+    queued: number;
+    drilling: number;
+    success: number;
+    failed: number;
+    closed: number;
+    total: number;
+  };
+  repairs: {
+    new: number;
+    inProgress: number;
+    completed: number;
+  };
+  wells: {
+    count: number;
+    avgDepth: number;
+    maxDepth: number;
+    avgWater: number;
+  };
+  warranty: {
+    active: number;
+    expiringSoon: number;
+    expired: number;
+  };
+  recentJobs: {
+    job_id: number;
+    job_title?: string | null;
+    status: DrillingJobStatus;
+    customer_name: string;
+    scheduled_date?: string | null;
+  }[];
 }
