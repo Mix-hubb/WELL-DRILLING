@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 import { pool } from "../config/db";
 import { signToken } from "../middleware/auth";
 import { UserRole } from "../types";
@@ -24,11 +23,10 @@ export async function register(req: Request, res: Response) {
   }
 
   const password_hash = await bcrypt.hash(password, 10);
-  const userId = crypto.randomUUID();
 
   const { rows } = await pool.query(
-    "INSERT INTO users (user_id, email, password_hash, full_name, role) VALUES ($1, $2, $3, $4, $5) RETURNING user_id",
-    [userId, email, password_hash, full_name, USER_ROLE]
+    "INSERT INTO users (user_id, email, password_hash, full_name, role) VALUES (gen_random_uuid(), $1, $2, $3, $4) RETURNING user_id",
+    [email, password_hash, full_name, USER_ROLE]
   );
 
   const newUserId = rows[0].user_id;
