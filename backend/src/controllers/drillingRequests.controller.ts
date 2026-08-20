@@ -3,6 +3,7 @@ import { pool } from "../config/db";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 import { userFilter } from "../utils/userFilter";
 import { DrillingRequest } from "../types";
+import { sendTextToCustomer } from "../services/line";
 
 const REQUEST_SELECT = `
   SELECT
@@ -26,6 +27,7 @@ function mapRow(row: RowDataPacket): DrillingRequest {
     phone: row.phone,
     address: row.address,
     requested_depth_m: row.requested_depth_m,
+    appointment_date: row.appointment_date,
     status: row.status,
     notes: row.notes,
     created_at: row.created_at,
@@ -73,19 +75,52 @@ export async function getOne(req: Request, res: Response) {
 }
 
 export async function create(req: Request, res: Response) {
-  const { customer_id, source, name, phone, address, requested_depth_m, notes } = req.body;
+  const { customer_id, source, name, phone, address, requested_depth_m, appointment_date, notes } = req.body;
   if (!customer_id || !name || !phone || !address) {
     return res.status(400).json({ error: "ต้องระบุ customer_id, name, phone, address" });
   }
   const [result] = await pool.query<ResultSetHeader>(
-    `INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [customer_id, source || "MANUAL", name, phone, address, requested_depth_m ?? null, notes || null]
+    `INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m, appointment_date, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [customer_id, source || "MANUAL", name, phone, address, requested_depth_m ?? null, appointment_date ?? null, notes || null]
   );
   const [rows] = await pool.query<RowDataPacket[]>(
     `${REQUEST_SELECT} WHERE r.request_id = ?`, [result.insertId]
   );
+
+  if (source === "LINE") {
+    sendTextToCustomer(customer_id, "เตรียมพร้อมสำหรับวันนัดหมายครับ ทีมงานจะตรวจสอบและติดต่อกลับโดยเร็ว", "STATUS").catch(() => {});
+  }
+
   res.status(201).json(mapRow(rows[0]));
+}
+
+export async function update(req: Request, res: Response) {
+  const { id } = req.params;
+  const { name, phone, address, requested_depth_m, appointment_date, notes } = req.body;
+
+  const [existing] = await pool.query<RowDataPacket[]>(
+    "SELECT * FROM drilling_requests WHERE request_id = ?", [id]
+  );
+  if (!existing.length) return res.status(404).json({ error: "ไม่พบคำร้องเจาะ" });
+
+  await pool.query(
+    `UPDATE drilling_requests SET name = ?, phone = ?, address = ?, requested_depth_m = ?, appointment_date = ?, notes = ? WHERE request_id = ?`,
+    [
+      name ?? existing[0].name,
+      phone ?? existing[0].phone,
+      address ?? existing[0].address,
+      requested_depth_m ?? existing[0].requested_depth_m,
+      appointment_date ?? existing[0].appointment_date,
+      notes ?? existing[0].notes,
+      id,
+    ]
+  );
+
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `${REQUEST_SELECT} WHERE r.request_id = ?`, [id]
+  );
+  res.json(mapRow(rows[0]));
 }
 
 export async function updateStatus(req: Request, res: Response) {
@@ -109,4 +144,53 @@ export async function updateStatus(req: Request, res: Response) {
 export async function remove(req: Request, res: Response) {
   await pool.query("DELETE FROM drilling_requests WHERE request_id = ?", [req.params.id]);
   res.status(204).end();
+}
+
+export async function createFromPublicForm(req: Request, res: Response) {
+  const { name, phone, address, requested_depth_m, appointment_date, notes } = req.body;
+  if (!name || !phone) {
+    return res.status(400).json({ error: "ต้องระบุชื่อและเบอร์โทร" });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [existing] = await conn.query<RowDataPacket[]>(
+      "SELECT customer_id FROM customers WHERE phone = ? LIMIT 1",
+      [phone]
+    );
+
+    let customerId: number;
+    if (existing.length) {
+      customerId = existing[0].customer_id;
+      await conn.query(
+        "UPDATE customers SET customer_name = COALESCE(?, customer_name), address = COALESCE(?, address) WHERE customer_id = ?",
+        [name, address || null, customerId]
+      );
+    } else {
+      const [c] = await conn.query<ResultSetHeader>(
+        "INSERT INTO customers (customer_name, phone, address) VALUES (?, ?, ?)",
+        [name, phone, address || null]
+      );
+      customerId = c.insertId;
+    }
+
+    const [r] = await conn.query<ResultSetHeader>(
+      `INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m, appointment_date, notes)
+       VALUES (?, 'LINE', ?, ?, ?, ?, ?, ?)`,
+      [customerId, name, phone, address || null, requested_depth_m ?? null, appointment_date ?? null, notes || null]
+    );
+
+    await conn.commit();
+
+    sendTextToCustomer(customerId, "เตรียมพร้อมสำหรับวันนัดหมายครับ ทีมงานจะตรวจสอบและติดต่อกลับโดยเร็ว", "STATUS").catch(() => {});
+
+    res.status(201).json({ request_id: r.insertId, customer_id: customerId });
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 }

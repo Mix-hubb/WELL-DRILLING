@@ -256,6 +256,7 @@ CREATE TABLE IF NOT EXISTS drilling_requests (
   phone              VARCHAR(20)        NOT NULL,
   address            TEXT               NOT NULL,
   requested_depth_m  DECIMAL(7,2)       NULL,
+  appointment_date  DATE               NULL COMMENT 'วันนัดหมายที่ลูกค้ากรอก (LIFF)',
   status             ENUM('NEW','QUOTED','ACCEPTED','REJECTED','CANCELLED') NOT NULL DEFAULT 'NEW',
   notes              TEXT               NULL,
   created_at         TIMESTAMP          NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -309,7 +310,7 @@ CREATE TABLE IF NOT EXISTS drilling_jobs (
 -- ============================================================
 -- REQUEST: repair_requests — รายการแจ้งซ่อม (ฟอร์มเว็บของเรา)
 -- problems = ปัญหาที่ติ๊ก (JSON array), photos = รูปที่แนบ (JSON array)
--- status: NEW → QUOTED → ACCEPTED → SCHEDULED → IN_PROGRESS → COMPLETED
+-- status: NEW → QUOTED → ACCEPTED → SCHEDULED → IN_PROGRESS → COMPLETED → CLOSED
 --         | REJECTED | CANCELLED
 -- ============================================================
 CREATE TABLE IF NOT EXISTS repair_requests (
@@ -320,7 +321,7 @@ CREATE TABLE IF NOT EXISTS repair_requests (
   detail               TEXT               NULL,
   photos               JSON               NULL,
   scheduled_date       DATE               NULL,
-  status               ENUM('NEW','QUOTED','ACCEPTED','REJECTED','SCHEDULED','IN_PROGRESS','COMPLETED','CANCELLED') NOT NULL DEFAULT 'NEW',
+  status               ENUM('NEW','QUOTED','ACCEPTED','REJECTED','SCHEDULED','IN_PROGRESS','COMPLETED','CLOSED','CANCELLED') NOT NULL DEFAULT 'NEW',
   magic_link_token     VARCHAR(100)       NULL,
   magic_link_expires_at DATETIME          NULL,
   created_at           TIMESTAMP          NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -345,6 +346,8 @@ CREATE TABLE IF NOT EXISTS quotations (
   kind                ENUM('DRILLING','REPAIR') NOT NULL,
   drilling_request_id INT UNSIGNED       NULL,
   repair_request_id   INT UNSIGNED       NULL,
+  requested_depth_m   DECIMAL(7,2)       NULL COMMENT 'ความลึกที่ต้องการขุด (ม.)',
+  requested_diameter_m DECIMAL(7,2)      NULL COMMENT 'ขนาดหน้าแปลนขุดเจาะ (ม.)',
   price               DECIMAL(12,2)      NOT NULL,
   status              ENUM('PENDING','ACCEPTED','REJECTED') NOT NULL DEFAULT 'PENDING',
   notes               TEXT               NULL,
@@ -356,10 +359,10 @@ CREATE TABLE IF NOT EXISTS quotations (
   INDEX idx_quotes_status   (status),
   CONSTRAINT fk_quotes_drilling
     FOREIGN KEY (drilling_request_id) REFERENCES drilling_requests(request_id)
-    ON DELETE RESTRICT ON UPDATE RESTRICT,
+    ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_quotes_repair
     FOREIGN KEY (repair_request_id) REFERENCES repair_requests(repair_id)
-    ON DELETE RESTRICT ON UPDATE RESTRICT,
+    ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT chk_quote_target CHECK (
     (kind = 'DRILLING' AND drilling_request_id IS NOT NULL AND repair_request_id IS NULL)
     OR
@@ -379,7 +382,6 @@ CREATE TABLE IF NOT EXISTS repair_records (
   work_details      TEXT               NULL,
   parts             JSON               NULL,
   pump              JSON               NULL,
-  payment_slip_url  VARCHAR(500)       NULL,
   is_warranty_claim TINYINT(1)         NOT NULL DEFAULT 0,
   completed_at      DATETIME           NULL,
   created_at        TIMESTAMP          NOT NULL DEFAULT CURRENT_TIMESTAMP,

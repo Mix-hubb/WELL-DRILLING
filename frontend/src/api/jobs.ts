@@ -5,6 +5,7 @@ export const jobsApi = {
   list: (status?: DrillingJobStatus) => api.get<DrillingJob[]>(status ? `/jobs?status=${status}` : "/jobs"),
   getOne: (id: number | string) => api.get<DrillingJob>(`/jobs/${id}`),
   create: (data: Partial<DrillingJob>) => api.post<DrillingJob>("/jobs", data),
+  update: (id: number | string, data: Partial<DrillingJob>) => api.put<DrillingJob>(`/jobs/${id}`, data),
   updateStatus: (id: number | string, status: DrillingJobStatus) => api.patch<DrillingJob>(`/jobs/${id}/status`, { status }),
   generateMagicLink: (id: number | string) => api.post<{ token: string }>(`/jobs/${id}/magic-link`, {}),
   remove: (id: number | string) => api.del<void>(`/jobs/${id}`),

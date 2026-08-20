@@ -58,6 +58,11 @@ const routes = [
 
   // ===== ลูกค้า (public) =====
   {
+    path: "/request-drill", name: "request-drill",
+    component: () => import("@/views/DrillingRequestFormView.vue"),
+    meta: { public: true, hidden: true },
+  },
+  {
     path: "/repair-form", name: "repair-form",
     component: () => import("@/views/RepairFormView.vue"),
     meta: { public: true, hidden: true },
@@ -65,14 +70,14 @@ const routes = [
 
   // ===== ช่าง (magic link, public) =====
   {
-    path: "/d/:token", name: "driller-well",
-    component: () => import("@/views/DrillerWellView.vue"),
+    path: "/d/repair/:token", name: "driller-repair",
+    component: () => import("@/views/DrillerRepairView.vue"),
     props: true,
     meta: { public: true, hidden: true },
   },
   {
-    path: "/d/repair/:token", name: "driller-repair",
-    component: () => import("@/views/DrillerRepairView.vue"),
+    path: "/d/:token", name: "driller-well",
+    component: () => import("@/views/DrillerWellView.vue"),
     props: true,
     meta: { public: true, hidden: true },
   },

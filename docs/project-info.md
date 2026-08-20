@@ -35,7 +35,7 @@
 8. [ใหม่] บันทึกข้อมูลการซ่อมหลังซ่อมเสร็จ
 
 **ฝั่งลูกค้า — 2 ช่องทาง**
-9. Google Form แจ้งเจาะ (ภายนอก เชื่อมผ่าน LIFF + Webhook)
+9. [ใหม่] ฟอร์มแจ้งเจาะ (เว็บของเราเอง เปิดผ่าน LIFF ใน LINE — ปักหมุดที่อยู่จากแผนที่ + เลือกวันนัดหมาย)
 10. [ใหม่] ฟอร์มแจ้งซ่อม (เว็บของเราเอง)
 
 **เมนู LINE OA (แชทบอท ไม่ใช่หน้าเว็บ)**
@@ -50,49 +50,88 @@
 ### Flow A: แจ้งเจาะบ่อใหม่
 
 ```
-Login LINE (LIFF)
+1. ลูกค้าเปิด Line OA → กดปุ่ม "แจ้งเจาะ"
    ↓
-กรอก Google Form (ชื่อ/เบอร์/ที่อยู่/ความลึก)
-   ↓  Webhook เข้า DB → ตาราง drilling_requests
-หน้า "คำร้องแจ้งเจาะ" (ผู้ประกอบการ)
-   ↓  ตีราคา → สร้างใบราคา quotations + ส่งกลับ LINE
-ลูกค้า ยอมรับ / ปฏิเสธ (ตอบใน LINE)
+2. บังคับ Login ผ่าน LINE (LIFF)
+   ↓
+3. ลูกค้ากรอกฟอร์มใน LINE
+   - ชื่อ-นามสกุล / เบอร์โทร
+   - ปักหมุดที่อยู่จากแผนที่ (Leaflet + OSM → ดึงที่อยู่อัตโนมัติ)
+   - เลือกวันนัดหมาย ( appointment_date )
+   - ความลึกที่ต้องการ (เลือกได้)
+   ↓
+4. กดส่ง → Line OA ตอบกลับ "เตรียมพร้อมสำหรับวันนัดหมาย"
+   ↓
+5. ผู้ประกอบการเห็นคำร้องเจาะในหน้าเว็บ → ประเมินหน้างาน
+   ↓
+6. ผู้ประกอบการใส่ราคาประเมิน + รายละเอียดของข่อบาดาลที่จะเจาะ ( quotation.notes )
+   → กดส่งใบราคา → Line OA แจ้งเตือนลูกค้า (ราคา + รายละเอียด + ปุ่มยอมรับ/ปฏิเสธ)
+   ↓
+7. ลูกค้ากด "ยอมรับ" / "ปฏิเสธ" ใน LINE
    ├─ ปฏิเสธ → REJECTED
-   └─ ยอมรับ → ACCEPTED → เข้าคิว "รอดำเนินการ" (drilling_jobs status=QUEUED)
-                          ↓
-                      "กำลังเจาะ" (status=DRILLING)
-                          ↓  ช่างกรอกข้อมูลผ่าน magic link
-              สำเร็จ (เขียว) → สร้างบ่อ wells + รายละเอียด (ท่อ/ปั๊ม/กล่องคอนโทรล/ชั้นดิน)
-              ไม่สำเร็จ (แดง) + เหตุผล → wells.result=FAIL / failure_reason
-                          ↓
-                ผู้ประกอบการปิดคิวเอง (CLOSED)
+   └─ ยอมรับ → แจ้งกลับเว็บ → ACCEPTED → เข้าคิว "รอดำเนินการ" (drilling_jobs status=QUEUED)
+                                     ↓
+                                 "กำลังเจาะ" (status=DRILLING)
+                                     ↓  ช่างกรอกข้อมูลผ่าน magic link
+                     สำเร็จ (เขียว) → สร้างบ่อ wells + รายละเอียด (ท่อ/ปั๊ม/กล่องคอนโทรล/ชั้นดิน)
+                     ไม่สำเร็จ (แดง) + เหตุผล → wells.result=FAIL / failure_reason
+                                     ↓
+                       ผู้ประกอบการปิดคิวเอง (CLOSED)
 ```
 
 สถานะที่ใช้: `drilling_requests.status` = NEW → QUOTED → ACCEPTED | REJECTED | CANCELLED
 `drilling_jobs.status` = QUEUED → DRILLING → SUCCESS | FAILED → CLOSED
 
+หมายเหตุ: การยอมรับ/ปฏิเสธของลูกค้าทำผ่าน LINE (ปุ่ม postback) → backend อัปเดตสถานะอัตโนมัติ → ย้ายเข้าคิวอัตโนมัติ
+
 ### Flow B: แจ้งซ่อม
 
 ```
-กด "แจ้งซ่อม" ในเมนู LINE
+1. ลูกค้าพิมพ์ "แจ้งซ่อม" ใน LINE
    ↓
-หน้าฟอร์มเว็บ (ของเรา):
-  - ติ๊กปัญหา (problems = JSON array)
-  - เลือกบ่อ (well_id)
-  - แนบรูป (photos = JSON array)
-  - เลือกวันนัดซ่อม (scheduled_date)
-   ↓  เข้า "รายการแจ้งซ่อม" (repair_requests)
-ผู้ประกอบการตีราคา → quotations + ส่งกลับ LINE
-   ↓  ลูกค้า ยอมรับ / ปฏิเสธ
+2. บังคับ Login ผ่าน LINE (LIFF)
+   ↓
+3. ลูกค้ากรอกฟอร์มใน LIFF
+   - เลือกหัวข้อปัญหา (problems)
+   - เบอร์โทร / ที่อยู่ / เลือกบ่อ (well_id)
+   - แนบรูป (photos)
+   - เลือกวันนัดซ่อม (scheduled_date)
+   - รายละเอียดเพิ่มเติม (detail)
+   ↓
+4. กดส่ง → Line OA ตอบกลับ "เตรียมพร้อมสำหรับการซ่อมบำรุง ทีมงานจะตรวจสอบและติดต่อกลับ"
+   ↓
+5. ข้อมูลเข้าหน้า "รายการแจ้งซ่อม" บนเว็บ (ผู้ประกอบการ)
+   ↓
+6. ผู้ประกอบการประเมิน → ใส่ราคาประเมิน + รายละเอียดอุปกรณ์ที่น่าจะต้องเปลี่ยน/ซ่อม ( quotation.notes )
+   → กดส่งใบราคา → Line OA แจ้งเตือนลูกค้า (Flex Message: ราคา + รายละเอียด + ปุ่มยอมรับ/ปฏิเสธ)
+   ↓
+7. ลูกค้ากด "ยอมรับ" / "ปฏิเสธ" ใน LINE
    ├─ ปฏิเสธ → REJECTED
-   └─ ยอมรับ → ACCEPTED → SCHEDULED (รอช่างตามวันนัด)
-                          ↓  ช่างเข้าผ่าน magic link
-                       IN_PROGRESS
-                          ↓  ช่างกรอกราคาจบงาน + รายละเอียด (repair_records)
-                       COMPLETED → ปิดรายการ
+   └─ ยอมรับ → แจ้งกลับเว็บ → ACCEPTED
+      → ผู้ประกอบการกดตกลง (ยืนยันวันนัด)
+      → Line OA แจ้งเตือนลูกค้า "กรุณาเตรียมตัวสำหรับวันซ่อม {scheduled_date}"
+      → SCHEDULED
+   ↓
+8. ถึงวันนัดหมาย → ผู้ประกอบการกด "เริ่มซ่อม"
+   → Line OA แจ้งเตือนลูกค้า "ขณะนี้ช่างกำลังทำการซ่อมบำรุง"
+   → IN_PROGRESS
+   ↓
+9. ช่างซ่อมเสร็จ → กรอกข้อมูล + ราคาจบงานใน magic link
+   → ระบบอัปเดต COMPLETED + ส่ง LINE แจ้งลูกค้า (รายละเอียดงาน + ราคา + ขอสลิปโอนเงินผ่าน LIFF)
+   ↓
+10. ผู้ประกอบการกดปิดงาน (CLOSED)
+    → Line OA แจ้งเตือนลูกค้า "การซ่อมเสร็จเรียบร้อย กรุณาอัปโหลดสลิปโอนเงิน"
+   ↓
+11. ลูกค้าอัปโหลดสลิปใน LIFF → ผู้ประกอบการยืนยัน → CLOSED
 ```
 
-สถานะที่ใช้: `repair_requests.status` = NEW → QUOTED → ACCEPTED → SCHEDULED → IN_PROGRESS → COMPLETED | REJECTED | CANCELLED
+สถานะที่ใช้: `repair_requests.status` = NEW → QUOTED → ACCEPTED → SCHEDULED → IN_PROGRESS → COMPLETED → CLOSED | REJECTED | CANCELLED
+
+หมายเหตุ:
+- การยอมรับ/ปฏิเสธของลูกค้าทำผ่าน LINE (ปุ่ม postback) → backend อัปเดตสถานะอัตโนมัติ
+- ผู้ประกอบการกดตกลงหลังลูกค้ายอมรับ → ยืนยันวันนัด → แจ้งเตือนลูกค้า
+- ช่างกรอกข้อมูลผ่าน magic link → ระบบอัปเดต COMPLETED อัตโนมัติ
+- ผู้ประกอบการปิดงาน → แจ้งเตือนลูกค้าให้อัปโหลดสลิป
 
 ### Flow C: ดูข้อมูล (ผ่าน LINE OA bot โดยตรง)
 
@@ -112,11 +151,11 @@ Login LINE (LIFF)
 | จุด | ข้อมูลที่เก็บ |
 |---|---|
 | Login LINE | User ID (`customers.line_user_id`), ชื่อ (`line_display_name`), รูปโปรไฟล์ (`line_picture_url`) |
-| Google Form แจ้งเจาะ | ชื่อ, เบอร์โทร, ที่อยู่, ความลึกที่ต้องการ → `drilling_requests` |
+| แจ้งเจาะ (LIFF) | ชื่อ, เบอร์โทร, ที่อยู่ (ปักหมุดจากแผนที่), วันนัดหมาย, ความลึก → `drilling_requests` |
 | ราคาประเมิน (เจาะ/ซ่อม) | ราคา, สถานะยอมรับ/ปฏิเสธ → `quotations` |
 | กรอกข้อมูลบ่อ (ช่าง) | Well Log, Geological Log, Pipe Specs (PVC/เหล็ก ทึบ/เซาะร่อง จำนวน+ช่วงความลึก), Pump Specs, Control Box Specs, ผลเจาะ, เหตุผลที่ไม่สำเร็จ (ใหม่) → `wells` + `well_strata_logs` + `well_pipes` + `well_pumps` + `well_control_boxes` |
 | แคตตาล็อกปั๊ม | ยี่ห้อ → รุ่น (Franklin Electric + TORQUE) → ข้อมูลสเปกปั๊มขึ้นอัตโนมัติ → `pump_catalog_models` (Master) |
-| ฟอร์มแจ้งซ่อม | ปัญหา(ติ๊ก), บ่อที่เลือก, รูปภาพ, วันนัดซ่อม → `repair_requests` |
+| ฟอร์มแจ้งซ่อม | ปัญหา(ติ๊ก), บ่อที่เลือก, รูปภาพ, วันนัดซ่อม → `repair_requests` (LIFF + LINE user linking) |
 | บันทึกซ่อม (ช่าง) | ราคาจบงาน, รายละเอียดอะไหล่/งานที่ทำ, ปั๊มที่เปลี่ยน (เลือกจากแคตตาล็อก), สลิปจ่ายเงิน → `repair_records` |
 
 ---
@@ -253,8 +292,9 @@ customers         1───N line_notifications
 | request_id | INT UNSIGNED (PK) | รหัสคำร้อง | อัตโนมัติ |
 | customer_id | INT UNSIGNED (FK, CASCADE) | ลูกค้าผู้ร้อง | ระบบโยง |
 | source | ENUM `GOOGLE_FORM`/`MANUAL`/`LINE` (default `GOOGLE_FORM`) | ต้นทางคำร้อง | ระบบบันทึก |
-| name / phone / address | VARCHAR/TEXT NOT NULL | ชื่อ/เบอร์/ที่อยู่ | **Google Form** (webhook) |
-| requested_depth_m | DECIMAL(7,2) | ความลึกที่ต้องการ | Google Form |
+| name / phone / address | VARCHAR/TEXT NOT NULL | ชื่อ/เบอร์/ที่อยู่ (ปักหมุดจากแผนที่) | LIFF / webhook |
+| requested_depth_m | DECIMAL(7,2) | ความลึกที่ต้องการ | LIFF / webhook |
+| appointment_date | DATE NULL | วันนัดหมายที่ลูกค้ากรอก | LIFF |
 | status | ENUM `NEW`/`QUOTED`/`ACCEPTED`/`REJECTED`/`CANCELLED` (default `NEW`) | สถานะ | ระบบเปลี่ยนตาม flow |
 | notes | TEXT | หมายเหตุ | ผู้ประกอบการ |
 | created_at / updated_at | TIMESTAMP | เวลา | อัตโนมัติ |
@@ -289,7 +329,7 @@ customers         1───N line_notifications
 | detail | TEXT | รายละเอียดเพิ่มเติม | ลูกค้ากรอก |
 | photos | JSON | URL รูปที่แนบ (array) | ลูกค้าแนบรูป |
 | scheduled_date | DATE | วันนัดซ่อม | ลูกค้าเลือก |
-| status | ENUM `NEW`/`QUOTED`/`ACCEPTED`/`REJECTED`/`SCHEDULED`/`IN_PROGRESS`/`COMPLETED`/`CANCELLED` (default `NEW`) | สถานะ | ระบบเปลี่ยนตาม flow |
+| status | ENUM `NEW`/`QUOTED`/`ACCEPTED`/`REJECTED`/`SCHEDULED`/`IN_PROGRESS`/`COMPLETED`/`CLOSED`/`CANCELLED` (default `NEW`) | สถานะ | ระบบเปลี่ยนตาม flow |
 | magic_link_token | VARCHAR(100) UNIQUE | ลิงก์ช่าง | ระบบสร้าง |
 | magic_link_expires_at | DATETIME | หมดอายุลิงก์ | ระบบสร้าง |
 | created_at / updated_at | TIMESTAMP | เวลา | อัตโนมัติ |

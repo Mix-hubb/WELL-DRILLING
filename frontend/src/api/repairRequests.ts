@@ -5,6 +5,7 @@ export const repairRequestsApi = {
   list: () => api.get<RepairRequest[]>("/repair-requests"),
   getOne: (id: number | string) => api.get<RepairRequest>(`/repair-requests/${id}`),
   create: (data: Partial<RepairRequest>) => api.post<RepairRequest>("/repair-requests", data),
+  update: (id: number | string, data: Partial<RepairRequest>) => api.put<RepairRequest>(`/repair-requests/${id}`, data),
   updateStatus: (id: number | string, status: RepairRequest["status"]) =>
     api.patch<RepairRequest>(`/repair-requests/${id}/status`, { status }),
   generateMagicLink: (id: number | string) => api.post<{ token: string }>(`/repair-requests/${id}/magic-link`, {}),

@@ -138,6 +138,7 @@ erDiagram
         VARCHAR_20 phone "NOT NULL"
         TEXT address "NOT NULL"
         DECIMAL_7_2 requested_depth_m "NULL"
+        DATE appointment_date "NULL — วันนัดหมาย (LIFF)"
         ENUM status "NEW|QUOTED|ACCEPTED|REJECTED|CANCELLED, DEFAULT NEW"
         TEXT notes "NULL"
         TIMESTAMP created_at "DEFAULT CURRENT_TIMESTAMP"

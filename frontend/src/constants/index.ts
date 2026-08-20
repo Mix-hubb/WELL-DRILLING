@@ -39,6 +39,7 @@ export const REPAIR_STATUS: Record<RepairRequestStatus, { label: string; color: 
   SCHEDULED:    { label: "นัดซ่อมแล้ว",  color: "blue-darken-2" },
   IN_PROGRESS:  { label: "กำลังซ่อม",    color: "deep-orange-darken-1" },
   COMPLETED:    { label: "ซ่อมเสร็จ",    color: "teal-darken-2" },
+  CLOSED:       { label: "ปิดงานแล้ว",   color: "grey-darken-1" },
   CANCELLED:    { label: "ยกเลิก",       color: "grey" },
 };
 

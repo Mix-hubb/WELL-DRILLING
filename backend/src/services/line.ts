@@ -55,6 +55,63 @@ export async function sendTextToCustomer(
   }
 }
 
+export async function sendFlexToCustomer(
+  customerId: number,
+  altText: string,
+  flexContent: any,
+  kind: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" = "OTHER"
+): Promise<boolean> {
+  try {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      "SELECT line_user_id FROM customers WHERE customer_id = ?",
+      [customerId]
+    );
+    const customer = rows[0];
+
+    if (!customer?.line_user_id) {
+      await logNotification(customerId, kind, altText, "", "FAILED");
+      return false;
+    }
+
+    if (!CHANNEL_ACCESS_TOKEN) {
+      console.log(`[LINE] would send flex (no token): ${altText}`);
+      await logNotification(customerId, kind, altText, "", "FAILED");
+      return false;
+    }
+
+    const res = await fetch(MESSAGING_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${CHANNEL_ACCESS_TOKEN}`,
+      },
+      body: JSON.stringify({
+        to: customer.line_user_id,
+        messages: [{
+          type: "flex",
+          altText,
+          contents: flexContent,
+        }],
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      console.error("LINE flex push failed:", res.status, body);
+      await logNotification(customerId, kind, altText, "", "FAILED");
+      return false;
+    }
+
+    const data: any = await res.json();
+    await logNotification(customerId, kind, altText, data.sentMessages?.[0]?.id || "", "SENT");
+    return true;
+  } catch (err) {
+    console.error("LINE flex send error:", err);
+    await logNotification(customerId, kind, altText, "", "FAILED").catch(() => {});
+    return false;
+  }
+}
+
 async function logNotification(
   customerId: number,
   kind: "QUOTE" | "STATUS" | "REMINDER" | "OTHER",

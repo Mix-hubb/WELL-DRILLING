@@ -47,7 +47,7 @@ const darkTheme = {
   colors: {
     background:          "#1C1814",
     surface:             "#242018",
-    "surface-variant":   "#302A22",
+    "surface-variant":   "#3A3228",
     "surface-bright":    "#2E2820",
     primary:             "#7A9AB2",  // lighter slate blue
     "primary-darken-1":  "#6A8AA2",
@@ -60,13 +60,18 @@ const darkTheme = {
     "status-drilling":   "#C89A58",
     "status-completed":  "#78A888",
     "status-archived":   "#706860",
-    "on-background":     "#EEE8DE",
-    "on-surface":        "#EEE8DE",
+    "on-background":     "#F5F0E8",
+    "on-surface":        "#F5F0E8",
     "on-primary":        "#1C1814",
     "on-secondary":      "#1C1814",
     "on-success":        "#1C1814",
     "on-warning":        "#1C1814",
     "on-error":          "#EEE8DE",
+  },
+  variables: {
+    "high-emphasis-opacity":    0.95,
+    "medium-emphasis-opacity":  0.82,
+    "disabled-opacity":         0.45,
   },
 };
 

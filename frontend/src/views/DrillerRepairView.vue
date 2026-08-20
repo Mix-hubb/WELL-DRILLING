@@ -2,7 +2,6 @@
 import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import { repairRequestsApi } from "@/api/repairRequests";
-import { api } from "@/api/client";
 import { useUiStore } from "@/stores/ui";
 import type { RepairRequest, PumpCatalogModel } from "@/types";
 import PumpCatalogPicker from "@/components/PumpCatalogPicker.vue";
@@ -13,7 +12,6 @@ const ui    = useUiStore();
 const request  = ref<RepairRequest | null>(null);
 const loading  = ref(true);
 const submitting = ref(false);
-const uploading  = ref(false);
 const token    = route.params.token as string;
 
 const form = ref({
@@ -22,7 +20,6 @@ const form = ref({
   final_price:    "",
   is_warranty_claim: false,
   completed_at:   new Date().toISOString().slice(0, 10),
-  payment_slip_url: "" as string,
   pump:           null as PumpCatalogModel | null,
 });
 
@@ -39,22 +36,6 @@ onMounted(async () => {
 function addPart() { form.value.parts.push({ name: "", qty: 1, unit_price: 0 }); }
 function removePart(i: number) { form.value.parts.splice(i, 1); }
 
-async function onSlip(e: Event) {
-  const input = e.target as HTMLInputElement;
-  if (!input.files?.length) return;
-  uploading.value = true;
-  try {
-    form.value.payment_slip_url = await api.upload(input.files[0], "magic", token);
-  } catch (err) {
-    ui.notifyError(err);
-  } finally {
-    uploading.value = false;
-    input.value = "";
-  }
-}
-
-function removeSlip() { form.value.payment_slip_url = ""; }
-
 async function submit() {
   if (!request.value || !form.value.work_details) return;
   submitting.value = true;
@@ -65,7 +46,6 @@ async function submit() {
       parts:          form.value.parts.filter((p) => p.name).map((p) => ({ name: p.name, qty: Number(p.qty) || 0, unit_price: Number(p.unit_price) || 0 })),
       pump:           form.value.pump,
       final_price:    form.value.final_price ? Number(form.value.final_price) : null,
-      payment_slip_url: form.value.payment_slip_url || null,
       is_warranty_claim: form.value.is_warranty_claim ? 1 : 0,
       completed_at:   form.value.completed_at,
     });
@@ -120,22 +100,6 @@ async function submit() {
         <v-col cols="6"><v-text-field v-model="form.completed_at" type="date" label="วันที่ซ่อมเสร็จ" /></v-col>
       </v-row>
       <v-checkbox v-model="form.is_warranty_claim" label="เป็นการซ่อมภายใต้ประกัน" color="primary" hide-details class="mb-3" />
-
-      <div class="text-subtitle-2 font-weight-bold mb-1">สลิปการชำระเงิน</div>
-      <div class="d-flex align-center ga-3 mb-4">
-        <template v-if="form.payment_slip_url">
-          <v-img :src="api.fileUrl(form.payment_slip_url)" width="72" height="72" cover rounded="6" />
-          <v-btn size="small" variant="text" color="error" prepend-icon="mdi-close" @click="removeSlip">ลบ</v-btn>
-        </template>
-        <label
-          class="d-flex align-center justify-center"
-          style="width:72px;height:72px;border:1px dashed rgba(0,0,0,0.3);border-radius:6px;cursor:pointer"
-        >
-          <v-icon v-if="!uploading" icon="mdi-camera-plus-outline" color="medium-emphasis" />
-          <v-progress-circular v-else size="20" indeterminate color="primary" />
-          <input type="file" accept="image/*" hidden @change="onSlip" />
-        </label>
-      </div>
 
       <v-btn
         color="primary" size="large" block variant="flat" :loading="submitting"

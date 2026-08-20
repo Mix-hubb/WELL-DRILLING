@@ -33,5 +33,15 @@ export const useJobsStore = defineStore("jobs", {
       if (idx !== -1) this.jobs[idx] = updated;
       return updated;
     },
+    async update(id: number, data: Partial<DrillingJob>) {
+      const updated = await jobsApi.update(id, data);
+      const idx = this.jobs.findIndex((j) => j.job_id === id);
+      if (idx !== -1) this.jobs[idx] = updated;
+      return updated;
+    },
+    async remove(id: number) {
+      await jobsApi.remove(id);
+      this.jobs = this.jobs.filter((j) => j.job_id !== id);
+    },
   },
 });

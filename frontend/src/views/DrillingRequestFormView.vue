@@ -1,33 +1,19 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 
 const form = ref({
   name: "",
   phone: "",
   address: "",
-  problems: "",
+  requested_depth_m: null as number | null,
 });
 
 const loading = ref(false);
 const success = ref(false);
 const error = ref("");
-const lineUserId = ref<string | null>(null);
-
-onMounted(() => {
-  try {
-    const liff = (window as any).liff;
-    if (liff && liff.isLoggedIn && !liff.isLoggedIn()) {
-      liff.login();
-    } else if (liff && liff.getProfile) {
-      liff.getProfile().then((profile: any) => {
-        lineUserId.value = profile?.userId || null;
-      }).catch(() => {});
-    }
-  } catch {}
-});
 
 async function submit() {
-  if (!form.value.name || !form.value.phone || !form.value.problems) {
+  if (!form.value.name || !form.value.phone || !form.value.address || !form.value.requested_depth_m) {
     error.value = "กรุณากรอกข้อมูลให้ครบทุกช่อง";
     return;
   }
@@ -35,17 +21,10 @@ async function submit() {
   error.value = "";
   try {
     const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4001/api";
-    const res = await fetch(`${BASE_URL}/public/repair-requests`, {
+    const res = await fetch(`${BASE_URL}/public/drilling-requests`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name:    form.value.name,
-        phone:   form.value.phone,
-        address: form.value.address || null,
-        problems: [form.value.problems],
-        detail:  null,
-        line_user_id: lineUserId.value || null,
-      }),
+      body: JSON.stringify(form.value),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -66,9 +45,9 @@ async function submit() {
       <!-- Header -->
       <div class="form-header">
         <div class="header-icon">
-          <v-icon icon="mdi-wrench-outline" size="40" color="primary" />
+          <v-icon icon="mdi-water-well" size="40" color="primary" />
         </div>
-        <div class="text-h5 font-weight-bold" style="color: #2E2418;">แจ้งซ่อมบ่อบาดาล</div>
+        <div class="text-h5 font-weight-bold" style="color: #2E2418;">แจ้งเจาะบ่อบาดาล</div>
         <div class="text-caption mt-1" style="color: #6A7A8A;">กรอกข้อมูลเพื่อให้ทีมงานติดต่อกลับ</div>
       </div>
 
@@ -117,7 +96,7 @@ async function submit() {
           <div class="field-group">
             <div class="field-label">
               <v-icon icon="mdi-phone-outline" size="16" class="mr-1" />
-              เบอร์โทรศัพท์ที่สามารถติดต่อได้
+              เบอร์โทรที่สามารถติดต่อได้
             </div>
             <v-text-field
               v-model="form.phone"
@@ -134,7 +113,7 @@ async function submit() {
           <div class="field-group">
             <div class="field-label">
               <v-icon icon="mdi-map-marker-outline" size="16" class="mr-1" />
-              ที่อยู่ (ที่ต้องการให้เข้าไปซ่อม)
+              ที่อยู่ (ที่ต้องการขุดบ่อบาดาล)
               <span class="text-error ml-1">*</span>
             </div>
             <v-text-field
@@ -148,16 +127,17 @@ async function submit() {
             />
           </div>
 
-          <!-- อาการที่พบ -->
+          <!-- ความลึก -->
           <div class="field-group">
             <div class="field-label">
-              <v-icon icon="mdi-alert-circle-outline" size="16" class="mr-1" />
-              อาการที่พบ
+              <v-icon icon="mdi-ruler" size="16" class="mr-1" />
+              ความลึกของบ่อน้ำบาดาลที่ต้องการ (เมตร)
               <span class="text-error ml-1">*</span>
             </div>
             <v-text-field
-              v-model="form.problems"
-              placeholder="เช่น ไม่มีน้ำ, น้ำไหลอ่อน, ปั๊มเสีย"
+              v-model="form.requested_depth_m"
+              type="number"
+              placeholder="เช่น 80"
               variant="outlined"
               density="comfortable"
               rounded="lg"
@@ -173,7 +153,7 @@ async function submit() {
             block
             size="x-large"
             :loading="loading"
-            :disabled="!form.name || !form.phone || !form.problems"
+            :disabled="!form.name || !form.phone || !form.address || !form.requested_depth_m"
             rounded="lg"
             class="mt-2 submit-btn"
             elevation="0"
