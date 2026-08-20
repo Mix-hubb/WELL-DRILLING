@@ -49,7 +49,10 @@ function wellCount(customerId: number) {
       <v-col v-for="c in filtered" :key="c.customer_id" cols="12" sm="6" md="4">
         <v-card variant="outlined" class="pa-4 h-100 cursor-pointer" @click="router.push(`/wells/customer/${c.customer_id}`)">
           <div class="d-flex align-center ga-3 mb-2">
-            <v-avatar color="primary" variant="tonal" size="42">
+            <v-avatar v-if="c.line_picture_url" size="42">
+              <v-img :src="c.line_picture_url" alt="" />
+            </v-avatar>
+            <v-avatar v-else color="primary" variant="tonal" size="42">
               <v-icon icon="mdi-account-outline" />
             </v-avatar>
             <div class="font-weight-bold">{{ c.customer_name }}</div>

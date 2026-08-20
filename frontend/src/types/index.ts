@@ -100,6 +100,7 @@ export interface Well {
   // joined from customers
   customer_name?: string;
   customer_phone?: string;
+  line_picture_url?: string | null;
   // joined from well_warranty_view
   days_left?: number | null;
   warranty_status?: WarrantyStatus | null;
@@ -211,6 +212,7 @@ export interface DrillingJob {
   // joined
   customer_name?: string;
   customer_phone?: string;
+  line_picture_url?: string | null;
   well_name?: string | null;
   warranty_expire_date?: string | null;
   request?: DrillingRequest | null;

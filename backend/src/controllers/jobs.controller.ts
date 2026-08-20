@@ -15,6 +15,7 @@ async function getJobRow(id: string): Promise<any | null> {
       j.*,
       c.customer_name,
       c.phone AS customer_phone,
+      c.line_picture_url,
       w.well_name,
       w.warranty_expire_date
     FROM drilling_jobs j
@@ -41,6 +42,7 @@ export async function list(req: Request, res: Response) {
       j.*,
       c.customer_name,
       c.phone AS customer_phone,
+      c.line_picture_url,
       w.well_name,
       w.warranty_expire_date
     FROM drilling_jobs j
@@ -85,6 +87,7 @@ export async function getByMagicToken(req: Request, res: Response) {
       j.*,
       c.customer_name,
       c.phone AS customer_phone,
+      c.line_picture_url,
       w.well_name,
       w.warranty_expire_date
     FROM drilling_jobs j

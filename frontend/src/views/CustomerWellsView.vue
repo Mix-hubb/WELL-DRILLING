@@ -41,7 +41,10 @@ function fmtDate(d?: string | null) {
     <template v-else-if="customer">
       <v-card class="pa-4 mb-4">
         <div class="d-flex flex-wrap align-center ga-4">
-          <v-avatar size="56" color="primary" variant="tonal">
+          <v-avatar v-if="customer.line_picture_url" size="56">
+            <v-img :src="customer.line_picture_url" alt="" />
+          </v-avatar>
+          <v-avatar v-else size="56" color="primary" variant="tonal">
             <v-icon icon="mdi-account-outline" size="32" />
           </v-avatar>
           <div>

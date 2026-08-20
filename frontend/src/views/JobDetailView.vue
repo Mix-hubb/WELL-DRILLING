@@ -90,7 +90,10 @@ function fmtDate(d: string) {
           <span>นัดหมาย {{ fmtDate(job.scheduled_date) }}</span>
         </div>
         <div class="d-flex align-center ga-2">
-          <v-icon icon="mdi-account-outline" size="16" />
+          <v-avatar v-if="job.line_picture_url" size="18">
+            <v-img :src="job.line_picture_url" alt="" />
+          </v-avatar>
+          <v-icon v-else icon="mdi-account-outline" size="16" />
           <span>{{ job.customer_name }}</span>
           <a v-if="job.customer_phone" :href="`tel:${job.customer_phone}`" class="text-primary font-mono">
             {{ job.customer_phone }}

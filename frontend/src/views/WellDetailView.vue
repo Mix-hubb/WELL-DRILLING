@@ -85,8 +85,11 @@ function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
       <div class="d-flex align-start justify-space-between flex-wrap ga-2 mb-3">
         <div>
           <div class="text-h6 font-display font-weight-bold">{{ store.current.well_name || `บ่อบาดาล #${store.current.well_id}` }}</div>
-          <div class="text-caption text-medium-emphasis mt-1">
-            <v-icon icon="mdi-account-outline" size="14" />
+          <div class="text-caption text-medium-emphasis mt-1 d-flex align-center ga-1">
+            <v-avatar v-if="store.current.line_picture_url" size="20">
+              <v-img :src="store.current.line_picture_url" alt="" />
+            </v-avatar>
+            <v-icon v-else icon="mdi-account-outline" size="14" />
             {{ store.current.customer_name || `ลูกค้า #${store.current.customer_id}` }}
           </div>
           <div v-if="store.current.address" class="text-caption text-medium-emphasis mt-1">

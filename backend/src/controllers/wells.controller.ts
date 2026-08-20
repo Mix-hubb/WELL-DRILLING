@@ -10,6 +10,7 @@ async function getWellRow(id: string): Promise<any | null> {
       w.*,
       c.customer_name,
       c.phone AS customer_phone,
+      c.line_picture_url,
       CASE
         WHEN w.warranty_expire_date IS NULL THEN 'UNKNOWN'
         WHEN w.warranty_expire_date >= CURRENT_DATE THEN 'ACTIVE'
@@ -31,6 +32,7 @@ export async function list(req: Request, res: Response) {
       w.*,
       c.customer_name,
       c.phone AS customer_phone,
+      c.line_picture_url,
       CASE
         WHEN w.warranty_expire_date IS NULL THEN 'UNKNOWN'
         WHEN w.warranty_expire_date >= CURRENT_DATE THEN 'ACTIVE'

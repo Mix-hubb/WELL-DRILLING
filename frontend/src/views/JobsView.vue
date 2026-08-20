@@ -164,7 +164,10 @@ function fmtDate(d: string) {
           <div class="font-weight-bold text-body-1 mb-1">{{ j.job_title || `คิวงาน #${j.job_id}` }}</div>
 
           <div class="text-caption text-medium-emphasis mb-1 d-flex align-center ga-1">
-            <v-icon icon="mdi-account-outline" size="14" />
+            <v-avatar v-if="j.line_picture_url" size="16">
+              <v-img :src="j.line_picture_url" alt="" />
+            </v-avatar>
+            <v-icon v-else icon="mdi-account-outline" size="14" />
             {{ j.customer_name }}
           </div>
           <div class="text-caption text-medium-emphasis d-flex align-center ga-1">
