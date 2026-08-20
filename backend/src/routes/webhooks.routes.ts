@@ -111,7 +111,7 @@ async function handleText(userId: string, text: string, replyToken: string) {
 
   const lines: string[] = [];
 
-  if (/ดูข้อมูลบ่อ|ข้อมูลบ่อ|บ่อของฉัน/.test(text)) {
+  if (/ดูข้อมูลบ่อ|ข้อมูลบ่อ|บ่อของฉัน|ข้อมูลบ่อของลูกค้า/.test(text)) {
     if (!wells.rows.length) {
       lines.push("ยังไม่มีข้อมูลบ่อในระบบครับ");
     } else {
@@ -153,6 +153,30 @@ async function handleText(userId: string, text: string, replyToken: string) {
         );
       });
     }
+  } else if (/ประวัติงาน|ประวัติการเจาะ|งานของฉัน/.test(text)) {
+    const jobs = await pool.query(
+      `SELECT j.job_id, j.job_title, j.status, j.result, j.scheduled_date, j.created_at
+       FROM drilling_jobs j WHERE j.customer_id = $1 ORDER BY j.created_at DESC LIMIT 5`,
+      [customer.customer_id]
+    );
+    if (!jobs.rows.length) {
+      lines.push("ยังไม่มีประวัติงานขุดเจาะครับ");
+    } else {
+      lines.push("ประวัติงานขุดเจาะล่าสุด:");
+      jobs.rows.forEach((j: any) => {
+        const createdDate = j.created_at instanceof Date
+          ? j.created_at.toISOString().slice(0, 10)
+          : String(j.created_at).slice(0, 10);
+        const statusMap: Record<string, string> = {
+          QUEUED: "รอคิว", DRILLING: "กำลังเจาะ", SUCCESS: "สำเร็จ",
+          FAILED: "ไม่สำเร็จ", CLOSED: "ปิดงาน",
+        };
+        lines.push(
+          `• ${j.job_title || "งาน #" + j.job_id} (${createdDate})\n` +
+          `  สถานะ ${statusMap[j.status] || j.status}${j.result ? ` | ผลลัพธ์ ${j.result}` : ""}`
+        );
+      });
+    }
   } else {
     lines.push(
       "พิมพ์คำสั่งต่อไปนี้:\n" +
@@ -160,6 +184,7 @@ async function handleText(userId: string, text: string, replyToken: string) {
       "• แจ้งซ่อม — เปิดฟอร์มแจ้งซ่อมบ่อบาดาล\n" +
       "• ข้อมูลบ่อ — ดูรายละเอียดบ่อ\n" +
       "• ประกัน — ดูสถานะประกัน\n" +
+      "• ประวัติงาน — ดูประวัติงานขุดเจาะ\n" +
       "• ประวัติซ่อม — ดูประวัติการซ่อม"
     );
   }
