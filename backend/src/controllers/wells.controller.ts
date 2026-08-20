@@ -4,7 +4,7 @@ import { userFilter } from "../utils/userFilter";
 import { FullWell, Well } from "../types";
 import { streamWellReportPdf } from "../utils/pdfReport";
 
-async function getWellRow(id: number): Promise<any | null> {
+async function getWellRow(id: string): Promise<any | null> {
   const { rows } = await pool.query(`
     SELECT
       w.*,
@@ -48,7 +48,7 @@ export async function list(req: Request, res: Response) {
 
 export async function getOne(req: Request, res: Response) {
   const { id } = req.params;
-  const well = await getWellRow(Number(id));
+  const well = await getWellRow(id);
   if (!well) return res.status(404).json({ error: "ไม่พบบ่อบาดาล" });
 
   const strata = await pool.query(
@@ -261,7 +261,7 @@ export async function removeControlBox(req: Request, res: Response) {
 
 export async function exportReport(req: Request, res: Response) {
   const { id } = req.params;
-  const well = await getWellRow(Number(id));
+  const well = await getWellRow(id);
   if (!well) return res.status(404).json({ error: "ไม่พบบ่อบาดาล" });
 
   const strata = await pool.query(

@@ -9,7 +9,7 @@ function generateMagicToken(): string {
   return "drill-" + crypto.randomBytes(16).toString("hex");
 }
 
-async function getJobRow(id: number): Promise<any | null> {
+async function getJobRow(id: string): Promise<any | null> {
   const { rows } = await pool.query(`
     SELECT
       j.*,
@@ -55,7 +55,7 @@ export async function list(req: Request, res: Response) {
 
 export async function getOne(req: Request, res: Response) {
   const { id } = req.params;
-  const row = await getJobRow(Number(id));
+  const row = await getJobRow(id);
   if (!row) return res.status(404).json({ error: "ไม่พบงานเจาะ" });
 
   let request = null;
@@ -136,7 +136,7 @@ export async function update(req: Request, res: Response) {
   const { id } = req.params;
   const { job_title, site_address, province, district, scheduled_date, notes } = req.body;
 
-  const existing = await getJobRow(Number(id));
+  const existing = await getJobRow(id);
   if (!existing) return res.status(404).json({ error: "ไม่พบงาน" });
 
   await pool.query(
@@ -152,7 +152,7 @@ export async function update(req: Request, res: Response) {
     ]
   );
 
-  const row = await getJobRow(Number(id));
+  const row = await getJobRow(id);
   res.json(row);
 }
 
@@ -166,7 +166,7 @@ export async function updateStatus(req: Request, res: Response) {
   }
 
   await pool.query("UPDATE drilling_jobs SET status = $1 WHERE job_id = $2", [status, id]);
-  const row = await getJobRow(Number(id));
+  const row = await getJobRow(id);
   if (!row) return res.status(404).json({ error: "ไม่พบงานเจาะ" });
   res.json(row);
 }
@@ -332,7 +332,7 @@ export async function completeWell(req: Request, res: Response) {
     client.release();
   }
 
-  const row = await getJobRow(Number(id));
+  const row = await getJobRow(id);
 
   const wellResult = (result === "FAIL" || result === "FAILED") ? "FAILED" : "SUCCESS";
   const msg = wellResult === "SUCCESS"
