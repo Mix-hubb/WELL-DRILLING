@@ -11,7 +11,6 @@ export interface CustomerOverview {
 
 export const customersApi = {
   list: () => api.get<Customer[]>("/customers"),
-  getOne: (id: number | string) => api.get<Customer>(`/customers/${id}`),
   overview: (id: number | string) => api.get<CustomerOverview>(`/customers/${id}/overview`),
   create: (data: Partial<Customer>) => api.post<Customer>("/customers", data),
   update: (id: number, data: Partial<Customer>) => api.put<Customer>(`/customers/${id}`, data),

@@ -21,15 +21,6 @@ export const useWellsStore = defineStore("wells", {
       this.current = await wellsApi.getOne(id);
       return this.current;
     },
-    async fetchByJob(jobId: number | string) {
-      this.current = await wellsApi.getByJob(jobId);
-      return this.current;
-    },
-    async create(data: { customer_id: number } & Partial<Well>) {
-      const well = await wellsApi.create(data);
-      this.current = well;
-      return well;
-    },
     async addStrata(wellId: number, data: Partial<WellStrataLog>) {
       this.current = await wellsApi.addStrata(wellId, data);
     },

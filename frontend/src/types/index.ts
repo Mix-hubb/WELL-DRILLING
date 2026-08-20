@@ -59,20 +59,8 @@ export interface PumpCatalogModel {
 }
 
 export type WarrantyStatus = "UNKNOWN" | "ACTIVE" | "EXPIRED";
-export type AlertTier    = "ACTIVE" | "EXPIRING_SOON" | "EXPIRED";
 
 // ============================================================
-export interface User {
-  user_id: number;
-  email: string;
-  password_hash?: string;
-  full_name: string;
-  phone?: string | null;
-  role: UserRole;
-  created_at?: string;
-  updated_at?: string;
-}
-
 export interface Customer {
   customer_id: number;
   user_id?: number | null;
@@ -275,17 +263,6 @@ export interface RepairRecord {
   is_warranty_claim: number;    // TINYINT 0|1
   completed_at?: string | null;
   created_at?: string;
-}
-
-// ---------- LINE ----------
-export interface LineNotification {
-  notification_id: number;
-  customer_id: number;
-  kind?: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" | null;
-  content?: string | null;
-  line_message_id?: string | null;
-  status: "SENT" | "FAILED";
-  sent_at?: string;
 }
 
 // ---------- Stats ----------

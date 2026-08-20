@@ -5,7 +5,6 @@ import { useRepairRequestsStore } from "@/stores/repairRequests";
 import { useUiStore } from "@/stores/ui";
 import { quotationsApi } from "@/api/quotations";
 import { repairRequestsApi } from "@/api/repairRequests";
-import { api } from "@/api/client";
 import type { RepairRequest } from "@/types";
 import { money, REPAIR_STATUS } from "@/constants";
 import StatusChip from "@/components/StatusChip.vue";
@@ -143,8 +142,6 @@ function fmtDate(d: string) {
   if (!d) return "-";
   return new Date(d).toLocaleDateString("th-TH", { month: "short", day: "numeric" });
 }
-
-function fileUrl(p: string) { return api.fileUrl(p); }
 </script>
 
 <template>

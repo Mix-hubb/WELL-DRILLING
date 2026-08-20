@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { pool } from "../config/db";
 import { userFilter } from "../utils/userFilter";
 import { RepairRequest } from "../types";
-import { sendTextToCustomer, sendFlexToCustomer } from "../services/line";
+import { sendTextToCustomer } from "../services/line";
 
 function generateMagicToken(): string {
   return "repair-" + crypto.randomBytes(16).toString("hex");

@@ -1,16 +1,5 @@
 export type UserRole = "ADMIN" | "DRILLER";
 
-export interface User {
-  user_id: number;
-  email: string;
-  password_hash: string;
-  full_name: string;
-  phone?: string | null;
-  role: UserRole;
-  created_at?: string;
-  updated_at?: string;
-}
-
 export type DrillingRequestSource = "GOOGLE_FORM" | "MANUAL" | "LINE";
 export type DrillingRequestStatus = "NEW" | "QUOTED" | "ACCEPTED" | "REJECTED" | "CANCELLED";
 export type DrillingJobStatus = "QUEUED" | "DRILLING" | "SUCCESS" | "FAILED" | "CLOSED";
@@ -28,27 +17,9 @@ export type LithologyType =
   | "TOP_SOIL" | "CLAY" | "SAND" | "GRAVEL" | "LATERITE"
   | "SANDSTONE" | "SHALE" | "LIMESTONE" | "GRANITE" | "BASALT"
   | "HARDROCK" | "OTHER";
-export type PumpBrand =
-  | "FRANKLIN" | "TORQUE" | "GRUNDFOS" | "HITACHI" | "PEDROLLO"
-  | "MITSUBISHI" | "KSB" | "TSURUMI" | "LOWARA" | "OTHER";
 export type ControlBoxProtection =
   | "OVERLOAD_RELAY" | "CIRCUIT_BREAKER" | "AUTO_RESTART" | "WATER_LEVEL"
   | "LIGHTNING" | "NONE" | "OTHER";
-
-export interface Customer {
-  customer_id: number;
-  user_id?: number | null;
-  line_user_id?: string | null;
-  customer_name: string;
-  phone: string;
-  phone_alt?: string | null;
-  address?: string | null;
-  line_display_name?: string | null;
-  line_picture_url?: string | null;
-  created_at?: string;
-  updated_at?: string;
-  total_wells?: number;
-}
 
 export interface Well {
   well_id: number;
@@ -251,16 +222,6 @@ export interface PumpCatalogModel {
   is_active: number;
   created_at?: string;
   updated_at?: string;
-}
-
-export interface LineNotification {
-  notification_id: number;
-  customer_id?: number | null;
-  kind?: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" | null;
-  content?: string | null;
-  line_message_id?: string | null;
-  status: "SENT" | "FAILED";
-  sent_at?: string;
 }
 
 export interface StatsOverview {

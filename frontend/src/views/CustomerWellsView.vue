@@ -28,18 +28,6 @@ function fmtDate(d?: string | null) {
   if (!d) return "-";
   return new Date(d).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
 }
-
-function warrantyLabel(w: any) {
-  if (w.warranty_status === "ACTIVE") return `อยู่ในประกัน ${w.days_left} วัน`;
-  if (w.warranty_status === "EXPIRED") return "ประกันหมดแล้ว";
-  return "ยังไม่เริ่มประกัน";
-}
-
-function warrantyColor(w: any) {
-  if (w.warranty_status === "ACTIVE") return "success";
-  if (w.warranty_status === "EXPIRED") return "error";
-  return "grey";
-}
 </script>
 
 <template>

@@ -33,25 +33,6 @@ export const api = {
   patch: <T>(path: string, body: unknown) => request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   fileUrl: (path: string) => `${BASE_URL}${path}`,
-  upload: async (file: File, mode: "auth" | "form" | "magic" = "auth", magic?: string): Promise<string> => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    if (magic) headers["X-Magic-Token"] = magic;
-
-    const path = mode === "auth" ? "/api/upload" : mode === "magic" ? "/api/upload/public" : "/api/upload/form";
-    const fd = new FormData();
-    fd.append("file", file);
-
-    const res = await fetch(`${BASE_URL}${path}`, { method: "POST", headers, body: fd });
-    if (!res.ok) {
-      let message = `HTTP ${res.status}`;
-      try { const body = await res.json(); message = body.error || message; } catch {}
-      throw new Error(message);
-    }
-    const data = await res.json();
-    return data.url;
-  },
   download: async (path: string, filename?: string) => {
     const token = localStorage.getItem(TOKEN_KEY);
     const headers: Record<string, string> = {};

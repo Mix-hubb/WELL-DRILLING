@@ -3,7 +3,6 @@ import type { DrillingRequest } from "@/types";
 
 export const drillingRequestsApi = {
   list: () => api.get<DrillingRequest[]>("/drilling-requests"),
-  getOne: (id: number | string) => api.get<DrillingRequest>(`/drilling-requests/${id}`),
   create: (data: Partial<DrillingRequest>) => api.post<DrillingRequest>("/drilling-requests", data),
   update: (id: number | string, data: Partial<DrillingRequest>) => api.put<DrillingRequest>(`/drilling-requests/${id}`, data),
   updateStatus: (id: number | string, status: DrillingRequest["status"]) =>

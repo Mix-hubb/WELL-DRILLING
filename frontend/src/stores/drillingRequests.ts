@@ -20,11 +20,6 @@ export const useDrillingRequestsStore = defineStore("drillingRequests", {
         this.loading = false;
       }
     },
-    async create(data: Partial<DrillingRequest>) {
-      const r = await drillingRequestsApi.create(data);
-      this.requests.unshift(r);
-      return r;
-    },
     async setStatus(id: number, status: DrillingRequestStatus) {
       const updated = await drillingRequestsApi.updateStatus(id, status);
       const idx = this.requests.findIndex((r) => r.request_id === id);

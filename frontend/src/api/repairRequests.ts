@@ -14,7 +14,4 @@ export const repairRequestsApi = {
   getByMagicToken: (token: string) => api.get<RepairRequest>(`/repair-requests/magic/${token}`),
   addRecord: (id: number | string, data: Record<string, unknown>) =>
     api.post<RepairRequest>(`/repair-requests/${id}/records`, data),
-
-  createPublic: (data: Record<string, unknown>) =>
-    api.post<{ repair_id: number; customer_id: number }>("/public/repair-requests", data),
 };

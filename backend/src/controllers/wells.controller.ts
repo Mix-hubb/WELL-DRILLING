@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
 import { userFilter } from "../utils/userFilter";
-import { FullWell, Well } from "../types";
+import { FullWell } from "../types";
 import { streamWellReportPdf } from "../utils/pdfReport";
 
 async function getWellRow(id: string): Promise<any | null> {

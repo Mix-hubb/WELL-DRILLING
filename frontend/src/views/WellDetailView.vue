@@ -4,7 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useWellsStore } from "@/stores/wells";
 import { useUiStore } from "@/stores/ui";
 import { api } from "@/api/client";
-import { PIPE_MATERIAL, PIPE_TYPE, PUMP_TYPE, DRILLING_METHOD, WATER_TYPE, LITHOLOGY_TYPE, PROTECTION_TYPE } from "@/constants";
+import { PIPE_MATERIAL, PIPE_TYPE, PUMP_TYPE, LITHOLOGY_TYPE, PROTECTION_TYPE } from "@/constants";
 import StrataColumn from "@/components/StrataColumn.vue";
 import SectionHeader from "@/components/SectionHeader.vue";
 import WarrantyBadge from "@/components/WarrantyBadge.vue";

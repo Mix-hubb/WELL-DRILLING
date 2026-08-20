@@ -1,6 +1,6 @@
 import type {
   DrillingJobStatus, DrillingRequestStatus, RepairRequestStatus,
-  QuotationKind, QuotationStatus, Hardness, PipeMaterial, PipeType,
+  QuotationStatus, Hardness, PipeMaterial, PipeType,
   PumpType, DrillingMethod, WaterType, LithologyType, PumpBrand, ControlBoxProtection,
 } from "@/types";
 
@@ -44,11 +44,6 @@ export const REPAIR_STATUS: Record<RepairRequestStatus, { label: string; color: 
 };
 
 // ---------- quotation ----------
-export const QUOTATION_KIND: Record<QuotationKind, string> = {
-  DRILLING: "ใบราคาเจาะ",
-  REPAIR:   "ใบราคาซ่อม",
-};
-
 export const QUOTATION_STATUS: Record<QuotationStatus, { label: string; color: string }> = {
   PENDING:  { label: "รอตอบรับ",  color: "amber-darken-2" },
   ACCEPTED: { label: "ยอมรับ",    color: "teal-darken-2" },

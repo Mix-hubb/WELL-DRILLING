@@ -18,6 +18,4 @@ export const wellsApi = {
 
   addControlBox: (wellId: number | string, data: Partial<WellControlBox>) => api.post<FullWell>(`/wells/${wellId}/control-boxes`, data),
   removeControlBox: (wellId: number | string, controlBoxId: number) => api.del<FullWell>(`/wells/${wellId}/control-boxes/${controlBoxId}`),
-
-  reportUrl: (wellId: number | string) => api.fileUrl(`/wells/${wellId}/report.pdf`),
 };

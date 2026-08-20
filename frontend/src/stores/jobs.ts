@@ -9,9 +9,6 @@ export const useJobsStore = defineStore("jobs", {
   }),
   getters: {
     byStatus: (state) => (status: DrillingJobStatus) => state.jobs.filter((j) => j.status === status),
-    queuedCount: (state) => state.jobs.filter((j) => j.status === "QUEUED").length,
-    drillingCount: (state) => state.jobs.filter((j) => j.status === "DRILLING").length,
-    successCount: (state) => state.jobs.filter((j) => j.status === "SUCCESS").length,
   },
   actions: {
     async fetchAll() {
@@ -26,12 +23,6 @@ export const useJobsStore = defineStore("jobs", {
       const job = await jobsApi.create(data);
       this.jobs.unshift(job);
       return job;
-    },
-    async setStatus(id: number, status: DrillingJobStatus) {
-      const updated = await jobsApi.updateStatus(id, status);
-      const idx = this.jobs.findIndex((j) => j.job_id === id);
-      if (idx !== -1) this.jobs[idx] = updated;
-      return updated;
     },
     async update(id: number, data: Partial<DrillingJob>) {
       const updated = await jobsApi.update(id, data);

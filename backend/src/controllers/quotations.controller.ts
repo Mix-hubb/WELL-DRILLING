@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
 import { Quotation } from "../types";
-import { sendTextToCustomer, sendFlexToCustomer } from "../services/line";
+import { sendFlexToCustomer } from "../services/line";
 
 function buildDrillingQuoteFlex(price: number, notes: string | null, requestId: number, depthM?: number | null, diameterM?: number | null) {
   const priceStr = Number(price).toLocaleString("th-TH");

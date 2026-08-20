@@ -20,11 +20,6 @@ export const useRepairRequestsStore = defineStore("repairRequests", {
         this.loading = false;
       }
     },
-    async create(data: Partial<RepairRequest>) {
-      const r = await repairRequestsApi.create(data);
-      this.requests.unshift(r);
-      return r;
-    },
     async setStatus(id: number, status: RepairRequestStatus) {
       const updated = await repairRequestsApi.updateStatus(id, status);
       const idx = this.requests.findIndex((r) => r.repair_id === id);
