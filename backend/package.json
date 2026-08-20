@@ -7,9 +7,7 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js",
-    "seed": "ts-node --transpile-only src/scripts/seedDemo.ts",
-    "migrate:pump-catalog": "ts-node --transpile-only src/scripts/migratePumpCatalog.ts"
+    "start": "node dist/server.js"
   },
   "dependencies": {
     "@types/multer": "^2.2.0",
