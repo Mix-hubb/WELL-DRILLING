@@ -20,6 +20,7 @@ const quoteDlg = ref(false);
 const quoteTarget = ref<RepairRequest | null>(null);
 const quoteWorkDetail = ref("");
 const quotePrice  = ref<string>("");
+const quoteLoading = ref(false);
 const quoteNotes  = ref("");
 
 // Edit / Delete
@@ -62,7 +63,8 @@ function openQuote(r: RepairRequest) {
 }
 
 async function submitQuote() {
-  if (!quoteTarget.value || !quotePrice.value) return;
+  if (!quoteTarget.value || !quotePrice.value || quoteLoading.value) return;
+  quoteLoading.value = true;
   try {
     const workDetail = quoteWorkDetail.value.trim();
     const extraNotes = quoteNotes.value.trim();
@@ -74,7 +76,7 @@ async function submitQuote() {
     ui.notify("สร้างใบราคาซ่อมแล้ว", "success");
     quoteDlg.value = false;
     await requests.fetchAll();
-  } catch (e) { ui.notifyError(e); }
+  } catch (e) { ui.notifyError(e); } finally { quoteLoading.value = false; }
 }
 
 async function setStatus(id: number, status: any) {
@@ -284,7 +286,7 @@ function fileUrl(p: string) { return api.fileUrl(p); }
         <v-card-actions class="pa-4 ga-2">
           <v-spacer />
           <v-btn variant="outlined" @click="quoteDlg = false">ยกเลิก</v-btn>
-          <v-btn color="primary" variant="flat" prepend-icon="mdi-file-document-edit-outline" :disabled="!quotePrice" @click="submitQuote">
+          <v-btn color="primary" variant="flat" prepend-icon="mdi-file-document-edit-outline" :loading="quoteLoading" :disabled="!quotePrice || quoteLoading" @click="submitQuote">
             ส่งใบราคา
           </v-btn>
         </v-card-actions>

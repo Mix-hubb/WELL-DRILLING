@@ -20,6 +20,7 @@ const quoteTarget = ref<DrillingRequest | null>(null);
 const quoteDepth  = ref<string>("");
 const quoteDiameter = ref<string>("");
 const quotePrice  = ref<string>("");
+const quoteLoading = ref(false);
 const quoteNotes  = ref("");
 const linkMenu = ref(false);
 const copied = ref(false);
@@ -129,7 +130,8 @@ function openQuote(r: DrillingRequest) {
 }
 
 async function submitQuote() {
-  if (!quoteTarget.value || !quotePrice.value) return;
+  if (!quoteTarget.value || !quotePrice.value || quoteLoading.value) return;
+  quoteLoading.value = true;
   try {
     await quotationsApi.createDrilling(quoteTarget.value.request_id, {
       price: Number(quotePrice.value),
@@ -140,7 +142,7 @@ async function submitQuote() {
     ui.notify("สร้างใบราคาแล้ว", "success");
     quoteDlg.value = false;
     await requests.fetchAll();
-  } catch (e) { ui.notifyError(e); }
+  } catch (e) { ui.notifyError(e); } finally { quoteLoading.value = false; }
 }
 
 async function acceptAndQueue(r: any) {
@@ -300,7 +302,7 @@ function fmtDate(d: string) {
         <v-card-actions class="pa-4 ga-2">
           <v-spacer />
           <v-btn variant="outlined" @click="quoteDlg = false">ยกเลิก</v-btn>
-          <v-btn color="primary" variant="flat" prepend-icon="mdi-file-document-edit-outline" :disabled="!quotePrice" @click="submitQuote">
+          <v-btn color="primary" variant="flat" prepend-icon="mdi-file-document-edit-outline" :loading="quoteLoading" :disabled="!quotePrice || quoteLoading" @click="submitQuote">
             ส่งใบราคา
           </v-btn>
         </v-card-actions>
