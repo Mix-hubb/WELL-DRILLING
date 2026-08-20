@@ -18,6 +18,9 @@ const isLoggedIn = ref(false);
 const profileName = ref("");
 const profilePicture = ref("");
 
+const existingCustomer = ref(false);
+const checkingExisting = ref(false);
+
 onMounted(async () => {
   const liffId = import.meta.env.VITE_LIFF_ID_DRILLING || "";
   if (!liffId) {
@@ -33,6 +36,7 @@ onMounted(async () => {
       profileName.value = profile?.displayName || "";
       profilePicture.value = profile?.pictureUrl || "";
       isLoggedIn.value = true;
+      await checkExistingCustomer();
     }
   } catch (e) {
     console.warn("LIFF init error:", e);
@@ -41,8 +45,33 @@ onMounted(async () => {
   }
 });
 
+async function checkExistingCustomer() {
+  if (!lineUserId.value) return;
+  checkingExisting.value = true;
+  try {
+    const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4001/api";
+    const res = await fetch(`${BASE_URL}/public/customer-by-line?line_user_id=${encodeURIComponent(lineUserId.value)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.found && data.customer) {
+      existingCustomer.value = true;
+      form.value.name = data.customer.customer_name || profileName.value;
+      form.value.phone = data.customer.phone || "";
+      form.value.address = data.customer.address || "";
+    }
+  } catch {
+    // ignore
+  } finally {
+    checkingExisting.value = false;
+  }
+}
+
 function loginWithLine() {
   liff.login();
+}
+
+function editForm() {
+  existingCustomer.value = false;
 }
 
 async function submit() {
@@ -106,7 +135,7 @@ async function submit() {
       </div>
 
       <!-- Loading LIFF -->
-      <div v-if="!liffReady" class="form-card" style="text-align: center; padding: 48px 24px;">
+      <div v-else-if="!liffReady" class="form-card" style="text-align: center; padding: 48px 24px;">
         <v-progress-circular indeterminate color="primary" size="48" />
         <div class="text-body-2 mt-4" style="color: #6A7A8A;">กำลังเชื่อมต่อ...</div>
       </div>
@@ -120,14 +149,7 @@ async function submit() {
         <div class="text-body-2 mb-6" style="color: #6A7A8A;">
           กดปุ่มด้านล่างเพื่อเข้าสู่ระบบด้วยบัญชี LINE ของคุณ
         </div>
-        <v-btn
-          color="#06C755"
-          size="x-large"
-          rounded="lg"
-          elevation="0"
-          class="submit-btn"
-          @click="loginWithLine"
-        >
+        <v-btn color="#06C755" size="x-large" rounded="lg" elevation="0" class="submit-btn" @click="loginWithLine">
           <svg viewBox="0 0 24 24" width="24" height="24" class="mr-2" style="fill: white;">
             <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
           </svg>
@@ -135,16 +157,62 @@ async function submit() {
         </v-btn>
       </div>
 
+      <!-- Checking existing -->
+      <div v-else-if="isLoggedIn && checkingExisting" class="form-card" style="text-align: center; padding: 48px 24px;">
+        <v-progress-circular indeterminate color="primary" size="48" />
+        <div class="text-body-2 mt-4" style="color: #6A7A8A;">กำลังตรวจสอบข้อมูล...</div>
+      </div>
+
+      <!-- Quick Submit: มีข้อมูลเดิมแล้ว -->
+      <div v-else-if="isLoggedIn && existingCustomer && !checkingExisting" class="form-card">
+        <div class="text-center mb-4">
+          <v-icon icon="mdi-account-check-outline" size="48" color="success" class="mb-2" />
+          <div class="text-h6 font-weight-bold" style="color: #2E2418;">พบข้อมูลของคุณในระบบ</div>
+          <div class="text-body-2 mt-1" style="color: #6A7A8A;">กดส่งคำร้องได้เลยโดยไม่ต้องกรอกข้อมูลใหม่</div>
+        </div>
+
+        <v-alert type="info" variant="tonal" density="compact" rounded="lg" class="mb-4">
+          <div class="text-body-2"><strong>ชื่อ:</strong> {{ form.name }}</div>
+          <div class="text-body-2"><strong>เบอร์โทร:</strong> {{ form.phone }}</div>
+          <div v-if="form.address" class="text-body-2"><strong>ที่อยู่:</strong> {{ form.address }}</div>
+        </v-alert>
+
+        <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-4" rounded="lg">
+          {{ error }}
+        </v-alert>
+
+        <v-btn
+          color="primary"
+          block
+          size="x-large"
+          :loading="loading"
+          rounded="lg"
+          class="submit-btn"
+          elevation="0"
+          @click="submit"
+        >
+          <v-icon icon="mdi-send-outline" class="mr-2" />
+          ส่งคำร้องเลย
+        </v-btn>
+
+        <v-btn
+          variant="text"
+          block
+          size="large"
+          rounded="lg"
+          class="mt-2"
+          @click="editForm"
+        >
+          <v-icon icon="mdi-pencil-outline" class="mr-2" />
+          แก้ไขข้อมูลก่อนส่ง
+        </v-btn>
+      </div>
+
       <!-- Form -->
       <div v-else-if="isLoggedIn" class="form-card">
-        <v-alert
-          v-if="error"
-          type="error"
-          variant="tonal"
-          density="compact"
-          class="mb-4"
-          rounded="lg"
-        >{{ error }}</v-alert>
+        <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-4" rounded="lg">
+          {{ error }}
+        </v-alert>
 
         <v-form @submit.prevent="submit">
           <div class="field-group">
@@ -153,15 +221,7 @@ async function submit() {
               ชื่อ-นามสกุล
               <span class="text-error ml-1">*</span>
             </div>
-            <v-text-field
-              v-model="form.name"
-              placeholder="กรอกชื่อ-นามสกุล"
-              variant="outlined"
-              density="comfortable"
-              rounded="lg"
-              hide-details
-              class="field-input"
-            />
+            <v-text-field v-model="form.name" placeholder="กรอกชื่อ-นามสกุล" variant="outlined" density="comfortable" rounded="lg" hide-details class="field-input" />
           </div>
 
           <div class="field-group">
@@ -170,15 +230,7 @@ async function submit() {
               เบอร์โทรศัพท์
               <span class="text-error ml-1">*</span>
             </div>
-            <v-text-field
-              v-model="form.phone"
-              placeholder="เช่น 081-234-5678"
-              variant="outlined"
-              density="comfortable"
-              rounded="lg"
-              hide-details
-              class="field-input"
-            />
+            <v-text-field v-model="form.phone" placeholder="เช่น 081-234-5678" variant="outlined" density="comfortable" rounded="lg" hide-details class="field-input" />
           </div>
 
           <div class="field-group">

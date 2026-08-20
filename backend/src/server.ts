@@ -43,6 +43,22 @@ app.use("/api/auth", authRoutes);
 // Public routes — ฟอร์มลูกค้า (สร้างคำร้องซ่อม/เจาะ) + magic link ช่าง
 app.post("/api/public/repair-requests", asyncHandler(repairCtrl.createFromPublicForm));
 app.post("/api/public/drilling-requests", asyncHandler(drillingReqCtrl.createFromPublicForm));
+app.get("/api/public/customer-by-line", asyncHandler(async (req: any, res: any) => {
+  const { line_user_id } = req.query;
+  if (!line_user_id) return res.status(400).json({ error: "ต้องระบุ line_user_id" });
+  const { pool } = await import("./config/db");
+  const result = await pool.query(
+    "SELECT customer_id, customer_name, phone, address FROM customers WHERE line_user_id = $1 LIMIT 1",
+    [line_user_id]
+  );
+  if (!result.rows.length) return res.json({ found: false });
+  const c = result.rows[0];
+  const requests = await pool.query(
+    "SELECT request_id, name, phone, address, status FROM drilling_requests WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 1",
+    [c.customer_id]
+  );
+  res.json({ found: true, customer: c, lastRequest: requests.rows[0] || null });
+}));
 app.get("/api/jobs/magic/:token", asyncHandler(jobsCtrl.getByMagicToken));
 app.patch("/api/jobs/:id/well", asyncHandler(jobsCtrl.completeWell));
 app.get("/api/repair-requests/magic/:token", asyncHandler(repairCtrl.getByMagicToken));
