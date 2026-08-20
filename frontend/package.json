@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@line/liff": "^2.30.0",
     "@mdi/font": "^7.4.47",
     "leaflet": "^1.9.4",
     "pinia": "^2.1.7",

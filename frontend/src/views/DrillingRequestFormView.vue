@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
+import liff from "@line/liff";
 
 const form = ref({
   name: "",
@@ -11,6 +12,31 @@ const form = ref({
 const loading = ref(false);
 const success = ref(false);
 const error = ref("");
+const lineUserId = ref<string | null>(null);
+const liffReady = ref(false);
+const isLiffEnv = ref(false);
+
+onMounted(async () => {
+  const liffId = import.meta.env.VITE_LIFF_ID_DRILLING || "";
+  if (!liffId) {
+    liffReady.value = true;
+    return;
+  }
+  try {
+    isLiffEnv.value = true;
+    await liff.init({ liffId });
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return;
+    }
+    const profile = await liff.getProfile();
+    lineUserId.value = profile?.userId || null;
+  } catch (e) {
+    console.warn("LIFF init error:", e);
+  } finally {
+    liffReady.value = true;
+  }
+});
 
 async function submit() {
   if (!form.value.name || !form.value.phone || !form.value.address || !form.value.requested_depth_m) {
@@ -24,7 +50,10 @@ async function submit() {
     const res = await fetch(`${BASE_URL}/public/drilling-requests`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form.value),
+      body: JSON.stringify({
+        ...form.value,
+        line_user_id: lineUserId.value || null,
+      }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -61,6 +90,12 @@ async function submit() {
           เตรียมพร้อมสำหรับวันนัดหมายครับ<br />
           ทีมงานจะตรวจสอบและติดต่อกลับโดยเร็ว
         </div>
+      </div>
+
+      <!-- Loading LIFF -->
+      <div v-if="!liffReady" class="form-card" style="text-align: center; padding: 48px 24px;">
+        <v-progress-circular indeterminate color="primary" size="48" />
+        <div class="text-body-2 mt-4" style="color: #6A7A8A;">กำลังเชื่อมต่อ...</div>
       </div>
 
       <!-- Form State -->
