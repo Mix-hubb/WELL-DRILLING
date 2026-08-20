@@ -3,7 +3,6 @@ import multer from "multer";
 import path from "path";
 import crypto from "crypto";
 import { pool } from "../config/db";
-import { RowDataPacket } from "mysql2";
 
 const UPLOAD_DIR = path.join(__dirname, "../../uploads");
 
@@ -40,12 +39,12 @@ export async function magicAuth(req: Request, res: Response, next: NextFunction)
 
   if (!magic) return res.status(401).json({ error: "ต้องระบุ magic token" });
 
-  const [rows] = await pool.query<RowDataPacket[]>(
+  const { rows } = await pool.query(
     `SELECT job_id AS id FROM drilling_jobs
-      WHERE magic_link_token = ? AND (magic_link_expires_at IS NULL OR magic_link_expires_at > NOW())
+      WHERE magic_link_token = $1 AND (magic_link_expires_at IS NULL OR magic_link_expires_at > NOW())
      UNION
      SELECT repair_id AS id FROM repair_requests
-      WHERE magic_link_token = ? AND (magic_link_expires_at IS NULL OR magic_link_expires_at > NOW())`,
+      WHERE magic_link_token = $2 AND (magic_link_expires_at IS NULL OR magic_link_expires_at > NOW())`,
     [magic, magic]
   );
 

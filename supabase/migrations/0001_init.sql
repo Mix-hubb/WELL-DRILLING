@@ -1,11 +1,6 @@
 -- ============================================================
--- ระบบจัดการบ่อบาดาลดิจิทัล (Supabase / PostgreSQL) — Schema v2
--- อัปเดตล่าสุดให้ตรงกับ docs/database-schema.md (ล่าสุด)
--- หมายเหตุ:
---   - ไม่เก็บพิกัด GPS ใน database — ใช้ Leaflet + OSM ปักหมุดเพื่อดึงที่อยู่
---   - ช่างไม่มีตารางแยก — เข้าผ่าน magic link (drilling_jobs/repair_requests)
---   - ผู้ประกอบการ (login) = ตาราง users (role ADMIN/DRILLER)
---   - ลูกค้า = มาจาก LINE ผ่าน line_user_id (user_id เป็น NULL ได้)
+-- ระบบจัดการบ่อบาดาลดิจิทัล (Supabase / PostgreSQL) — Schema v2 + ALTER
+-- รันใน Supabase SQL Editor ทีเดียว
 -- ============================================================
 
 create extension if not exists pgcrypto;
@@ -24,17 +19,12 @@ begin
 end;
 $$;
 
--- (function current_user_role อยู่ท้ายไฟล์ก่อนส่วน RLS
---  เพราะอ้างอิงตาราง users ที่ต้องสร้างเสร็จก่อน)
-
 -- ============================================================
--- USERS: users — ผู้ประกอบการ (login)
--- user_id = auth.users.id (login ผ่าน Supabase Auth / magic link ช่างไม่ใช่ user)
--- role: ADMIN (เจ้าของระบบ) / DRILLER (ช่างที่ login ได้)
+-- USERS: ผู้ประกอบการ (login)
 -- ============================================================
 
 create table public.users (
-  user_id        uuid primary key references auth.users(id) on delete cascade,
+  user_id        uuid primary key default gen_random_uuid(),
   email          text not null unique,
   password_hash  text not null,
   full_name      text not null,
@@ -50,8 +40,6 @@ create trigger trg_users_updated
 
 -- ============================================================
 -- CORE: customers — ลูกค้า
--- login ผ่าน LINE: เก็บ line_user_id + ชื่อ + รูปโปรไฟล์ (user_id NULL)
--- กรณีผู้ประกอบการกรอกเอง user_id ชี้ไปที่ users.user_id
 -- ============================================================
 
 create table public.customers (
@@ -76,8 +64,7 @@ create trigger trg_customers_updated
   for each row execute function public.set_updated_at();
 
 -- ============================================================
--- CORE: wells — บ่อบาดาล (สร้างเมื่อเจาะสำเร็จ / หรือกรอกเอง)
--- warranty_expire_date = completion_date + 2 ปี (generated)
+-- CORE: wells — บ่อบาดาล
 -- ============================================================
 
 create table public.wells (
@@ -111,7 +98,7 @@ create trigger trg_wells_updated
   for each row execute function public.set_updated_at();
 
 -- ============================================================
--- WELL DETAIL: well_strata_logs — Geological Log (ชั้นดิน/หิน)
+-- WELL DETAIL: well_strata_logs
 -- ============================================================
 
 create table public.well_strata_logs (
@@ -130,7 +117,7 @@ create table public.well_strata_logs (
 create index idx_strata_well_depth on public.well_strata_logs(well_id, depth_from_m);
 
 -- ============================================================
--- WELL DETAIL: well_pipes — Pipe Specs (PVC/เหล็ก, ทึบ/เซาะร่อง)
+-- WELL DETAIL: well_pipes
 -- ============================================================
 
 create table public.well_pipes (
@@ -149,7 +136,7 @@ create table public.well_pipes (
 create index idx_pipe_well_depth on public.well_pipes(well_id, depth_from_m);
 
 -- ============================================================
--- WELL DETAIL: well_pumps — Pump Specs
+-- WELL DETAIL: well_pumps
 -- ============================================================
 
 create table public.well_pumps (
@@ -157,10 +144,16 @@ create table public.well_pumps (
   well_id              uuid not null references public.wells(well_id) on delete cascade,
   pump_type            text check (pump_type in ('AC_SUBMERSIBLE','DC_SOLAR_SUBMERSIBLE','OTHER')),
   brand                text,
+  pump_model           text,
   horsepower           numeric(5,2),
   power_kw             numeric(5,2),
   impeller_stages      integer,
   installation_depth_m numeric(7,2),
+  voltage              text,
+  phase                integer,
+  discharge_size_mm    numeric(6,1),
+  rated_flow_m3hr      numeric(8,2),
+  rated_head_m         numeric(7,2),
   installed_date       date,
   notes                text
 );
@@ -168,7 +161,7 @@ create table public.well_pumps (
 create index idx_pump_well on public.well_pumps(well_id);
 
 -- ============================================================
--- WELL DETAIL: well_control_boxes — Control Box Specs
+-- WELL DETAIL: well_control_boxes
 -- ============================================================
 
 create table public.well_control_boxes (
@@ -178,6 +171,8 @@ create table public.well_control_boxes (
   model           text,
   capacity        text,
   voltage         text,
+  protection_type text,
+  features        text,
   installed_date  date,
   notes           text
 );
@@ -185,9 +180,35 @@ create table public.well_control_boxes (
 create index idx_control_box_well on public.well_control_boxes(well_id);
 
 -- ============================================================
--- REQUEST: drilling_requests — คำร้องแจ้งเจาะ
--- source = GOOGLE_FORM (ลูกค้า) / MANUAL (ผู้ประกอบการกรอกเอง) / LINE
--- status: NEW → QUOTED → ACCEPTED | REJECTED | CANCELLED
+-- MASTER: pump_catalog_models
+-- ============================================================
+
+create table if not exists public.pump_catalog_models (
+  model_id          serial primary key,
+  brand             varchar(50)        not null,
+  series            varchar(120)       null,
+  model             varchar(150)       not null,
+  bore_size         varchar(20)        null,
+  flow_rate         varchar(80)        null,
+  motor_power       varchar(80)        null,
+  phase             varchar(30)        null,
+  discharge_size    varchar(50)        null,
+  impeller_stages   varchar(50)        null,
+  max_head_m        varchar(50)        null,
+  material          varchar(120)       null,
+  features          varchar(500)       null,
+  reference_price   decimal(12,2)      null,
+  notes             text               null,
+  sort_order        integer            not null default 0,
+  is_active         boolean            not null default true,
+  created_at        timestamptz        not null default now(),
+  updated_at        timestamptz        not null default now()
+);
+
+create index idx_pump_catalog_brand on public.pump_catalog_models(brand, is_active, sort_order);
+
+-- ============================================================
+-- REQUEST: drilling_requests
 -- ============================================================
 
 create table public.drilling_requests (
@@ -213,9 +234,7 @@ create trigger trg_drilling_requests_updated
   for each row execute function public.set_updated_at();
 
 -- ============================================================
--- QUEUE: drilling_jobs — คิวงานเจาะ (Queue Pool, ไม่มีวันที่ตายตัว)
--- ลูกค้ายอมรับราคา → สร้าง job → QUEUED → DRILLING → SUCCESS | FAILED → CLOSED
--- ช่างเข้าผ่าน magic_link_token (ไม่มีตาราง technicians)
+-- QUEUE: drilling_jobs
 -- ============================================================
 
 create table public.drilling_jobs (
@@ -247,10 +266,7 @@ create trigger trg_drilling_jobs_updated
   for each row execute function public.set_updated_at();
 
 -- ============================================================
--- REQUEST: repair_requests — รายการแจ้งซ่อม
--- problems = ปัญหาที่ติ๊ก (jsonb array), photos = URL รูปที่แนบ (jsonb array)
--- status: NEW → QUOTED → ACCEPTED → SCHEDULED → IN_PROGRESS → COMPLETED
---         | REJECTED | CANCELLED
+-- REQUEST: repair_requests
 -- ============================================================
 
 create table public.repair_requests (
@@ -277,7 +293,7 @@ create trigger trg_repair_requests_updated
   for each row execute function public.set_updated_at();
 
 -- ============================================================
--- QUOTE: quotations — ราคาประเมิน (เจาะ/ซ่อม) + ยอมรับ/ปฏิเสธของลูกค้า
+-- QUOTE: quotations (+ requested_depth_m, requested_diameter_m)
 -- ============================================================
 
 create table public.quotations (
@@ -285,6 +301,8 @@ create table public.quotations (
   kind                text not null check (kind in ('DRILLING','REPAIR')),
   drilling_request_id uuid references public.drilling_requests(request_id) on delete restrict,
   repair_request_id   uuid references public.repair_requests(repair_id) on delete restrict,
+  requested_depth_m   numeric(7,2) null,
+  requested_diameter_m numeric(7,2) null,
   price               numeric(12,2) not null,
   status              text not null default 'PENDING' check (status in ('PENDING','ACCEPTED','REJECTED')),
   notes               text,
@@ -306,7 +324,7 @@ create trigger trg_quotations_updated
   for each row execute function public.set_updated_at();
 
 -- ============================================================
--- RECORD: repair_records — ช่างบันทึกหลังซ่อมเสร็จ
+-- RECORD: repair_records (+ pump column)
 -- ============================================================
 
 create table public.repair_records (
@@ -315,6 +333,7 @@ create table public.repair_records (
   final_price       numeric(12,2),
   work_details      text,
   parts             jsonb,
+  pump              jsonb,
   payment_slip_url  text,
   is_warranty_claim boolean not null default false,
   completed_at      timestamptz,
@@ -324,7 +343,7 @@ create table public.repair_records (
 create index idx_record_repair on public.repair_records(repair_id);
 
 -- ============================================================
--- LINE: line_notifications — log การส่งข้อความกลับ LINE ถึงลูกค้า
+-- LINE: line_notifications
 -- ============================================================
 
 create table public.line_notifications (
@@ -340,7 +359,7 @@ create table public.line_notifications (
 create index idx_notif_customer on public.line_notifications(customer_id);
 
 -- ============================================================
--- VIEW: well_warranty_view — สถานะประกัน (สำหรับ LINE bot / Dashboard)
+-- VIEW: well_warranty_view
 -- ============================================================
 
 create or replace view public.well_warranty_view as
@@ -362,7 +381,7 @@ from public.wells w
 join public.customers c on c.customer_id = w.customer_id;
 
 -- ============================================================
--- HELPER FUNCTIONS (สร้างตอนนี้ เพราะตารางทั้งหมดมีแล้ว)
+-- HELPER FUNCTIONS
 -- ============================================================
 
 create or replace function public.current_user_role()
@@ -379,8 +398,6 @@ grant execute on function public.current_user_role() to authenticated, anon;
 
 -- ============================================================
 -- ROW LEVEL SECURITY
--- ผู้ประกอบการ (users role ADMIN/DRILLER): เข้าถึงทุกอย่าง
--- ลูกค้า / LINE / Webhook / Magic link: ทำงานผ่าน backend (service role)
 -- ============================================================
 
 alter table public.users enable row level security;

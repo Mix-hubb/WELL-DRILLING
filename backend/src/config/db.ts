@@ -1,15 +1,17 @@
-import mysql from "mysql2/promise";
+import { Pool } from "pg";
 import dotenv from "dotenv";
 dotenv.config();
 
-export const pool = mysql.createPool({
+export const pool = new Pool({
   host: process.env.DB_HOST || "localhost",
-  port: Number(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "password",
-  database: process.env.DB_NAME || "well_drilling",
-  waitForConnections: true,
-  connectionLimit: 10,
-  dateStrings: true,
-  charset: "utf8mb4",
+  port: Number(process.env.DB_PORT) || 5432,
+  user: process.env.DB_USER || "postgres",
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "postgres",
+  max: 10,
+  ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : undefined,
+});
+
+pool.on("error", (err) => {
+  console.error("Unexpected PG pool error:", err);
 });

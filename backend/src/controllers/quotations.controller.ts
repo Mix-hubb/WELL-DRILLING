@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
-import { RowDataPacket, ResultSetHeader } from "mysql2";
 import { Quotation } from "../types";
 import { sendTextToCustomer, sendFlexToCustomer } from "../services/line";
 
@@ -109,9 +108,9 @@ export async function create(req: Request, res: Response) {
     return res.status(400).json({ error: "ต้องระบุราคาที่มากกว่า 0" });
   }
 
-  const [result] = await pool.query<ResultSetHeader>(
+  const { rows } = await pool.query(
     `INSERT INTO quotations (kind, drilling_request_id, repair_request_id, requested_depth_m, requested_diameter_m, price, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING quotation_id`,
     [
       kind,
       kind === "DRILLING" ? drilling_request_id : null,
@@ -123,32 +122,34 @@ export async function create(req: Request, res: Response) {
     ]
   );
 
+  const newQuotationId = rows[0].quotation_id;
+
   const table = kind === "DRILLING" ? "drilling_requests" : "repair_requests";
   const column = kind === "DRILLING" ? "request_id" : "repair_id";
   await pool.query(
-    `UPDATE ${table} SET status = 'QUOTED' WHERE ${column} = ?`,
+    `UPDATE ${table} SET status = 'QUOTED' WHERE ${column} = $1`,
     [kind === "DRILLING" ? drilling_request_id : repair_request_id]
   );
 
-  const [rows] = await pool.query<RowDataPacket[]>(
-    "SELECT * FROM quotations WHERE quotation_id = ?", [result.insertId]
+  const quoteResult = await pool.query(
+    "SELECT * FROM quotations WHERE quotation_id = $1", [newQuotationId]
   );
-  const quotation = rows[0];
+  const quotation = quoteResult.rows[0];
 
-  const [custRows] = await pool.query<RowDataPacket[]>(
+  const custResult = await pool.query(
     `SELECT c.customer_id FROM ${table} r JOIN customers c ON c.customer_id = r.customer_id
-     WHERE r.${column} = ?`,
+     WHERE r.${column} = $1`,
     [kind === "DRILLING" ? drilling_request_id : repair_request_id]
   );
-  if (custRows.length) {
+  if (custResult.rows.length) {
     if (kind === "DRILLING") {
       const flex = buildDrillingQuoteFlex(price, notes, drilling_request_id, requested_depth_m, requested_diameter_m);
       const label = `ใบเสนอราคาขุดเจาะ ราคา ${Number(price).toLocaleString("th-TH")} บาท`;
-      sendFlexToCustomer(custRows[0].customer_id, label, flex, "QUOTE").catch(() => {});
+      sendFlexToCustomer(custResult.rows[0].customer_id, label, flex, "QUOTE").catch(() => {});
     } else {
       const flex = buildRepairQuoteFlex(price, notes, repair_request_id);
       const label = `ใบเสนอราคางานซ่อม ราคา ${Number(price).toLocaleString("th-TH")} บาท`;
-      sendFlexToCustomer(custRows[0].customer_id, label, flex, "QUOTE").catch(() => {});
+      sendFlexToCustomer(custResult.rows[0].customer_id, label, flex, "QUOTE").catch(() => {});
     }
   }
 
@@ -164,29 +165,29 @@ export async function updateStatus(req: Request, res: Response) {
     return res.status(400).json({ error: `สถานะไม่ถูกต้อง ต้องเป็น ${valid.join(", ")}` });
   }
 
-  await pool.query("UPDATE quotations SET status = ? WHERE quotation_id = ?", [status, id]);
+  await pool.query("UPDATE quotations SET status = $1 WHERE quotation_id = $2", [status, id]);
 
   if (status === "ACCEPTED") {
-    const [quotes] = await pool.query<RowDataPacket[]>(
-      "SELECT * FROM quotations WHERE quotation_id = ?", [id]
+    const quotes = await pool.query(
+      "SELECT * FROM quotations WHERE quotation_id = $1", [id]
     );
-    const q = quotes[0];
+    const q = quotes.rows[0];
     if (q?.kind === "DRILLING" && q.drilling_request_id) {
-      await pool.query("UPDATE drilling_requests SET status = 'ACCEPTED' WHERE request_id = ?", [q.drilling_request_id]);
+      await pool.query("UPDATE drilling_requests SET status = 'ACCEPTED' WHERE request_id = $1", [q.drilling_request_id]);
     }
     if (q?.kind === "REPAIR" && q.repair_request_id) {
-      await pool.query("UPDATE repair_requests SET status = 'ACCEPTED' WHERE repair_id = ?", [q.repair_request_id]);
+      await pool.query("UPDATE repair_requests SET status = 'ACCEPTED' WHERE repair_id = $1", [q.repair_request_id]);
     }
   }
 
-  const [rows] = await pool.query<RowDataPacket[]>(
-    "SELECT * FROM quotations WHERE quotation_id = ?", [id]
+  const { rows } = await pool.query(
+    "SELECT * FROM quotations WHERE quotation_id = $1", [id]
   );
   if (!rows.length) return res.status(404).json({ error: "ไม่พบใบเสนอราคา" });
   res.json(rows[0]);
 }
 
 export async function remove(req: Request, res: Response) {
-  await pool.query("DELETE FROM quotations WHERE quotation_id = ?", [req.params.id]);
+  await pool.query("DELETE FROM quotations WHERE quotation_id = $1", [req.params.id]);
   res.status(204).end();
 }

@@ -1,7 +1,6 @@
 import { Router, Request, Response } from "express";
 import crypto from "crypto";
 import { pool } from "../config/db";
-import { ResultSetHeader, RowDataPacket } from "mysql2";
 import { asyncHandler } from "../utils/asyncHandler";
 import { sendTextToCustomer } from "../services/line";
 
@@ -33,14 +32,14 @@ async function reply(replyToken: string, text: string) {
 }
 
 async function findOrCreateCustomerByLine(userId: string, profile: any): Promise<number> {
-  const [rows] = await pool.query<RowDataPacket[]>(
-    "SELECT customer_id FROM customers WHERE line_user_id = ?",
+  const { rows } = await pool.query(
+    "SELECT customer_id FROM customers WHERE line_user_id = $1",
     [userId]
   );
   if (rows.length) {
     if (profile?.displayName) {
       await pool.query(
-        "UPDATE customers SET line_display_name = COALESCE(?, line_display_name), line_picture_url = COALESCE(?, line_picture_url) WHERE customer_id = ?",
+        "UPDATE customers SET line_display_name = COALESCE($1, line_display_name), line_picture_url = COALESCE($2, line_picture_url) WHERE customer_id = $3",
         [profile.displayName, profile.pictureUrl || null, rows[0].customer_id]
       );
     }
@@ -49,16 +48,16 @@ async function findOrCreateCustomerByLine(userId: string, profile: any): Promise
 
   const name = profile?.displayName || "ลูกค้า LINE";
   const placeholderPhone = (userId.startsWith("U") ? userId.slice(0, 20) : userId).replace(/\W/g, "");
-  const [result] = await pool.query<ResultSetHeader>(
-    "INSERT INTO customers (line_user_id, customer_name, phone, line_display_name, line_picture_url) VALUES (?, ?, ?, ?, ?)",
+  const result = await pool.query(
+    "INSERT INTO customers (line_user_id, customer_name, phone, line_display_name, line_picture_url) VALUES ($1, $2, $3, $4, $5) RETURNING customer_id",
     [userId, name, placeholderPhone, profile?.displayName || null, profile?.pictureUrl || null]
   );
-  return result.insertId;
+  return result.rows[0].customer_id;
 }
 
 async function handleText(userId: string, text: string, replyToken: string) {
-  const [custRows] = await pool.query<RowDataPacket[]>(
-    "SELECT customer_id, customer_name FROM customers WHERE line_user_id = ?",
+  const custResult = await pool.query(
+    "SELECT customer_id, customer_name FROM customers WHERE line_user_id = $1",
     [userId]
   );
 
@@ -80,30 +79,30 @@ async function handleText(userId: string, text: string, replyToken: string) {
     );
   }
 
-  if (!custRows.length) {
+  if (!custResult.rows.length) {
     return reply(replyToken, "ยังไม่มีข้อมูลบ่อของคุณในระบบ กรุณาแจ้งเจาะก่อนครับ");
   }
-  const customer = custRows[0];
+  const customer = custResult.rows[0];
 
-  const [wells] = await pool.query<RowDataPacket[]>(
+  const wells = await pool.query(
     `SELECT
        w.well_id, w.well_name, w.total_depth_m, w.water_quantity_m3hr, w.yield_lpm,
        w.completion_date, w.warranty_expire_date,
        wv.warranty_status, wv.days_left
      FROM wells w
      LEFT JOIN well_warranty_view wv ON wv.well_id = w.well_id
-     WHERE w.customer_id = ?
+     WHERE w.customer_id = $1
      ORDER BY w.created_at DESC`,
     [customer.customer_id]
   );
 
-  const [repairs] = await pool.query<RowDataPacket[]>(
+  const repairs = await pool.query(
     `SELECT r.repair_id, r.status, r.problems, r.created_at,
             COALESCE(rec.final_price, q.price) AS price
      FROM repair_requests r
      LEFT JOIN repair_records rec ON rec.repair_id = r.repair_id
      LEFT JOIN quotations q ON q.kind = 'REPAIR' AND q.repair_request_id = r.repair_id
-     WHERE r.customer_id = ?
+     WHERE r.customer_id = $1
      ORDER BY r.created_at DESC
      LIMIT 5`,
     [customer.customer_id]
@@ -112,11 +111,11 @@ async function handleText(userId: string, text: string, replyToken: string) {
   const lines: string[] = [];
 
   if (/ดูข้อมูลบ่อ|ข้อมูลบ่อ|บ่อของฉัน/.test(text)) {
-    if (!wells.length) {
+    if (!wells.rows.length) {
       lines.push("ยังไม่มีข้อมูลบ่อในระบบครับ");
     } else {
-      lines.push(`คุณ ${customer.customer_name} มีบ่อทั้งหมด ${wells.length} บ่อ`);
-      wells.forEach((w) => {
+      lines.push(`คุณ ${customer.customer_name} มีบ่อทั้งหมด ${wells.rows.length} บ่อ`);
+      wells.rows.forEach((w: any) => {
         lines.push(
           `• ${w.well_name} (บ่อ #${w.well_id})\n` +
           `  ความลึก ${w.total_depth_m ?? "-"} ม. | น้ำ ${w.water_quantity_m3hr ?? "-"} ลบ.ม./ชม. | อัตรา ${w.yield_lpm ?? "-"} ลิตร/นาที`
@@ -124,10 +123,10 @@ async function handleText(userId: string, text: string, replyToken: string) {
       });
     }
   } else if (/ประกัน|รับประกัน|หมดอายุ/.test(text)) {
-    if (!wells.length) {
+    if (!wells.rows.length) {
       lines.push("ยังไม่มีข้อมูลบ่อในระบบครับ");
     } else {
-      wells.forEach((w) => {
+      wells.rows.forEach((w: any) => {
         const status =
           w.warranty_status === "ACTIVE"
             ? `อยู่ในประกัน (เหลือ ${w.days_left} วัน ถึง ${w.warranty_expire_date})`
@@ -138,14 +137,17 @@ async function handleText(userId: string, text: string, replyToken: string) {
       });
     }
   } else if (/ประวัติซ่อม|การซ่อม|ซ่อมครั้ง/.test(text)) {
-    if (!repairs.length) {
+    if (!repairs.rows.length) {
       lines.push("ยังไม่มีประวัติการซ่อมครับ");
     } else {
       lines.push("ประวัติการซ่อมล่าสุด:");
-      repairs.forEach((r) => {
+      repairs.rows.forEach((r: any) => {
         const problems = typeof r.problems === "string" ? JSON.parse(r.problems) : (r.problems || []);
+        const createdDate = r.created_at instanceof Date
+          ? r.created_at.toISOString().slice(0, 10)
+          : String(r.created_at).slice(0, 10);
         lines.push(
-          `• แจ้ง ${r.created_at?.toISOString?.().slice(0, 10) ?? r.created_at} — ${problems.join(", ")}` +
+          `• แจ้ง ${createdDate} — ${problems.join(", ")}` +
           `\n  สถานะ ${r.status}${r.price ? ` | ราคา ${Number(r.price).toLocaleString("th-TH")} บาท` : ""}`
         );
       });
@@ -165,12 +167,12 @@ async function handleText(userId: string, text: string, replyToken: string) {
 }
 
 async function handlePostback(userId: string, data: string) {
-  const [custRows] = await pool.query<RowDataPacket[]>(
-    "SELECT customer_id, customer_name FROM customers WHERE line_user_id = ?",
+  const custResult = await pool.query(
+    "SELECT customer_id, customer_name FROM customers WHERE line_user_id = $1",
     [userId]
   );
-  if (!custRows.length) return;
-  const customerId = custRows[0].customer_id;
+  if (!custResult.rows.length) return;
+  const customerId = custResult.rows[0].customer_id;
 
   const acceptDrillMatch = data.match(/^accept_drill_(\d+)$/);
   const rejectDrillMatch = data.match(/^reject_drill_(\d+)$/);
@@ -179,40 +181,40 @@ async function handlePostback(userId: string, data: string) {
 
   if (acceptDrillMatch) {
     const requestId = Number(acceptDrillMatch[1]);
-    await pool.query("UPDATE drilling_requests SET status = 'ACCEPTED' WHERE request_id = ?", [requestId]);
+    await pool.query("UPDATE drilling_requests SET status = 'ACCEPTED' WHERE request_id = $1", [requestId]);
 
-    const [reqRows] = await pool.query<RowDataPacket[]>(
-      "SELECT name, address, requested_depth_m, appointment_date FROM drilling_requests WHERE request_id = ?",
+    const reqResult = await pool.query(
+      "SELECT name, address, requested_depth_m, appointment_date FROM drilling_requests WHERE request_id = $1",
       [requestId]
     );
-    const req = reqRows[0];
+    const req = reqResult.rows[0];
 
     await pool.query(
       `INSERT INTO drilling_jobs (request_id, customer_id, status, job_title, site_address, scheduled_date)
-       VALUES (?, ?, 'QUEUED', ?, ?, ?)`,
+       VALUES ($1, $2, 'QUEUED', $3, $4, $5)`,
       [requestId, customerId, `เจาะบ่อ ${req?.name || ""}`, req?.address || null, req?.appointment_date || null]
     );
 
     sendTextToCustomer(customerId, "ยอมรับเรียบร้อยครับ จะดำเนินการเข้าคิวเจาะให้ต่อไป", "STATUS").catch(() => {});
   } else if (rejectDrillMatch) {
     const requestId = Number(rejectDrillMatch[1]);
-    await pool.query("UPDATE drilling_requests SET status = 'REJECTED' WHERE request_id = ?", [requestId]);
+    await pool.query("UPDATE drilling_requests SET status = 'REJECTED' WHERE request_id = $1", [requestId]);
     sendTextToCustomer(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งเจาะใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
   } else if (acceptRepairMatch) {
     const repairId = Number(acceptRepairMatch[1]);
-    await pool.query("UPDATE repair_requests SET status = 'ACCEPTED' WHERE repair_id = ?", [repairId]);
-    await pool.query("UPDATE quotations SET status = 'ACCEPTED' WHERE kind = 'REPAIR' AND repair_request_id = ?", [repairId]);
+    await pool.query("UPDATE repair_requests SET status = 'ACCEPTED' WHERE repair_id = $1", [repairId]);
+    await pool.query("UPDATE quotations SET status = 'ACCEPTED' WHERE kind = 'REPAIR' AND repair_request_id = $1", [repairId]);
 
-    const [reqRows] = await pool.query<RowDataPacket[]>(
-      "SELECT scheduled_date FROM repair_requests WHERE repair_id = ?", [repairId]
+    const reqResult = await pool.query(
+      "SELECT scheduled_date FROM repair_requests WHERE repair_id = $1", [repairId]
     );
-    const scheduledDate = reqRows[0]?.scheduled_date;
+    const scheduledDate = reqResult.rows[0]?.scheduled_date;
     const dateText = scheduledDate ? `วันที่ ${scheduledDate}` : "กำหนดนัดหมาย";
     sendTextToCustomer(customerId, `ยอมรับเรียบร้อยครับ กรุณาเตรียมตัวสำหรับการซ่อมบำรุง${dateText} ทีมงานจะติดต่อกลับเพื่อยืนยันอีกครั้ง`, "STATUS").catch(() => {});
   } else if (rejectRepairMatch) {
     const repairId = Number(rejectRepairMatch[1]);
-    await pool.query("UPDATE repair_requests SET status = 'REJECTED' WHERE repair_id = ?", [repairId]);
-    await pool.query("UPDATE quotations SET status = 'REJECTED' WHERE kind = 'REPAIR' AND repair_request_id = ?", [repairId]);
+    await pool.query("UPDATE repair_requests SET status = 'REJECTED' WHERE repair_id = $1", [repairId]);
+    await pool.query("UPDATE quotations SET status = 'REJECTED' WHERE kind = 'REPAIR' AND repair_request_id = $1", [repairId]);
     sendTextToCustomer(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งซ่อมใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
   }
 }
@@ -230,32 +232,32 @@ router.post(
       return res.status(400).json({ error: "ต้องระบุชื่อและเบอร์โทร" });
     }
 
-    const [existing] = await pool.query<RowDataPacket[]>(
-      "SELECT customer_id FROM customers WHERE phone = ? LIMIT 1",
+    const existing = await pool.query(
+      "SELECT customer_id FROM customers WHERE phone = $1 LIMIT 1",
       [phone]
     );
     let customerId: number;
-    if (existing.length) {
-      customerId = existing[0].customer_id;
+    if (existing.rows.length) {
+      customerId = existing.rows[0].customer_id;
       await pool.query(
-        "UPDATE customers SET customer_name = COALESCE(?, customer_name), address = COALESCE(?, address) WHERE customer_id = ?",
+        "UPDATE customers SET customer_name = COALESCE($1, customer_name), address = COALESCE($2, address) WHERE customer_id = $3",
         [name, address, customerId]
       );
     } else {
-      const [c] = await pool.query<ResultSetHeader>(
-        "INSERT INTO customers (customer_name, phone, address) VALUES (?, ?, ?)",
+      const c = await pool.query(
+        "INSERT INTO customers (customer_name, phone, address) VALUES ($1, $2, $3) RETURNING customer_id",
         [name, phone, address]
       );
-      customerId = c.insertId;
+      customerId = c.rows[0].customer_id;
     }
 
-    const [r] = await pool.query<ResultSetHeader>(
+    const r = await pool.query(
       `INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m)
-       VALUES (?, 'GOOGLE_FORM', ?, ?, ?, ?)`,
+       VALUES ($1, 'GOOGLE_FORM', $2, $3, $4, $5) RETURNING request_id`,
       [customerId, name, phone, address, depth ?? null]
     );
 
-    res.status(201).json({ request_id: r.insertId, customer_id: customerId });
+    res.status(201).json({ request_id: r.rows[0].request_id, customer_id: customerId });
   })
 );
 

@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { pool } from "../config/db";
-import { RowDataPacket, ResultSetHeader } from "mysql2";
 import { signToken } from "../middleware/auth";
 import { UserRole } from "../types";
 
@@ -16,24 +15,25 @@ export async function register(req: Request, res: Response) {
     return res.status(400).json({ error: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร" });
   }
 
-  const [existing] = await pool.query<RowDataPacket[]>(
-    "SELECT user_id FROM users WHERE email = ?", [email]
+  const existing = await pool.query(
+    "SELECT user_id FROM users WHERE email = $1", [email]
   );
-  if (existing.length) {
+  if (existing.rows.length) {
     return res.status(409).json({ error: "อีเมลนี้ถูกใช้แล้ว" });
   }
 
   const password_hash = await bcrypt.hash(password, 10);
 
-  const [result] = await pool.query<ResultSetHeader>(
-    "INSERT INTO users (email, password_hash, full_name, role) VALUES (?, ?, ?, ?)",
+  const { rows } = await pool.query(
+    "INSERT INTO users (email, password_hash, full_name, role) VALUES ($1, $2, $3, $4) RETURNING user_id",
     [email, password_hash, full_name, USER_ROLE]
   );
 
-  const token = signToken({ userId: result.insertId, email, role: USER_ROLE });
+  const newUserId = rows[0].user_id;
+  const token = signToken({ userId: newUserId, email, role: USER_ROLE });
   res.status(201).json({
     token,
-    user: { user_id: result.insertId, email, full_name, role: USER_ROLE },
+    user: { user_id: newUserId, email, full_name, role: USER_ROLE },
   });
 }
 
@@ -43,8 +43,8 @@ export async function login(req: Request, res: Response) {
     return res.status(400).json({ error: "ต้องระบุ email และ password" });
   }
 
-  const [rows] = await pool.query<RowDataPacket[]>(
-    "SELECT user_id, email, password_hash, full_name FROM users WHERE email = ?",
+  const { rows } = await pool.query(
+    "SELECT user_id, email, password_hash, full_name FROM users WHERE email = $1",
     [email]
   );
   if (!rows.length) {
@@ -65,8 +65,8 @@ export async function login(req: Request, res: Response) {
 }
 
 export async function me(req: Request, res: Response) {
-  const [rows] = await pool.query<RowDataPacket[]>(
-    "SELECT user_id, email, full_name FROM users WHERE user_id = ?",
+  const { rows } = await pool.query(
+    "SELECT user_id, email, full_name FROM users WHERE user_id = $1",
     [req.user!.userId]
   );
   if (!rows.length) {

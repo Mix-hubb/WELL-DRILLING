@@ -1,6 +1,5 @@
 import "dotenv/config";
 import { pool } from "../config/db";
-import { RowDataPacket, ResultSetHeader } from "mysql2";
 
 // ============================================================
 // ข้อมูลตัวอย่าง (Demo Seed) — รันซ้ำได้ (idempotent)
@@ -10,18 +9,18 @@ import { RowDataPacket, ResultSetHeader } from "mysql2";
 const DEMO_PHONE = "0811112222";
 
 async function main() {
-  const [existing] = await pool.query<RowDataPacket[]>(
-    "SELECT customer_id FROM customers WHERE phone = ? LIMIT 1", [DEMO_PHONE]
+  const existing = await pool.query(
+    "SELECT customer_id FROM customers WHERE phone = $1 LIMIT 1", [DEMO_PHONE]
   );
-  if (existing.length) {
+  if (existing.rows.length) {
     console.log("มีข้อมูลตัวอย่างอยู่แล้ว — ข้ามการเพิ่ม");
     await pool.end();
     return;
   }
 
-  const conn = await pool.getConnection();
+  const client = await pool.connect();
   try {
-    await conn.beginTransaction();
+    await client.query("BEGIN");
 
     // ---------- ลูกค้า ----------
     const custIds: number[] = [];
@@ -32,11 +31,11 @@ async function main() {
       { name: "น้ำทิพย์ สุขสันต์", phone: "0844445555", address: "99 ซ.สบายใจ ต.ในเมือง อ.เมือง จ.ขอนแก่น 40000" },
     ];
     for (const c of customers) {
-      const [r] = await conn.query<ResultSetHeader>(
-        "INSERT INTO customers (customer_name, phone, address) VALUES (?, ?, ?)",
+      const r = await client.query(
+        "INSERT INTO customers (customer_name, phone, address) VALUES ($1, $2, $3) RETURNING customer_id",
         [c.name, c.phone, c.address]
       );
-      custIds.push(r.insertId);
+      custIds.push(r.rows[0].customer_id);
     }
     const [สมชาย, มาลี, ประเสริฐ, น้ำทิพย์] = custIds;
 
@@ -71,205 +70,224 @@ async function main() {
       },
     ];
     for (const w of wells) {
-      const [r] = await conn.query<ResultSetHeader>(
+      const r = await client.query(
         `INSERT INTO wells
           (customer_id, well_name, address, total_depth_m, requested_depth_m, drilling_method,
            formation_water_type, water_quantity_m3hr, yield_lpm, static_water_level_m,
            pumping_water_level_m, driller_name, completion_date, result, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING well_id`,
         [w.customer_id, w.well_name, w.address, w.total_depth_m, w.requested_depth_m, w.drilling_method,
          w.formation_water_type, w.water_quantity_m3hr, w.yield_lpm, w.static_water_level_m,
          w.pumping_water_level_m, w.driller_name, w.completion_date, w.result, w.notes || null]
       );
-      wellIds.push(r.insertId);
+      wellIds.push(r.rows[0].well_id);
     }
     const [W1, W2, W3, W4] = wellIds;
 
     // ชั้นดิน (W1)
     const strataW1 = [
-      [0, 4, "ดินเหนียว", "#A0856C", "SOFT", 0, "ชั้นดินบน"],
-      [4, 12, "ทรายละเอียด", "#D2B48C", "MEDIUM", 0, ""],
-      [12, 25, "ทรายหยาบ + กรวด", "#8B7355", "HARD", 1, "ชั้นน้ำบาดาลหลัก"],
-      [25, 48, "ดินลูกรัง", "#B87333", "HARD", 0, ""],
-      [48, 60, "ทรายกรวดน้ำใต้ดิน", "#7A5C3E", "VERY_HARD", 1, "ชั้นน้ำปริมาณมาก"],
+      [0, 4, "ดินเหนียว", "#A0856C", "SOFT", false, "ชั้นดินบน"],
+      [4, 12, "ทรายละเอียด", "#D2B48C", "MEDIUM", false, ""],
+      [12, 25, "ทรายหยาบ + กรวด", "#8B7355", "HARD", true, "ชั้นน้ำบาดาลหลัก"],
+      [25, 48, "ดินลูกรัง", "#B87333", "HARD", false, ""],
+      [48, 60, "ทรายกรวดน้ำใต้ดิน", "#7A5C3E", "VERY_HARD", true, "ชั้นน้ำปริมาณมาก"],
     ];
     for (const s of strataW1) {
-      await conn.query<ResultSetHeader>(
+      await client.query(
         `INSERT INTO well_strata_logs (well_id, depth_from_m, depth_to_m, lithology_name, color_hex, hardness, water_bearing, description)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [W1, s[0], s[1], s[2], s[3], s[4], s[5], s[6]]
       );
     }
 
     // ท่อ (W1)
-    await conn.query<ResultSetHeader>(
+    await client.query(
       `INSERT INTO well_pipes (well_id, material, pipe_type, size_mm, depth_from_m, depth_to_m, quantity, notes)
-       VALUES (?, 'PVC', 'CASING', 152.4, 0, 40, 14, 'ท่อทึบ 6 นิ้ว'),
-              (?, 'PVC', 'SCREEN', 152.4, 40, 60, 7, 'ท่อเซาะร่องช่วงชั้นน้ำ')`,
-      [W1, W1]
+       VALUES ($1, 'PVC', 'CASING', 152.4, 0, 40, 14, 'ท่อทึบ 6 นิ้ว')`,
+      [W1]
+    );
+    await client.query(
+      `INSERT INTO well_pipes (well_id, material, pipe_type, size_mm, depth_from_m, depth_to_m, quantity, notes)
+       VALUES ($1, 'PVC', 'SCREEN', 152.4, 40, 60, 7, 'ท่อเซาะร่องช่วงชั้นน้ำ')`,
+      [W1]
     );
 
     // ปั๊ม (W1)
-    await conn.query<ResultSetHeader>(
+    await client.query(
       `INSERT INTO well_pumps (well_id, pump_type, brand, horsepower, power_kw, impeller_stages, installation_depth_m, installed_date)
-       VALUES (?, 'AC_SUBMERSIBLE', 'Hitachi', 2.0, 1.5, 12, 55, '2026-01-15')`,
+       VALUES ($1, 'AC_SUBMERSIBLE', 'Hitachi', 2.0, 1.5, 12, 55, '2026-01-15')`,
       [W1]
     );
 
     // กล่องคอนโทรล (W1)
-    await conn.query<ResultSetHeader>(
+    await client.query(
       `INSERT INTO well_control_boxes (well_id, brand, model, capacity, voltage, installed_date)
-       VALUES (?, 'Mitsubishi', 'NC-2.0', '2 HP', '220V', '2026-01-15')`,
+       VALUES ($1, 'Mitsubishi', 'NC-2.0', '2 HP', '220V', '2026-01-15')`,
       [W1]
     );
 
     // ชั้นดิน + ปั๊ม (W3)
-    await conn.query<ResultSetHeader>(
+    await client.query(
       `INSERT INTO well_strata_logs (well_id, depth_from_m, depth_to_m, lithology_name, color_hex, hardness, water_bearing, description)
-       VALUES (?, 0, 6, 'ดินตะกอน', '#C0A080', 'SOFT', 0, ''),
-              (?, 6, 30, 'ทรายกรวด', '#8B7355', 'HARD', 1, 'ชั้นน้ำจืด')`,
-      [W3, W3]
+       VALUES ($1, 0, 6, 'ดินตะกอน', '#C0A080', 'SOFT', false, '')`,
+      [W3]
     );
-    await conn.query<ResultSetHeader>(
+    await client.query(
+      `INSERT INTO well_strata_logs (well_id, depth_from_m, depth_to_m, lithology_name, color_hex, hardness, water_bearing, description)
+       VALUES ($1, 6, 30, 'ทรายกรวด', '#8B7355', 'HARD', true, 'ชั้นน้ำจืด')`,
+      [W3]
+    );
+    await client.query(
       `INSERT INTO well_pumps (well_id, pump_type, brand, horsepower, power_kw, impeller_stages, installation_depth_m, installed_date)
-       VALUES (?, 'AC_SUBMERSIBLE', 'Grundfos', 1.0, 0.75, 8, 28, '2026-06-20')`,
+       VALUES ($1, 'AC_SUBMERSIBLE', 'Grundfos', 1.0, 0.75, 8, 28, '2026-06-20')`,
       [W3]
     );
 
     // ---------- คำร้องแจ้งเจาะ ----------
-    const [r1] = await conn.query<ResultSetHeader>(
+    const r1 = await client.query(
       `INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m, status)
-       VALUES (?, 'GOOGLE_FORM', 'ประเสริฐ วงษ์มั่น', '0833334444', '5/1 หมู่ 6 ต.หนองปลิง จ.กำแพงเพชร', 50, 'NEW')`,
+       VALUES ($1, 'GOOGLE_FORM', 'ประเสริฐ วงษ์มั่น', '0833334444', '5/1 หมู่ 6 ต.หนองปลิง จ.กำแพงเพชร', 50, 'NEW')
+       RETURNING request_id`,
       [ประเสริฐ]
     );
-    const [r2] = await conn.query<ResultSetHeader>(
+    const r2 = await client.query(
       `INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m, status)
-       VALUES (?, 'MANUAL', 'สมชาย ใจดี', '0811112222', '88 หมู่ 3 ต.บ้านโป่ง อ.เมือง จ.ราชบุรี', 70, 'QUOTED')`,
+       VALUES ($1, 'MANUAL', 'สมชาย ใจดี', '0811112222', '88 หมู่ 3 ต.บ้านโป่ง อ.เมือง จ.ราชบุรี', 70, 'QUOTED')
+       RETURNING request_id`,
       [สมชาย]
     );
-    const [r3] = await conn.query<ResultSetHeader>(
+    const r3 = await client.query(
       `INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m, status)
-       VALUES (?, 'MANUAL', 'มาลี ทองสุข', '0822223333', '12 ถ.แถวน้ำ ต.ท่ามะกา จ.กาญจนบุรี', 30, 'ACCEPTED')`,
+       VALUES ($1, 'MANUAL', 'มาลี ทองสุข', '0822223333', '12 ถ.แถวน้ำ ต.ท่ามะกา จ.กาญจนบุรี', 30, 'ACCEPTED')
+       RETURNING request_id`,
       [มาลี]
     );
-    const [r4] = await conn.query<ResultSetHeader>(
+    const r4 = await client.query(
       `INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m, status)
-       VALUES (?, 'GOOGLE_FORM', 'สมชาย ใจดี', '0811112222', '88 หมู่ 3 ต.บ้านโป่ง', 90, 'REJECTED')`,
+       VALUES ($1, 'GOOGLE_FORM', 'สมชาย ใจดี', '0811112222', '88 หมู่ 3 ต.บ้านโป่ง', 90, 'REJECTED')
+       RETURNING request_id`,
       [สมชาย]
     );
-    const [r5] = await conn.query<ResultSetHeader>(
+    const r5 = await client.query(
       `INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m, status)
-       VALUES (?, 'LINE', 'น้ำทิพย์ สุขสันต์', '0844445555', '99 ซ.สบายใจ จ.ขอนแก่น', 20, 'CANCELLED')`,
+       VALUES ($1, 'LINE', 'น้ำทิพย์ สุขสันต์', '0844445555', '99 ซ.สบายใจ จ.ขอนแก่น', 20, 'CANCELLED')
+       RETURNING request_id`,
       [น้ำทิพย์]
     );
 
     // ใบราคาเจาะ (R2)
-    await conn.query<ResultSetHeader>(
+    await client.query(
       `INSERT INTO quotations (kind, drilling_request_id, price, status, notes)
-       VALUES ('DRILLING', ?, 55000, 'PENDING', 'รวมท่อ PVC 6 นิ้ว + ปั๊ม 2 HP + ค่าเจาะ')`,
-      [r2.insertId]
+       VALUES ('DRILLING', $1, 55000, 'PENDING', 'รวมท่อ PVC 6 นิ้ว + ปั๊ม 2 HP + ค่าเจาะ')`,
+      [r2.rows[0].request_id]
     );
 
     // ---------- คิวงานเจาะ ----------
-    const [j1] = await conn.query<ResultSetHeader>(
+    await client.query(
       `INSERT INTO drilling_jobs (request_id, customer_id, status, job_title, site_address, province, district, magic_link_token, magic_link_expires_at)
-       VALUES (?, ?, 'QUEUED', 'เจาะบ่อใหม่บ้านคุณมาลี', '12 ถ.แถวน้ำ ต.ท่ามะกา', 'กาญจนบุรี', 'ท่ามะกา', 'drill-demo-queued', DATE_ADD(NOW(), INTERVAL 7 DAY))`,
-      [r3.insertId, มาลี]
+       VALUES ($1, $2, 'QUEUED', 'เจาะบ่อใหม่บ้านคุณมาลี', '12 ถ.แถวน้ำ ต.ท่ามะกา', 'กาญจนบุรี', 'ท่ามะกา', 'drill-demo-queued', NOW() + INTERVAL '7 days')`,
+      [r3.rows[0].request_id, มาลี]
     );
-    const [j2] = await conn.query<ResultSetHeader>(
+    await client.query(
       `INSERT INTO drilling_jobs (request_id, customer_id, status, job_title, site_address, province, district, magic_link_token, magic_link_expires_at)
-       VALUES (?, ?, 'DRILLING', 'เจาะบ่อสวนหลังบ้าน', '88 หมู่ 3 ต.บ้านโป่ง', 'ราชบุรี', 'เมืองราชบุรี', 'drill-demo-drilling', DATE_ADD(NOW(), INTERVAL 7 DAY))`,
-      [r2.insertId, สมชาย]
+       VALUES ($1, $2, 'DRILLING', 'เจาะบ่อสวนหลังบ้าน', '88 หมู่ 3 ต.บ้านโป่ง', 'ราชบุรี', 'เมืองราชบุรี', 'drill-demo-drilling', NOW() + INTERVAL '7 days')`,
+      [r2.rows[0].request_id, สมชาย]
     );
-    const [j3] = await conn.query<ResultSetHeader>(
+    await client.query(
       `INSERT INTO drilling_jobs (request_id, customer_id, well_id, status, result, job_title, site_address, province, district, magic_link_token, magic_link_expires_at)
-       VALUES (?, ?, ?, 'SUCCESS', 'SUCCESS', 'เจาะบ่อสวนหลังบ้าน (เสร็จ)', '88 หมู่ 3 ต.บ้านโป่ง', 'ราชบุรี', 'เมืองราชบุรี', 'drill-demo-success', DATE_ADD(NOW(), INTERVAL 7 DAY))`,
+       VALUES ($1, $2, $3, 'SUCCESS', 'SUCCESS', 'เจาะบ่อสวนหลังบ้าน (เสร็จ)', '88 หมู่ 3 ต.บ้านโป่ง', 'ราชบุรี', 'เมืองราชบุรี', 'drill-demo-success', NOW() + INTERVAL '7 days')`,
       [null, สมชาย, W1]
     );
-    const [j4] = await conn.query<ResultSetHeader>(
+    await client.query(
       `INSERT INTO drilling_jobs (request_id, customer_id, status, result, failure_reason, job_title, site_address, province, district, magic_link_token, magic_link_expires_at)
-       VALUES (?, ?, 'FAILED', 'FAILED', 'ชั้นหินแข็งมาก เจาะถึง 12 ม. ไม่สามารถทะลุได้', 'เจาะบ่อไร่มาลี (ไม่สำเร็จ)', 'ไร่ 33 ต.ท่ามะกา', 'กาญจนบุรี', 'ท่ามะกา', 'drill-demo-failed', DATE_ADD(NOW(), INTERVAL 7 DAY))`,
+       VALUES ($1, $2, 'FAILED', 'FAILED', 'ชั้นหินแข็งมาก เจาะถึง 12 ม. ไม่สามารถทะลุได้', 'เจาะบ่อไร่มาลี (ไม่สำเร็จ)', 'ไร่ 33 ต.ท่ามะกา', 'กาญจนบุรี', 'ท่ามะกา', 'drill-demo-failed', NOW() + INTERVAL '7 days')`,
       [null, มาลี]
     );
-    await conn.query<ResultSetHeader>(
+    await client.query(
       `INSERT INTO drilling_jobs (request_id, customer_id, well_id, status, result, job_title, site_address, province, district, magic_link_token, magic_link_expires_at)
-       VALUES (?, ?, ?, 'CLOSED', 'SUCCESS', 'เจาะบ่อหลัก (ปิดคิว)', '99 ซ.สบายใจ จ.ขอนแก่น', 'ขอนแก่น', 'เมืองขอนแก่น', 'drill-demo-closed', DATE_ADD(NOW(), INTERVAL 7 DAY))`,
-      [r5.insertId, น้ำทิพย์, W4]
+       VALUES ($1, $2, $3, 'CLOSED', 'SUCCESS', 'เจาะบ่อหลัก (ปิดคิว)', '99 ซ.สบายใจ จ.ขอนแก่น', 'ขอนแก่น', 'เมืองขอนแก่น', 'drill-demo-closed', NOW() + INTERVAL '7 days')`,
+      [r5.rows[0].request_id, น้ำทิพย์, W4]
     );
 
     // ---------- รายการแจ้งซ่อม ----------
-    const [p1] = await conn.query<ResultSetHeader>(
+    const p1 = await client.query(
       `INSERT INTO repair_requests (customer_id, well_id, problems, detail, scheduled_date, status, magic_link_token, magic_link_expires_at)
-       VALUES (?, ?, ?, ?, NULL, 'NEW', 'repair-demo-new', DATE_ADD(NOW(), INTERVAL 7 DAY))`,
+       VALUES ($1, $2, $3, $4, NULL, 'NEW', 'repair-demo-new', NOW() + INTERVAL '7 days')
+       RETURNING repair_id`,
       [น้ำทิพย์, W4, JSON.stringify(["ปั๊มเสีย", "น้ำออกน้อย"]), "ปั๊มไม่ตัดอัตโนมัติเมื่อน้ำเต็มถัง"]
     );
-    const [p2] = await conn.query<ResultSetHeader>(
+    const p2 = await client.query(
       `INSERT INTO repair_requests (customer_id, well_id, problems, detail, scheduled_date, status, magic_link_token, magic_link_expires_at)
-       VALUES (?, ?, ?, ?, NULL, 'QUOTED', 'repair-demo-quoted', DATE_ADD(NOW(), INTERVAL 7 DAY))`,
+       VALUES ($1, $2, $3, $4, NULL, 'QUOTED', 'repair-demo-quoted', NOW() + INTERVAL '7 days')
+       RETURNING repair_id`,
       [สมชาย, W1, JSON.stringify(["ตู้คอนโทรล/ไฟเสีย"]), "ไฟกระพริบเวลาสตาร์ทปั๊ม"]
     );
-    const [p3] = await conn.query<ResultSetHeader>(
+    const p3 = await client.query(
       `INSERT INTO repair_requests (customer_id, well_id, problems, detail, scheduled_date, status, magic_link_token, magic_link_expires_at)
-       VALUES (?, ?, ?, ?, NULL, 'ACCEPTED', 'repair-demo-accepted', DATE_ADD(NOW(), INTERVAL 7 DAY))`,
+       VALUES ($1, $2, $3, $4, NULL, 'ACCEPTED', 'repair-demo-accepted', NOW() + INTERVAL '7 days')
+       RETURNING repair_id`,
       [สมชาย, W1, JSON.stringify(["น้ำไหลอ่อน"]), ""]
     );
-    const [p4] = await conn.query<ResultSetHeader>(
+    const p4 = await client.query(
       `INSERT INTO repair_requests (customer_id, well_id, problems, detail, scheduled_date, status, magic_link_token, magic_link_expires_at)
-       VALUES (?, ?, ?, ?, DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'SCHEDULED', 'repair-demo-scheduled', DATE_ADD(NOW(), INTERVAL 7 DAY))`,
+       VALUES ($1, $2, $3, $4, CURRENT_DATE + INTERVAL '5 days', 'SCHEDULED', 'repair-demo-scheduled', NOW() + INTERVAL '7 days')
+       RETURNING repair_id`,
       [มาลี, W3, JSON.stringify(["ท่อ/บ่อทรุด"]), "เดินรอบบ่อแล้วมีเสียงโหวงบริเวณปากบ่อ"]
     );
-    const [p5] = await conn.query<ResultSetHeader>(
+    const p5 = await client.query(
       `INSERT INTO repair_requests (customer_id, well_id, problems, detail, scheduled_date, status, magic_link_token, magic_link_expires_at)
-       VALUES (?, ?, ?, ?, NULL, 'IN_PROGRESS', 'repair-demo-inprogress', DATE_ADD(NOW(), INTERVAL 7 DAY))`,
+       VALUES ($1, $2, $3, $4, NULL, 'IN_PROGRESS', 'repair-demo-inprogress', NOW() + INTERVAL '7 days')
+       RETURNING repair_id`,
       [สมชาย, W2, JSON.stringify(["น้ำขุ่น/น้ำมีกลิ่น"]), "น้ำมีกลิ่นเหม็นตั้งแต่หน้าฝน"]
     );
-    const [p6] = await conn.query<ResultSetHeader>(
+    const p6 = await client.query(
       `INSERT INTO repair_requests (customer_id, well_id, problems, detail, scheduled_date, status, magic_link_token, magic_link_expires_at)
-       VALUES (?, ?, ?, ?, NULL, 'COMPLETED', 'repair-demo-completed', DATE_ADD(NOW(), INTERVAL 7 DAY))`,
+       VALUES ($1, $2, $3, $4, NULL, 'COMPLETED', 'repair-demo-completed', NOW() + INTERVAL '7 days')
+       RETURNING repair_id`,
       [น้ำทิพย์, W4, JSON.stringify(["ปั๊มเสีย"]), "เปลี่ยนปั๊ม"]
     );
 
     // ใบราคาซ่อม (P2)
-    await conn.query<ResultSetHeader>(
+    await client.query(
       `INSERT INTO quotations (kind, repair_request_id, price, status, notes)
-       VALUES ('REPAIR', ?, 4500, 'PENDING', 'ค่างานตรวจเช็คตู้คอนโทรล + ค่าอะไหล่ตามจริง')`,
-      [p2.insertId]
+       VALUES ('REPAIR', $1, 4500, 'PENDING', 'ค่างานตรวจเช็คตู้คอนโทรล + ค่าอะไหล่ตามจริง')`,
+      [p2.rows[0].repair_id]
     );
 
     // บันทึกการซ่อม (P6)
-    await conn.query<ResultSetHeader>(
+    await client.query(
       `INSERT INTO repair_records (repair_id, final_price, work_details, parts, is_warranty_claim, completed_at)
-       VALUES (?, 3200,
+       VALUES ($1, 3200,
          'เปลี่ยนคาปาซิเตอร์ 30uF + ตรวจสวิทช์ลูกลอย + ล้างถังน้ำ',
-         JSON_ARRAY(
-           JSON_OBJECT('name', 'คาปาซิเตอร์ 30uF', 'qty', 1, 'unit_price', 1200),
-           JSON_OBJECT('name', 'ค่าแรงช่าง', 'qty', 1, 'unit_price', 1500),
-           JSON_OBJECT('name', 'ค่าขนส่ง', 'qty', 1, 'unit_price', 500)
-         ),
-         1, '2026-08-05 14:30:00')`,
-      [p6.insertId]
+         $2::jsonb,
+         true, '2026-08-05 14:30:00')`,
+      [p6.rows[0].repair_id, JSON.stringify([
+        { name: "คาปาซิเตอร์ 30uF", qty: 1, unit_price: 1200 },
+        { name: "ค่าแรงช่าง", qty: 1, unit_price: 1500 },
+        { name: "ค่าขนส่ง", qty: 1, unit_price: 500 },
+      ])]
     );
 
     // ---------- log LINE ----------
-    await conn.query<ResultSetHeader>(
+    await client.query(
       `INSERT INTO line_notifications (customer_id, kind, content, status) VALUES
-       (?, 'QUOTE', 'ใบเสนอราคาขุดเจาะบ่อใหม่ 55,000 บาท กรุณายืนยัน', 'SENT'),
-       (?, 'QUOTE', 'ใบเสนอราคาซ่อมตู้คอนโทรล 4,500 บาท กรุณายืนยัน', 'SENT'),
-       (?, 'STATUS', 'แจ้งผลการเจาะ: เจาะสำเร็จแล้ว ข้อมูลอยู่ในระบบแล้วครับ', 'SENT'),
-       (?, 'REMINDER', 'แจ้งเตือนประกัน: บ่อหน้าไร่กำลังจะหมดอายุ', 'FAILED')`,
+       ($1, 'QUOTE', 'ใบเสนอราคาขุดเจาะบ่อใหม่ 55,000 บาท กรุณายืนยัน', 'SENT'),
+       ($2, 'QUOTE', 'ใบเสนอราคาซ่อมตู้คอนโทรล 4,500 บาท กรุณายืนยัน', 'SENT'),
+       ($3, 'STATUS', 'แจ้งผลการเจาะ: เจาะสำเร็จแล้ว ข้อมูลอยู่ในระบบแล้วครับ', 'SENT'),
+       ($4, 'REMINDER', 'แจ้งเตือนประกัน: บ่อหน้าไร่กำลังจะหมดอายุ', 'FAILED')`,
       [สมชาย, สมชาย, น้ำทิพย์, สมชาย]
     );
 
-    await conn.commit();
+    await client.query("COMMIT");
     console.log(`เพิ่มข้อมูลตัวอย่างเรียบร้อย
   ลูกค้า 4 ราย, บ่อ ${wellIds.length} บ่อ
   คำร้องเจาะ 5 รายการ, คิวเจาะ 5 รายการ
   แจ้งซ่อม 6 รายการ (มีบันทึกซ่อม 1 รายการ)`);
   } catch (err) {
-    await conn.rollback();
+    await client.query("ROLLBACK");
     throw err;
   } finally {
-    conn.release();
+    client.release();
     await pool.end();
   }
 }

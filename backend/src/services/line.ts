@@ -1,5 +1,4 @@
 import { pool } from "../config/db";
-import { ResultSetHeader, RowDataPacket } from "mysql2";
 
 const CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "";
 const MESSAGING_API = "https://api.line.me/v2/bot/message/push";
@@ -10,8 +9,8 @@ export async function sendTextToCustomer(
   kind: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" = "OTHER"
 ): Promise<boolean> {
   try {
-    const [rows] = await pool.query<RowDataPacket[]>(
-      "SELECT line_user_id FROM customers WHERE customer_id = ?",
+    const { rows } = await pool.query(
+      "SELECT line_user_id FROM customers WHERE customer_id = $1",
       [customerId]
     );
     const customer = rows[0];
@@ -62,8 +61,8 @@ export async function sendFlexToCustomer(
   kind: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" = "OTHER"
 ): Promise<boolean> {
   try {
-    const [rows] = await pool.query<RowDataPacket[]>(
-      "SELECT line_user_id FROM customers WHERE customer_id = ?",
+    const { rows } = await pool.query(
+      "SELECT line_user_id FROM customers WHERE customer_id = $1",
       [customerId]
     );
     const customer = rows[0];
@@ -119,9 +118,9 @@ async function logNotification(
   lineMessageId: string,
   status: "SENT" | "FAILED"
 ) {
-  await pool.query<ResultSetHeader>(
+  await pool.query(
     `INSERT INTO line_notifications (customer_id, kind, content, line_message_id, status, sent_at)
-     VALUES (?, ?, ?, ?, ?, NOW())`,
+     VALUES ($1, $2, $3, $4, $5, NOW())`,
     [customerId, kind, content, lineMessageId || null, status]
   );
 }

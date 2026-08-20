@@ -1,21 +1,20 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
-import { RowDataPacket } from "mysql2";
 import { PumpCatalogModel } from "../types";
 
 export async function list(req: Request, res: Response) {
   const { brand } = req.query;
   const params: any[] = [];
-  let where = "is_active = 1";
+  let where = "is_active = true";
   if (brand) {
-    where += " AND brand = ?";
+    where += " AND brand = $1";
     params.push(brand);
   }
-  const [rows] = await pool.query<RowDataPacket[]>(
+  const { rows } = await pool.query(
     `SELECT * FROM pump_catalog_models WHERE ${where} ORDER BY brand, sort_order, model`,
     params
   );
-  const models: PumpCatalogModel[] = rows.map((r) => ({
+  const models: PumpCatalogModel[] = rows.map((r: any) => ({
     model_id: r.model_id,
     brand: r.brand,
     series: r.series,

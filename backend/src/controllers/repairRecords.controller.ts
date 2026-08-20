@@ -1,9 +1,8 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
-import { RowDataPacket } from "mysql2";
 import { RepairRecord } from "../types";
 
-function mapRow(row: RowDataPacket): RepairRecord {
+function mapRow(row: any): RepairRecord {
   return {
     record_id: row.record_id,
     repair_id: row.repair_id,
@@ -18,7 +17,7 @@ function mapRow(row: RowDataPacket): RepairRecord {
 }
 
 export async function list(req: Request, res: Response) {
-  const [rows] = await pool.query<RowDataPacket[]>(`
+  const { rows } = await pool.query(`
     SELECT rec.*, r.customer_id, c.customer_name, c.phone AS customer_phone
     FROM repair_records rec
     JOIN repair_requests r ON r.repair_id = rec.repair_id
@@ -30,14 +29,14 @@ export async function list(req: Request, res: Response) {
 
 export async function getOne(req: Request, res: Response) {
   const { id } = req.params;
-  const [rows] = await pool.query<RowDataPacket[]>(
-    "SELECT * FROM repair_records WHERE record_id = ?", [id]
+  const { rows } = await pool.query(
+    "SELECT * FROM repair_records WHERE record_id = $1", [id]
   );
   if (!rows.length) return res.status(404).json({ error: "ไม่พบบันทึกการซ่อม" });
   res.json(mapRow(rows[0]));
 }
 
 export async function remove(req: Request, res: Response) {
-  await pool.query("DELETE FROM repair_records WHERE record_id = ?", [req.params.id]);
+  await pool.query("DELETE FROM repair_records WHERE record_id = $1", [req.params.id]);
   res.status(204).end();
 }

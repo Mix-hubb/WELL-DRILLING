@@ -1,6 +1,5 @@
 import "dotenv/config";
 import { pool } from "../config/db";
-import { RowDataPacket } from "mysql2";
 
 // ============================================================
 // Migration: ฟีเจอร์แคตตาล็อกปั๊มซับเมอร์ส
@@ -63,12 +62,12 @@ const CATALOG: CatalogRow[] = [
 
 async function main() {
   // 1) repair_records.pump
-  const [cols] = await pool.query<RowDataPacket[]>(
-    "SHOW COLUMNS FROM repair_records LIKE 'pump'"
+  const cols = await pool.query(
+    "SELECT column_name FROM information_schema.columns WHERE table_name = 'repair_records' AND column_name = 'pump'"
   );
-  if (!cols.length) {
-    await pool.query("ALTER TABLE repair_records ADD COLUMN pump JSON NULL AFTER parts");
-    console.log("✓ เพิ่มคอลัมน์ repair_records.pump (JSON)");
+  if (!cols.rows.length) {
+    await pool.query("ALTER TABLE repair_records ADD COLUMN pump JSONB NULL");
+    console.log("✓ เพิ่มคอลัมน์ repair_records.pump (JSONB)");
   } else {
     console.log("- repair_records.pump มีอยู่แล้ว (ข้าม)");
   }
@@ -76,48 +75,45 @@ async function main() {
   // 2) ตาราง pump_catalog_models
   await pool.query(`
     CREATE TABLE IF NOT EXISTS pump_catalog_models (
-      model_id          INT UNSIGNED       NOT NULL AUTO_INCREMENT,
-      brand             VARCHAR(50)        NOT NULL COMMENT 'ยี่ห้อ (FRANKLIN / TORQUE / ...)',
-      series            VARCHAR(120)       NULL COMMENT 'ชื่อซีรีส์ เช่น 4" Tri Seal',
-      model             VARCHAR(150)       NOT NULL COMMENT 'รุ่น/รหัสรุ่น',
-      bore_size         VARCHAR(20)        NULL COMMENT 'ขนาดบ่อ (นิ้ว)',
-      flow_rate         VARCHAR(80)        NULL COMMENT 'อัตราการไหล (LPM/gpm/m³/h)',
-      motor_power       VARCHAR(80)        NULL COMMENT 'กำลังมอเตอร์ (HP / kW)',
-      phase             VARCHAR(30)        NULL COMMENT 'เฟส / แรงดัน',
-      discharge_size    VARCHAR(50)        NULL COMMENT 'ขนาดท่อจ่าย',
-      impeller_stages   VARCHAR(50)        NULL COMMENT 'จำนวนใบพัด / สเตจ',
-      max_head_m        VARCHAR(50)        NULL COMMENT 'เฮดส่งสูงสุด (ม.)',
-      material          VARCHAR(120)       NULL COMMENT 'วัสดุ',
-      features          VARCHAR(500)       NULL COMMENT 'จุดเด่น',
-      reference_price   DECIMAL(12,2)      NULL COMMENT 'ราคาอ้างอิง (บาท)',
+      model_id          SERIAL PRIMARY KEY,
+      brand             VARCHAR(50)        NOT NULL,
+      series            VARCHAR(120)       NULL,
+      model             VARCHAR(150)       NOT NULL,
+      bore_size         VARCHAR(20)        NULL,
+      flow_rate         VARCHAR(80)        NULL,
+      motor_power       VARCHAR(80)        NULL,
+      phase             VARCHAR(30)        NULL,
+      discharge_size    VARCHAR(50)        NULL,
+      impeller_stages   VARCHAR(50)        NULL,
+      max_head_m        VARCHAR(50)        NULL,
+      material          VARCHAR(120)       NULL,
+      features          VARCHAR(500)       NULL,
+      reference_price   DECIMAL(12,2)      NULL,
       notes             TEXT               NULL,
-      sort_order        INT                NOT NULL DEFAULT 0,
-      is_active         TINYINT(1)         NOT NULL DEFAULT 1,
-      created_at        TIMESTAMP          NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at        TIMESTAMP          NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (model_id),
-      INDEX idx_pump_catalog_brand (brand, is_active, sort_order)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      sort_order        INTEGER            NOT NULL DEFAULT 0,
+      is_active         BOOLEAN            NOT NULL DEFAULT true,
+      created_at        TIMESTAMPTZ        NOT NULL DEFAULT NOW(),
+      updated_at        TIMESTAMPTZ        NOT NULL DEFAULT NOW()
+    )
   `);
   console.log("✓ ตาราง pump_catalog_models พร้อมใช้งาน");
 
   // 3) ข้อมูลแคตตาล็อก (ถ้ายังว่าง)
-  const [cnt] = await pool.query<RowDataPacket[]>(
+  const cnt = await pool.query(
     "SELECT COUNT(*) AS c FROM pump_catalog_models"
   );
-  if (Number(cnt[0].c) > 0) {
-    console.log(`- มีข้อมูลแคตตาล็อกอยู่แล้ว ${cnt[0].c} รายการ (ข้ามการเพิ่ม)`);
+  if (Number(cnt.rows[0].c) > 0) {
+    console.log(`- มีข้อมูลแคตตาล็อกอยู่แล้ว ${cnt.rows[0].c} รายการ (ข้ามการเพิ่ม)`);
   } else {
-    const placeholders = CATALOG.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",\n");
-    const params: any[] = [];
-    for (const r of CATALOG) params.push(...r);
-    await pool.query(
-      `INSERT INTO pump_catalog_models
-        (brand, series, model, bore_size, flow_rate, motor_power, phase, discharge_size,
-         impeller_stages, max_head_m, material, features, reference_price, notes, sort_order)
-       VALUES ${placeholders}`,
-      params
-    );
+    for (const r of CATALOG) {
+      await pool.query(
+        `INSERT INTO pump_catalog_models
+          (brand, series, model, bore_size, flow_rate, motor_power, phase, discharge_size,
+           impeller_stages, max_head_m, material, features, reference_price, notes, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+        r
+      );
+    }
     console.log(`✓ เพิ่มแคตตาล็อกปั๊ม ${CATALOG.length} รายการ (Franklin Electric + TORQUE)`);
   }
 
