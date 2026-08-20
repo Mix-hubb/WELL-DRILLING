@@ -9,6 +9,7 @@ export const pool = new Pool({
   password: process.env.DB_PASSWORD || "",
   database: process.env.DB_NAME || "postgres",
   max: 10,
+  family: 4,
   ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : undefined,
 });
 
