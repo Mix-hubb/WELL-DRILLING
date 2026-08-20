@@ -20,7 +20,7 @@ services:
       - key: DB_SSL
         value: "true"
       - key: CORS_ORIGIN
-        value: https://your-frontend.vercel.app
+        value: https://well-drilling-api.onrender.com
       - key: LINE_CHANNEL_SECRET
         sync: false
       - key: LINE_CHANNEL_ACCESS_TOKEN
@@ -28,7 +28,7 @@ services:
       - key: LINE_LIFF_ID
         sync: false
       - key: APP_URL
-        sync: false
+        value: https://well-drilling-api.onrender.com
       - key: JWT_SECRET
         generateValue: true
     healthCheckPath: /api/health
