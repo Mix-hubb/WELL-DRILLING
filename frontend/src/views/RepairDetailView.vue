@@ -152,7 +152,7 @@ async function regenerateMagicLink() {
         </div>
         <div v-else-if="request.status === 'QUOTED'" class="d-flex ga-2">
           <v-btn size="small" color="teal-darken-2" variant="flat" prepend-icon="mdi-calendar-check" @click="setStatus('ACCEPTED')">
-            ลูกค้ายอมรับ → นัดซ่อม
+            ลูกค้ายอมรับ → ยืนยัน
           </v-btn>
           <v-btn size="small" color="error" variant="tonal" prepend-icon="mdi-close" @click="setStatus('REJECTED')">
             ลูกค้าปฏิเสธ
@@ -160,7 +160,7 @@ async function regenerateMagicLink() {
         </div>
         <div v-else-if="request.status === 'ACCEPTED'" class="d-flex ga-2">
           <v-btn size="small" color="blue-darken-2" variant="flat" prepend-icon="mdi-calendar-plus" @click="setStatus('SCHEDULED')">
-            นัดซ่อมแล้ว
+            ยืนยันวันนัด
           </v-btn>
         </div>
         <div v-else-if="request.status === 'SCHEDULED'" class="d-flex ga-2">
@@ -170,7 +170,12 @@ async function regenerateMagicLink() {
         </div>
         <div v-else-if="request.status === 'IN_PROGRESS'" class="d-flex ga-2">
           <v-btn size="small" color="teal-darken-2" variant="flat" prepend-icon="mdi-check" @click="setStatus('COMPLETED')">
-            ซ่อมเสร็จ
+            ซ่อมเสร็จ (ช่างกรอกแล้ว)
+          </v-btn>
+        </div>
+        <div v-else-if="request.status === 'COMPLETED'" class="d-flex ga-2">
+          <v-btn size="small" color="grey-darken-1" variant="flat" prepend-icon="mdi-check-all" @click="setStatus('CLOSED')">
+            ปิดงาน
           </v-btn>
         </div>
         <div v-else class="text-caption text-medium-emphasis">{{ REPAIR_STATUS[request.status].label }}</div>
@@ -216,10 +221,6 @@ async function regenerateMagicLink() {
                 </tr>
               </tbody>
             </v-table>
-
-            <a v-if="rec.payment_slip_url" :href="api.fileUrl(rec.payment_slip_url)" target="_blank">
-              <v-img :src="api.fileUrl(rec.payment_slip_url)" width="96" height="96" cover rounded="8" />
-            </a>
           </v-card>
         </div>
         <div v-else class="text-caption text-medium-emphasis">ยังไม่มีบันทึกการซ่อม (ช่างกรอกผ่านลิงก์)</div>
@@ -231,7 +232,7 @@ async function regenerateMagicLink() {
           <v-card-title class="px-0 pt-0 text-h6 font-display font-weight-bold">ส่งใบราคาซ่อม</v-card-title>
           <v-card-text class="px-0">
             <v-text-field v-model="quotePrice" type="number" label="ราคา (บาท) *" class="mb-3" />
-            <v-textarea v-model="quoteNotes" label="รายละเอียดใบราคา" rows="2" />
+            <v-textarea v-model="quoteNotes" label="รายละเอียดงาน / อุปกรณ์ที่ต้องเปลี่ยน" rows="3" />
           </v-card-text>
           <v-card-actions class="px-0 pb-0">
             <v-spacer />

@@ -2,7 +2,7 @@
 
 > MySQL 8.0 | Database: `well_drilling` | Character Set: `utf8mb4`
 > อัปเดตล่าสุดให้ตรงกับ docs/project-info.md (Flow A/B/C + LINE)
-> หมายเหตุ: ไม่มี GPS ในระบบ — ไม่มีคอลัมน์ latitude/longitude/gps_accuracy_m
+> หมายเหตุ: ใช้แผนที่ปักหมุด (Leaflet + OSM) เพื่อดึงที่อยู่อัตโนมัติ — ไม่เก็บ latitude/longitude ใน database
 
 ---
 
@@ -180,7 +180,7 @@ erDiagram
         TEXT detail "NULL"
         JSON photos "NULL"
         DATE scheduled_date "NULL"
-        ENUM status "NEW|QUOTED|ACCEPTED|REJECTED|SCHEDULED|IN_PROGRESS|COMPLETED|CANCELLED"
+        ENUM status "NEW|QUOTED|ACCEPTED|REJECTED|SCHEDULED|IN_PROGRESS|COMPLETED|CLOSED|CANCELLED"
         VARCHAR(100) magic_link_token UK "NULL"
         DATETIME magic_link_expires_at "NULL"
         TIMESTAMP created_at
@@ -416,6 +416,7 @@ customers (1) ──── (M) line_notifications FK: line_notifications.custome
 | `phone` | `VARCHAR(20)` | NOT NULL | เบอร์โทร (Google Form) |
 | `address` | `TEXT` | NOT NULL | ที่อยู่ (Google Form) |
 | `requested_depth_m` | `DECIMAL(7,2)` | NULL | ความลึกที่ต้องการ |
+| `appointment_date` | `DATE` | NULL | วันนัดหมายที่ลูกค้ากรอก (LIFF) |
 | `status` | `ENUM('NEW','QUOTED','ACCEPTED','REJECTED','CANCELLED')` | DEFAULT 'NEW' | สถานะ Flow A |
 | `notes` | `TEXT` | NULL | หมายเหตุ |
 | `created_at` | `TIMESTAMP` | DEFAULT CURRENT_TIMESTAMP | |
@@ -462,7 +463,7 @@ customers (1) ──── (M) line_notifications FK: line_notifications.custome
 | `detail` | `TEXT` | NULL | รายละเอียดเพิ่มเติม |
 | `photos` | `JSON` | NULL | URL รูปที่แนบ (array) |
 | `scheduled_date` | `DATE` | NULL | วันนัดซ่อม |
-| `status` | `ENUM('NEW','QUOTED','ACCEPTED','REJECTED','SCHEDULED','IN_PROGRESS','COMPLETED','CANCELLED')` | DEFAULT 'NEW' | สถานะ Flow B |
+| `status` | `ENUM('NEW','QUOTED','ACCEPTED','REJECTED','SCHEDULED','IN_PROGRESS','COMPLETED','CLOSED','CANCELLED')` | DEFAULT 'NEW' | สถานะ Flow B |
 | `magic_link_token` | `VARCHAR(100)` | UNIQUE, NULL | ลิงก์ช่าง |
 | `magic_link_expires_at` | `DATETIME` | NULL | หมดอายุลิงก์ |
 | `created_at` | `TIMESTAMP` | DEFAULT CURRENT_TIMESTAMP | |
@@ -625,7 +626,7 @@ customers (1) ──── (M) line_notifications FK: line_notifications.custome
 
 ## หมายเหตุสำคัญ
 
-- **ไม่มี GPS ในระบบ** — ลบ `latitude`/`longitude`/`gps_accuracy_m` ออกทั้งหมด
+- **ไม่เก็บพิกัด GPS ใน database** — ใช้ Leaflet + OSM ปักหมุดเพื่อดึงที่อยู่ (reverse geocoding) เก็บใน `address` เท่านั้น
 - `warranty_expire_date` เป็น GENERATED column — ตั้งค่าเองไม่ได้ ระบบคำนวณ = `completion_date + 2 ปี`
 - `quotations` บังคับ 1 ใบราคา ต่อ 1 คำร้อง (ผ่าน CHECK constraint)
 - `scheduled_date` ใน `drilling_jobs` เป็น NULL ได้ตามสเปก "Queue Pool แบบไม่มีวันที่ตายตัว"

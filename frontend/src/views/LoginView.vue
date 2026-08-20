@@ -186,7 +186,7 @@ async function handleLogin() {
   mask-image: linear-gradient(180deg, rgba(0,0,0,0.9), transparent 90%);
   pointer-events: none;
 }
-.v-theme--dark .login-hero {
+.v-theme--darkTheme .login-hero {
   color: rgb(var(--v-theme-on-primary));
   text-shadow: none;
 }
@@ -210,7 +210,7 @@ async function handleLogin() {
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   flex-shrink: 0;
 }
-.v-theme--dark .hero-item-icon {
+.v-theme--darkTheme .hero-item-icon {
   background: rgba(0,0,0,0.08);
   border-color: rgba(0,0,0,0.18);
   box-shadow: none;

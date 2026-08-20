@@ -16,14 +16,20 @@ INSERT INTO users (email, password_hash, full_name, phone, role) VALUES
 -- ============================================================
 INSERT INTO customers (user_id, line_user_id, customer_name, phone, phone_alt, address, line_display_name, line_picture_url) VALUES
   (NULL, 'U-line-abc123', 'สมหญิง', '0812345678', NULL, '123 หมู่ 5 ต.นครปฐม อ.เมือง จ.นครปฐม 73000', 'หญิง', 'https://profile.line-scdn.net/abc123.png'),
-  (NULL, NULL, 'สมปอง', '0899999999', '0866666666', '45 ถ.เพชรเกษม ต.สามพราน อ.สามพราน จ.นครปฐม 73110', NULL, NULL);
+  (NULL, NULL, 'สมปอง', '0899999999', '0866666666', '45 ถ.เพชรเกษม ต.สามพราน อ.สามพราน จ.นครปฐม 73110', NULL, NULL),
+  (NULL, 'U-line-test001', 'ประเสริฐ ใจดี', '0891112222', NULL, '88 หมู่ 3 ต.บ่อิน อ.บ่อิน จ.บุรีรัมย์', 'เสริฐ', NULL),
+  (NULL, 'U-line-test002', 'สมศักดิ์ มั่งมี', '0833322333', NULL, '5/1 หมู่ 6 ต.แม่เหียบ อ.แม่สรวย จ.เชียงราย', 'ศักดิ์', NULL),
+  (NULL, 'U-line-test003', 'ดาราวรรณ ศรีสุข', '0844445555', NULL, '99 ถ.สุขุมวิท ต.บางแสน อ.แสนสุข จ.ชลบุรี', 'ดาว', NULL);
 
 -- ============================================================
 -- FLOW A: แจ้งเจาะ → ตีราคา → ลูกค้ายอมรับ → คิว → เจาะสำเร็จ → บ่อ
 -- ============================================================
-INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m, status, notes) VALUES
-  (1, 'GOOGLE_FORM', 'สมหญิง', '0812345678', '123 หมู่ 5 ต.นครปฐม อ.เมือง จ.นครปฐม 73000', 60, 'ACCEPTED', 'มาจาก Google Form ผ่าน LINE'),
-  (2, 'MANUAL', 'สมปอง', '0899999999', '45 ถ.เพชรเกษม อ.สามพราน จ.นครปฐม', 30, 'NEW', 'ผู้ประกอบการกรอกเอง');
+INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m, appointment_date, status, notes) VALUES
+  (1, 'GOOGLE_FORM', 'สมหญิง', '0812345678', '123 หมู่ 5 ต.นครปฐม อ.เมือง จ.นครปฐม 73000', 60, '2026-09-01', 'ACCEPTED', 'มาจาก Google Form ผ่าน LINE'),
+  (2, 'LINE', 'สมปอง', '0899999999', '45 ถ.เพชรเกษม อ.สามพราน จ.นครปฐม', 30, NULL, 'NEW', 'แจ้งผ่าน LINE OA'),
+  (3, 'LINE', 'ประเสริฐ ใจดี', '0891112222', '88 หมู่ 3 ต.บ่อิน อ.บ่อิน จ.บุรีรัมย์', 70, NULL, 'NEW', 'ลูกค้าแจ้งผ่าน LINE OA'),
+  (4, 'LINE', 'สมศักดิ์ มั่งมี', '0833322333', '5/1 หมู่ 6 ต.แม่เหียบ อ.แม่สรวย จ.เชียงราย', 50, NULL, 'NEW', 'ต้องการเจาะลึก 50 ม.'),
+  (5, 'LINE', 'ดาราวรรณ ศรีสุข', '0844445555', '99 ถ.สุขุมวิท ต.บางแสน อ.แสนสุข จ.ชลบุรี', 30, NULL, 'NEW', 'เจาะบ่อหลังบ้าน');
 
 INSERT INTO quotations (kind, drilling_request_id, price, status, notes) VALUES
   ('DRILLING', 1, 45000, 'ACCEPTED', 'รวมท่อ PVC 6 นิ้ว 60 เมตร + ปั๊ม 1.5 HP');
@@ -64,7 +70,7 @@ INSERT INTO repair_requests (customer_id, well_id, problems, detail, photos, sch
 INSERT INTO quotations (kind, repair_request_id, price, status, notes) VALUES
   ('REPAIR', 1, 3500, 'ACCEPTED', 'ค่าอะไหล่ + ค่าแรง');
 
-INSERT INTO repair_records (repair_id, final_price, work_details, parts, pump, payment_slip_url, is_warranty_claim, completed_at) VALUES
+INSERT INTO repair_records (repair_id, final_price, work_details, parts, pump, is_warranty_claim, completed_at) VALUES
   (1, 3500, 'เปลี่ยนคาปาซิเตอร์ + ตรวจสวิทช์ลูกลอย + ล้างถังเก็บน้ำ',
    JSON_ARRAY(
      JSON_OBJECT('name', 'คาปาซิเตอร์ 30uF', 'qty', 1, 'unit_price', 1200),
@@ -75,9 +81,9 @@ INSERT INTO repair_records (repair_id, final_price, work_details, parts, pump, p
      'model', 'TQ-SP 4BM14-4/S', 'motor_power', '1.5 HP (1.1 kW)',
      'phase', '1 เฟส 220V', 'discharge_size', '1.5"',
      'impeller_stages', '14 ใบ', 'max_head_m', '84 ม.',
-     'reference_price', 13623.00
-   ),
-   'https://storage.example.com/slip1.png', 0, NOW());
+      'reference_price', 13623.00
+    ),
+    0, NOW());
 
 UPDATE repair_requests SET status = 'COMPLETED' WHERE repair_id = 1;
 

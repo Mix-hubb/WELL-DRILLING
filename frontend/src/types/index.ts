@@ -13,7 +13,7 @@ export type DrillingResult = "SUCCESS" | "FAILED";
 
 export type RepairRequestStatus =
   | "NEW" | "QUOTED" | "ACCEPTED" | "REJECTED"
-  | "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  | "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CLOSED" | "CANCELLED";
 
 export type QuotationKind   = "DRILLING" | "REPAIR";
 export type QuotationStatus = "PENDING" | "ACCEPTED" | "REJECTED";
@@ -190,6 +190,7 @@ export interface DrillingRequest {
   phone: string;
   address: string;
   requested_depth_m?: number | null;
+  appointment_date?: string | null;
   status: DrillingRequestStatus;
   notes?: string | null;
   created_at?: string;
@@ -255,6 +256,8 @@ export interface Quotation {
   kind: QuotationKind;
   drilling_request_id?: number | null;
   repair_request_id?: number | null;
+  requested_depth_m?: number | null;
+  requested_diameter_m?: number | null;
   price: number;
   status: QuotationStatus;
   notes?: string | null;
@@ -269,7 +272,6 @@ export interface RepairRecord {
   work_details?: string | null;
   parts?: { name: string; qty: number; unit_price: number }[] | null;   // JSON
   pump?: PumpCatalogModel | null;                                        // JSON: ปั๊มที่เปลี่ยนระหว่างซ่อม
-  payment_slip_url?: string | null;
   is_warranty_claim: number;    // TINYINT 0|1
   completed_at?: string | null;
   created_at?: string;

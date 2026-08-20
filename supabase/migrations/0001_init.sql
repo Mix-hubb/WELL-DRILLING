@@ -2,7 +2,7 @@
 -- ระบบจัดการบ่อบาดาลดิจิทัล (Supabase / PostgreSQL) — Schema v2
 -- อัปเดตล่าสุดให้ตรงกับ docs/database-schema.md (ล่าสุด)
 -- หมายเหตุ:
---   - ไม่มี GPS ในระบบ (ไม่มี latitude/longitude/gps_accuracy_m)
+--   - ไม่เก็บพิกัด GPS ใน database — ใช้ Leaflet + OSM ปักหมุดเพื่อดึงที่อยู่
 --   - ช่างไม่มีตารางแยก — เข้าผ่าน magic link (drilling_jobs/repair_requests)
 --   - ผู้ประกอบการ (login) = ตาราง users (role ADMIN/DRILLER)
 --   - ลูกค้า = มาจาก LINE ผ่าน line_user_id (user_id เป็น NULL ได้)
@@ -198,6 +198,7 @@ create table public.drilling_requests (
   phone              text not null,
   address            text not null,
   requested_depth_m  numeric(7,2),
+  appointment_date  date,
   status             text not null default 'NEW' check (status in ('NEW','QUOTED','ACCEPTED','REJECTED','CANCELLED')),
   notes              text,
   created_at         timestamptz not null default now(),
@@ -260,7 +261,7 @@ create table public.repair_requests (
   detail                text,
   photos                jsonb,
   scheduled_date        date,
-  status                text not null default 'NEW' check (status in ('NEW','QUOTED','ACCEPTED','REJECTED','SCHEDULED','IN_PROGRESS','COMPLETED','CANCELLED')),
+  status                text not null default 'NEW' check (status in ('NEW','QUOTED','ACCEPTED','REJECTED','SCHEDULED','IN_PROGRESS','COMPLETED','CLOSED','CANCELLED')),
   magic_link_token      text unique,
   magic_link_expires_at timestamptz,
   created_at            timestamptz not null default now(),

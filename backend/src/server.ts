@@ -19,6 +19,7 @@ import { authMiddleware }    from "./middleware/auth";
 import { asyncHandler }      from "./utils/asyncHandler";
 import * as jobsCtrl         from "./controllers/jobs.controller";
 import * as repairCtrl       from "./controllers/repairRequests.controller";
+import * as drillingReqCtrl  from "./controllers/drillingRequests.controller";
 
 const app = express();
 
@@ -31,8 +32,9 @@ app.get("/api/health", (_req, res) => res.json({ ok: true, time: new Date().toIS
 // Public auth routes
 app.use("/api/auth", authRoutes);
 
-// Public routes — ฟอร์มลูกค้า (สร้างคำร้องซ่อม) + magic link ช่าง
+// Public routes — ฟอร์มลูกค้า (สร้างคำร้องซ่อม/เจาะ) + magic link ช่าง
 app.post("/api/public/repair-requests", asyncHandler(repairCtrl.createFromPublicForm));
+app.post("/api/public/drilling-requests", asyncHandler(drillingReqCtrl.createFromPublicForm));
 app.get("/api/jobs/magic/:token", asyncHandler(jobsCtrl.getByMagicToken));
 app.patch("/api/jobs/:id/well", asyncHandler(jobsCtrl.completeWell));
 app.get("/api/repair-requests/magic/:token", asyncHandler(repairCtrl.getByMagicToken));

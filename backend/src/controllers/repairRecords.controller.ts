@@ -11,7 +11,6 @@ function mapRow(row: RowDataPacket): RepairRecord {
     work_details: row.work_details,
     parts: typeof row.parts === "string" ? JSON.parse(row.parts) : (row.parts || []),
     pump: typeof row.pump === "string" ? JSON.parse(row.pump) : (row.pump || null),
-    payment_slip_url: row.payment_slip_url,
     is_warranty_claim: row.is_warranty_claim,
     completed_at: row.completed_at,
     created_at: row.created_at,

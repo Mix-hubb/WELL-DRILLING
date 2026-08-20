@@ -4,7 +4,7 @@ import { pool } from "../config/db";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 import { userFilter } from "../utils/userFilter";
 import { RepairRequest } from "../types";
-import { sendTextToCustomer } from "../services/line";
+import { sendTextToCustomer, sendFlexToCustomer } from "../services/line";
 
 function generateMagicToken(): string {
   return "repair-" + crypto.randomBytes(16).toString("hex");
@@ -112,7 +112,7 @@ export async function create(req: Request, res: Response) {
 }
 
 export async function createFromPublicForm(req: Request, res: Response) {
-  const { name, phone, address, well_name, problems, detail, photos } = req.body;
+  const { name, phone, address, well_name, problems, detail, photos, scheduled_date, line_user_id } = req.body;
   if (!name || !phone || !problems?.length) {
     return res.status(400).json({ error: "ต้องระบุชื่อ, เบอร์โทร และปัญหาที่พบ" });
   }
@@ -121,13 +121,29 @@ export async function createFromPublicForm(req: Request, res: Response) {
   try {
     await conn.beginTransaction();
 
-    const [c] = await conn.query<ResultSetHeader>(
-      "INSERT INTO customers (customer_name, phone, address) VALUES (?, ?, ?)",
-      [name, phone, address || null]
+    let customerId: number;
+
+    const [existing] = await conn.query<RowDataPacket[]>(
+      "SELECT customer_id FROM customers WHERE phone = ? LIMIT 1",
+      [phone]
     );
 
+    if (existing.length) {
+      customerId = existing[0].customer_id;
+      await conn.query(
+        "UPDATE customers SET customer_name = COALESCE(?, customer_name), address = COALESCE(?, address), line_user_id = COALESCE(?, line_user_id) WHERE customer_id = ?",
+        [name, address || null, line_user_id || null, customerId]
+      );
+    } else {
+      const [c] = await conn.query<ResultSetHeader>(
+        "INSERT INTO customers (customer_name, phone, address, line_user_id) VALUES (?, ?, ?, ?)",
+        [name, phone, address || null, line_user_id || null]
+      );
+      customerId = c.insertId;
+    }
+
     const [wells] = await conn.query<RowDataPacket[]>(
-      "SELECT well_id FROM wells WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1", [c.insertId]
+      "SELECT well_id FROM wells WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1", [customerId]
     );
 
     const combinedDetail = well_name
@@ -135,13 +151,16 @@ export async function createFromPublicForm(req: Request, res: Response) {
       : (detail || null);
 
     const [r] = await conn.query<ResultSetHeader>(
-      `INSERT INTO repair_requests (customer_id, well_id, problems, detail, photos, magic_link_token, magic_link_expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))`,
-      [c.insertId, wells.length ? wells[0].well_id : null, JSON.stringify(problems), combinedDetail, photos?.length ? JSON.stringify(photos) : null, generateMagicToken()]
+      `INSERT INTO repair_requests (customer_id, well_id, problems, detail, photos, scheduled_date, magic_link_token, magic_link_expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))`,
+      [customerId, wells.length ? wells[0].well_id : null, JSON.stringify(problems), combinedDetail, photos?.length ? JSON.stringify(photos) : null, scheduled_date || null, generateMagicToken()]
     );
 
     await conn.commit();
-    res.status(201).json({ repair_id: r.insertId, customer_id: c.insertId });
+
+    sendTextToCustomer(customerId, "ได้รับแจ้งซ่อมเรียบร้อยแล้วครับ ทีมงานจะตรวจสอบและติดต่อกลับโดยเร็ว กรุณารอการติดต่อกลับครับ", "STATUS").catch(() => {});
+
+    res.status(201).json({ repair_id: r.insertId, customer_id: customerId });
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -150,11 +169,39 @@ export async function createFromPublicForm(req: Request, res: Response) {
   }
 }
 
+export async function update(req: Request, res: Response) {
+  const { id } = req.params;
+  const { well_id, problems, detail, scheduled_date } = req.body;
+
+  const [existing] = await pool.query<RowDataPacket[]>(
+    "SELECT * FROM repair_requests WHERE repair_id = ?", [id]
+  );
+  if (!existing.length) return res.status(404).json({ error: "ไม่พบคำร้องซ่อม" });
+
+  const curProblems = typeof existing[0].problems === "string" ? JSON.parse(existing[0].problems) : existing[0].problems;
+
+  await pool.query(
+    `UPDATE repair_requests SET well_id = ?, problems = ?, detail = ?, scheduled_date = ? WHERE repair_id = ?`,
+    [
+      well_id ?? existing[0].well_id,
+      problems ? JSON.stringify(problems) : JSON.stringify(curProblems),
+      detail ?? existing[0].detail,
+      scheduled_date ?? existing[0].scheduled_date,
+      id,
+    ]
+  );
+
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `${REQUEST_SELECT} WHERE r.repair_id = ?`, [id]
+  );
+  res.json(mapRow(rows[0]));
+}
+
 export async function updateStatus(req: Request, res: Response) {
   const { id } = req.params;
   const { status } = req.body;
 
-  const valid = ["NEW", "QUOTED", "ACCEPTED", "REJECTED", "SCHEDULED", "IN_PROGRESS", "COMPLETED", "CANCELLED"];
+  const valid = ["NEW", "QUOTED", "ACCEPTED", "REJECTED", "SCHEDULED", "IN_PROGRESS", "COMPLETED", "CLOSED", "CANCELLED"];
   if (!valid.includes(status)) {
     return res.status(400).json({ error: `สถานะไม่ถูกต้อง ต้องเป็น ${valid.join(", ")}` });
   }
@@ -165,6 +212,18 @@ export async function updateStatus(req: Request, res: Response) {
     `${REQUEST_SELECT} WHERE r.repair_id = ?`, [id]
   );
   if (!rows.length) return res.status(404).json({ error: "ไม่พบคำร้องซ่อม" });
+
+  const customerId = rows[0].customer_id;
+  if (customerId && status === "IN_PROGRESS") {
+    sendTextToCustomer(customerId, "ขณะนี้ช่างกำลังดำเนินการซ่อมบำรุงให้ครับ กรุณารอสักครู่", "STATUS").catch(() => {});
+  }
+  if (customerId && status === "CLOSED") {
+    const liffUrl = process.env.LINE_LIFF_ID
+      ? `https://liff.line.me/${process.env.LINE_LIFF_ID}/repair-form`
+      : `${process.env.APP_URL || "http://localhost:5173"}/repair-form`;
+    sendTextToCustomer(customerId, `การซ่อมบำรุงเสร็จเรียบร้อยแล้วครับ กรุณาอัปโหลดสลิปโอนเงินผ่านลิงก์นี้:\n${liffUrl}`, "STATUS").catch(() => {});
+  }
+
   res.json(mapRow(rows[0]));
 }
 
@@ -189,7 +248,6 @@ export async function addRecord(req: Request, res: Response) {
     work_details,
     parts,
     pump,
-    payment_slip_url,
     is_warranty_claim,
     completed_at,
   } = req.body;
@@ -205,15 +263,14 @@ export async function addRecord(req: Request, res: Response) {
   }
 
   const [result] = await pool.query<ResultSetHeader>(
-    `INSERT INTO repair_records (repair_id, final_price, work_details, parts, pump, payment_slip_url, is_warranty_claim, completed_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO repair_records (repair_id, final_price, work_details, parts, pump, is_warranty_claim, completed_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       final_price ?? null,
       work_details || null,
       parts?.length ? JSON.stringify(parts) : null,
       pump ? JSON.stringify(pump) : null,
-      payment_slip_url || null,
       is_warranty_claim ? 1 : 0,
       completed_at || new Date().toISOString().replace("T", " ").slice(0, 19),
     ]
@@ -229,9 +286,12 @@ export async function addRecord(req: Request, res: Response) {
     "SELECT customer_id FROM repair_requests WHERE repair_id = ?", [id]
   );
   if (reqRow.length) {
+    const partsList = parts?.length
+      ? "\nรายการอะไหล่: " + parts.map((p: any) => `${p.name} x${p.qty}`).join(", ")
+      : "";
     const msg = final_price != null
-      ? `แจ้งผลการซ่อม: เสร็จเรียบร้อยแล้ว\nราคาจบงาน ${Number(final_price).toLocaleString("th-TH")} บาท`
-      : "แจ้งผลการซ่อม: เสร็จเรียบร้อยแล้ว ขอบคุณครับ";
+      ? `แจ้งผลการซ่อมเสร็จเรียบร้อยแล้วครับ\n\nรายละเอียดงาน:\n${work_details || "-"}${partsList}\n\nราคาจบงาน ${Number(final_price).toLocaleString("th-TH")} บาท\n\nกรุณาอัปโหลดสลิปโอนเงินผ่านลิงก์ในแชทครับ`
+      : `แจ้งผลการซ่อมเสร็จเรียบร้อยแล้วครับ\n\nรายละเอียดงาน:\n${work_details || "-"}${partsList}\n\nกรุณาอัปโหลดสลิปโอนเงินผ่านลิงก์ในแชทครับ`;
     sendTextToCustomer(reqRow[0].customer_id, msg, "STATUS").catch(() => {});
   }
 
@@ -252,3 +312,5 @@ export async function generateMagicLink(req: Request, res: Response) {
   );
   res.json({ token });
 }
+
+

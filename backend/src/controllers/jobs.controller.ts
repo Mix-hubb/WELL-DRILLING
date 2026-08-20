@@ -130,6 +130,30 @@ export async function create(req: Request, res: Response) {
   res.status(201).json(row);
 }
 
+export async function update(req: Request, res: Response) {
+  const { id } = req.params;
+  const { job_title, site_address, province, district, scheduled_date, notes } = req.body;
+
+  const existing = await getJobRow(Number(id));
+  if (!existing) return res.status(404).json({ error: "ไม่พบงาน" });
+
+  await pool.query(
+    `UPDATE drilling_jobs SET job_title = ?, site_address = ?, province = ?, district = ?, scheduled_date = ?, notes = ? WHERE job_id = ?`,
+    [
+      job_title ?? existing.job_title,
+      site_address ?? existing.site_address,
+      province ?? existing.province,
+      district ?? existing.district,
+      scheduled_date ?? existing.scheduled_date,
+      notes ?? existing.notes,
+      id,
+    ]
+  );
+
+  const row = await getJobRow(Number(id));
+  res.json(row);
+}
+
 export async function updateStatus(req: Request, res: Response) {
   const { id } = req.params;
   const { status } = req.body;

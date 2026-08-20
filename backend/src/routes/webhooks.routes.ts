@@ -3,11 +3,13 @@ import crypto from "crypto";
 import { pool } from "../config/db";
 import { ResultSetHeader, RowDataPacket } from "mysql2";
 import { asyncHandler } from "../utils/asyncHandler";
+import { sendTextToCustomer } from "../services/line";
 
 const router = Router();
 
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "";
 const CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "";
+const LIFF_ID = process.env.LINE_LIFF_ID || "";
 
 function verifySignature(rawBody: Buffer, signature: string): boolean {
   if (!CHANNEL_SECRET) return true;
@@ -59,6 +61,25 @@ async function handleText(userId: string, text: string, replyToken: string) {
     "SELECT customer_id, customer_name FROM customers WHERE line_user_id = ?",
     [userId]
   );
+
+  if (/แจ้งเจาะ|ขุดเจาะ|เจาะบ่อ/.test(text)) {
+    const liffUrl = LIFF_ID
+      ? `https://liff.line.me/${LIFF_ID}/request-drill`
+      : `${process.env.APP_URL || "http://localhost:5173"}/request-drill`;
+    return reply(replyToken,
+      "เปิดฟอร์มแจ้งเจาะบ่อบาดาลได้เลยครับ:\n" + liffUrl
+    );
+  }
+
+  if (/แจ้งซ่อม|ซ่อมแซม|ซ่อมบำรุง/.test(text)) {
+    const liffUrl = LIFF_ID
+      ? `https://liff.line.me/${LIFF_ID}/repair-form`
+      : `${process.env.APP_URL || "http://localhost:5173"}/repair-form`;
+    return reply(replyToken,
+      "เปิดฟอร์มแจ้งซ่อมบ่อบาดาลได้เลยครับ:\n" + liffUrl
+    );
+  }
+
   if (!custRows.length) {
     return reply(replyToken, "ยังไม่มีข้อมูลบ่อของคุณในระบบ กรุณาแจ้งเจาะก่อนครับ");
   }
@@ -132,6 +153,8 @@ async function handleText(userId: string, text: string, replyToken: string) {
   } else {
     lines.push(
       "พิมพ์คำสั่งต่อไปนี้:\n" +
+      "• แจ้งเจาะ — เปิดฟอร์มแจ้งเจาะบ่อใหม่\n" +
+      "• แจ้งซ่อม — เปิดฟอร์มแจ้งซ่อมบ่อบาดาล\n" +
       "• ข้อมูลบ่อ — ดูรายละเอียดบ่อ\n" +
       "• ประกัน — ดูสถานะประกัน\n" +
       "• ประวัติซ่อม — ดูประวัติการซ่อม"
@@ -139,6 +162,59 @@ async function handleText(userId: string, text: string, replyToken: string) {
   }
 
   return reply(replyToken, lines.join("\n"));
+}
+
+async function handlePostback(userId: string, data: string) {
+  const [custRows] = await pool.query<RowDataPacket[]>(
+    "SELECT customer_id, customer_name FROM customers WHERE line_user_id = ?",
+    [userId]
+  );
+  if (!custRows.length) return;
+  const customerId = custRows[0].customer_id;
+
+  const acceptDrillMatch = data.match(/^accept_drill_(\d+)$/);
+  const rejectDrillMatch = data.match(/^reject_drill_(\d+)$/);
+  const acceptRepairMatch = data.match(/^accept_repair_(\d+)$/);
+  const rejectRepairMatch = data.match(/^reject_repair_(\d+)$/);
+
+  if (acceptDrillMatch) {
+    const requestId = Number(acceptDrillMatch[1]);
+    await pool.query("UPDATE drilling_requests SET status = 'ACCEPTED' WHERE request_id = ?", [requestId]);
+
+    const [reqRows] = await pool.query<RowDataPacket[]>(
+      "SELECT name, address, requested_depth_m, appointment_date FROM drilling_requests WHERE request_id = ?",
+      [requestId]
+    );
+    const req = reqRows[0];
+
+    await pool.query(
+      `INSERT INTO drilling_jobs (request_id, customer_id, status, job_title, site_address, scheduled_date)
+       VALUES (?, ?, 'QUEUED', ?, ?, ?)`,
+      [requestId, customerId, `เจาะบ่อ ${req?.name || ""}`, req?.address || null, req?.appointment_date || null]
+    );
+
+    sendTextToCustomer(customerId, "ยอมรับเรียบร้อยครับ จะดำเนินการเข้าคิวเจาะให้ต่อไป", "STATUS").catch(() => {});
+  } else if (rejectDrillMatch) {
+    const requestId = Number(rejectDrillMatch[1]);
+    await pool.query("UPDATE drilling_requests SET status = 'REJECTED' WHERE request_id = ?", [requestId]);
+    sendTextToCustomer(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งเจาะใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
+  } else if (acceptRepairMatch) {
+    const repairId = Number(acceptRepairMatch[1]);
+    await pool.query("UPDATE repair_requests SET status = 'ACCEPTED' WHERE repair_id = ?", [repairId]);
+    await pool.query("UPDATE quotations SET status = 'ACCEPTED' WHERE kind = 'REPAIR' AND repair_request_id = ?", [repairId]);
+
+    const [reqRows] = await pool.query<RowDataPacket[]>(
+      "SELECT scheduled_date FROM repair_requests WHERE repair_id = ?", [repairId]
+    );
+    const scheduledDate = reqRows[0]?.scheduled_date;
+    const dateText = scheduledDate ? `วันที่ ${scheduledDate}` : "กำหนดนัดหมาย";
+    sendTextToCustomer(customerId, `ยอมรับเรียบร้อยครับ กรุณาเตรียมตัวสำหรับการซ่อมบำรุง${dateText} ทีมงานจะติดต่อกลับเพื่อยืนยันอีกครั้ง`, "STATUS").catch(() => {});
+  } else if (rejectRepairMatch) {
+    const repairId = Number(rejectRepairMatch[1]);
+    await pool.query("UPDATE repair_requests SET status = 'REJECTED' WHERE repair_id = ?", [repairId]);
+    await pool.query("UPDATE quotations SET status = 'REJECTED' WHERE kind = 'REPAIR' AND repair_request_id = ?", [repairId]);
+    sendTextToCustomer(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งซ่อมใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
+  }
 }
 
 router.post(
@@ -195,11 +271,15 @@ router.post(
     const body = req.body;
     const events = body?.events || [];
     for (const event of events) {
-      if (event.type !== "message" || event.message?.type !== "text") continue;
       const userId = event.source?.userId;
       if (!userId) continue;
       await findOrCreateCustomerByLine(userId, undefined);
-      await handleText(userId, event.message.text, event.replyToken);
+
+      if (event.type === "message" && event.message?.type === "text") {
+        await handleText(userId, event.message.text, event.replyToken);
+      } else if (event.type === "postback") {
+        await handlePostback(userId, event.postback?.data || "");
+      }
     }
 
     res.json({ ok: true });
