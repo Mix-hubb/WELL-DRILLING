@@ -44,7 +44,7 @@ export async function login(req: Request, res: Response) {
   }
 
   const { rows } = await pool.query(
-    "SELECT user_id, email, password_hash, full_name FROM users WHERE email = $1",
+    "SELECT user_id, email, password_hash, full_name, role FROM users WHERE email = $1",
     [email]
   );
   if (!rows.length) {
@@ -57,20 +57,20 @@ export async function login(req: Request, res: Response) {
     return res.status(401).json({ error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
   }
 
-  const token = signToken({ userId: user.user_id, email: user.email, role: USER_ROLE });
+  const token = signToken({ userId: user.user_id, email: user.email, role: user.role });
   res.json({
     token,
-    user: { user_id: user.user_id, email: user.email, full_name: user.full_name, role: USER_ROLE },
+    user: { user_id: user.user_id, email: user.email, full_name: user.full_name, role: user.role },
   });
 }
 
 export async function me(req: Request, res: Response) {
   const { rows } = await pool.query(
-    "SELECT user_id, email, full_name FROM users WHERE user_id = $1",
+    "SELECT user_id, email, full_name, role FROM users WHERE user_id = $1",
     [req.user!.userId]
   );
   if (!rows.length) {
     return res.status(404).json({ error: "ไม่พบผู้ใช้" });
   }
-  res.json({ ...rows[0], role: USER_ROLE });
+  res.json(rows[0]);
 }
