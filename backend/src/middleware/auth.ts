@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 const JWT_SECRET = process.env.JWT_SECRET || "welldrill-dev-secret-change-me";
 
 export interface AuthPayload {
-  userId: number;
+  userId: string;
   email: string;
   role: "USER";
 }
