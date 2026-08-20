@@ -36,7 +36,6 @@ function submit() {
   emit("submit", {
     depth_from_m:   Number(form.value.depth_from_m),
     depth_to_m:     Number(form.value.depth_to_m),
-    lithology_type: form.value.lithology_type || null,
     lithology_name: form.value.lithology_name,
     color_hex:      form.value.color_hex || null,
     water_bearing:  form.value.water_bearing ? 1 : 0,

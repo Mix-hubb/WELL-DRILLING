@@ -204,7 +204,7 @@ function buildPayload() {
     well_name:            form.value.well_name,
     driller_name:         form.value.driller_name || null,
     result:               form.value.result,
-    failure_reason:       form.value.result === "FAILED" ? (form.value.failure_reason || null) : null,
+    failure_reason:       form.value.result === "FAIL" ? (form.value.failure_reason || null) : null,
     total_depth_m:        Number(form.value.total_depth_m),
     water_quantity_m3hr:  form.value.water_quantity_m3hr ? Number(form.value.water_quantity_m3hr) : null,
     yield_lpm:            form.value.yield_lpm ? Number(form.value.yield_lpm) : null,
@@ -220,7 +220,6 @@ function buildPayload() {
       .map((s) => ({
         depth_from_m:   Number(s.depth_from_m),
         depth_to_m:     Number(s.depth_to_m),
-        lithology_type: s.lithology_type || null,
         lithology_name: s.lithology_name || null,
         color_hex:      s.color_hex || null,
         hardness:       s.hardness || null,
@@ -300,7 +299,7 @@ async function submit() {
       <!-- ===== 1. ข้อมูลพื้นฐาน ===== -->
       <v-radio-group v-model="form.result" inline class="mb-3">
         <v-radio label="เจาะสำเร็จ" value="SUCCESS" />
-        <v-radio label="เจาะไม่สำเร็จ" value="FAILED" />
+        <v-radio label="เจาะไม่สำเร็จ" value="FAIL" />
       </v-radio-group>
 
       <v-text-field v-model="form.well_name" label="ชื่อบ่อ *" class="mb-3" />
@@ -324,7 +323,7 @@ async function submit() {
       <v-text-field v-model="form.driller_name" label="ชื่อช่างผู้บันทึก" class="mb-3" />
 
       <v-text-field
-        v-if="form.result === 'FAILED'"
+        v-if="form.result === 'FAIL'"
         v-model="form.failure_reason" label="สาเหตุที่เจาะไม่สำเร็จ *"
         class="mb-3"
       />
@@ -477,7 +476,7 @@ async function submit() {
 
       <v-btn
         color="primary" size="large" block variant="flat" :loading="submitting"
-        :disabled="!form.well_name || !form.total_depth_m || (form.result === 'FAILED' && !form.failure_reason)"
+        :disabled="!form.well_name || !form.total_depth_m || (form.result === 'FAIL' && !form.failure_reason)"
         @click="submit"
       >บันทึกข้อมูล</v-btn>
     </v-card>

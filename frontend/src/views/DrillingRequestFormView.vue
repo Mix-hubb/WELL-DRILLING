@@ -51,7 +51,10 @@ async function submit() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...form.value,
+        name: form.value.name,
+        phone: form.value.phone,
+        address: form.value.address,
+        requested_depth_m: form.value.requested_depth_m ? Number(form.value.requested_depth_m) : null,
         line_user_id: lineUserId.value || null,
       }),
     });

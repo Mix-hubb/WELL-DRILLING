@@ -82,7 +82,10 @@ function pickItem(r: DrillingRequest) {
 async function submitEdit() {
   if (!editTarget.value) return;
   try {
-    await requests.update(editTarget.value.request_id, editForm.value);
+    await requests.update(editTarget.value.request_id, {
+      ...editForm.value,
+      requested_depth_m: editForm.value.requested_depth_m ? Number(editForm.value.requested_depth_m) : null,
+    });
     ui.notify("แก้ไขข้อมูลแล้ว", "success");
     editDlg.value = false;
   } catch (e) { ui.notifyError(e); }
@@ -268,7 +271,7 @@ function fmtDate(d: string) {
           <v-text-field
             v-model="quoteDiameter"
             type="number"
-            label="ความลึกที่คาดว่าจะเจอชั้นน้ำ (ม.)"
+            label="ขนาดเส้นผ่านศูนย์กลางท่อกรุ (นิ้ว/ม.)"
             prepend-inner-icon="mdi-water-outline"
             class="mb-3"
             density="comfortable"
