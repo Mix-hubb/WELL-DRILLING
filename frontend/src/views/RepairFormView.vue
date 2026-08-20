@@ -8,6 +8,7 @@ const form = ref({
   address: "",
   problem_types: [] as string[],
   detail: "",
+  scheduled_date: "",
 });
 
 const loading = ref(false);
@@ -135,6 +136,7 @@ async function submit() {
         problems: form.value.problem_types,
         detail: form.value.detail || null,
         photos: photoData.length > 0 ? photoData : null,
+        scheduled_date: form.value.scheduled_date || null,
         line_user_id: lineUserId.value || null,
         line_display_name: profileName.value || null,
         line_picture_url: profilePicture.value || null,
@@ -341,6 +343,23 @@ function loginWithLine() {
               multiple
               style="display: none;"
               @change="onFileSelect"
+            />
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">
+              <v-icon icon="mdi-calendar-clock-outline" size="16" class="mr-1" />
+              วันที่สะดวกรับบริการ
+            </div>
+            <v-text-field
+              v-model="form.scheduled_date"
+              type="date"
+              :min="new Date(Date.now() + 86400000).toISOString().split('T')[0]"
+              variant="outlined"
+              density="comfortable"
+              rounded="lg"
+              hide-details
+              class="field-input"
             />
           </div>
 
