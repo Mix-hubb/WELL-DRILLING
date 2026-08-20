@@ -192,7 +192,7 @@ async function handleText(userId: string, text: string, replyToken: string) {
   return reply(replyToken, lines.join("\n"));
 }
 
-async function handlePostback(userId: string, data: string) {
+async function handlePostback(userId: string, data: string, replyToken?: string) {
   const custResult = await pool.query(
     "SELECT customer_id, customer_name FROM customers WHERE line_user_id = $1",
     [userId]
@@ -207,7 +207,16 @@ async function handlePostback(userId: string, data: string) {
 
   if (acceptDrillMatch) {
     const requestId = acceptDrillMatch[1];
+    const existing = await pool.query("SELECT status FROM drilling_requests WHERE request_id = $1", [requestId]);
+    if (!existing.rows.length) return;
+    const currentStatus = existing.rows[0].status;
+    if (currentStatus !== "QUOTED") {
+      if (replyToken) reply(replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
+      return;
+    }
+
     await pool.query("UPDATE drilling_requests SET status = 'ACCEPTED' WHERE request_id = $1", [requestId]);
+    await pool.query("UPDATE quotations SET status = 'ACCEPTED' WHERE kind = 'DRILLING' AND drilling_request_id = $1", [requestId]);
 
     const reqResult = await pool.query(
       "SELECT name, address, requested_depth_m, appointment_date FROM drilling_requests WHERE request_id = $1",
@@ -224,10 +233,25 @@ async function handlePostback(userId: string, data: string) {
     sendTextToCustomer(customerId, "ยอมรับเรียบร้อยครับ จะดำเนินการเข้าคิวเจาะให้ต่อไป", "STATUS").catch(() => {});
   } else if (rejectDrillMatch) {
     const requestId = rejectDrillMatch[1];
+    const existing = await pool.query("SELECT status FROM drilling_requests WHERE request_id = $1", [requestId]);
+    if (!existing.rows.length) return;
+    if (existing.rows[0].status !== "QUOTED") {
+      if (replyToken) reply(replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
+      return;
+    }
+
     await pool.query("UPDATE drilling_requests SET status = 'REJECTED' WHERE request_id = $1", [requestId]);
+    await pool.query("UPDATE quotations SET status = 'REJECTED' WHERE kind = 'DRILLING' AND drilling_request_id = $1", [requestId]);
     sendTextToCustomer(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งเจาะใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
   } else if (acceptRepairMatch) {
     const repairId = acceptRepairMatch[1];
+    const existing = await pool.query("SELECT status FROM repair_requests WHERE repair_id = $1", [repairId]);
+    if (!existing.rows.length) return;
+    if (existing.rows[0].status !== "QUOTED") {
+      if (replyToken) reply(replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
+      return;
+    }
+
     await pool.query("UPDATE repair_requests SET status = 'ACCEPTED' WHERE repair_id = $1", [repairId]);
     await pool.query("UPDATE quotations SET status = 'ACCEPTED' WHERE kind = 'REPAIR' AND repair_request_id = $1", [repairId]);
 
@@ -239,6 +263,13 @@ async function handlePostback(userId: string, data: string) {
     sendTextToCustomer(customerId, `ยอมรับเรียบร้อยครับ กรุณาเตรียมตัวสำหรับการซ่อมบำรุง${dateText} ทีมงานจะติดต่อกลับเพื่อยืนยันอีกครั้ง`, "STATUS").catch(() => {});
   } else if (rejectRepairMatch) {
     const repairId = rejectRepairMatch[1];
+    const existing = await pool.query("SELECT status FROM repair_requests WHERE repair_id = $1", [repairId]);
+    if (!existing.rows.length) return;
+    if (existing.rows[0].status !== "QUOTED") {
+      if (replyToken) reply(replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
+      return;
+    }
+
     await pool.query("UPDATE repair_requests SET status = 'REJECTED' WHERE repair_id = $1", [repairId]);
     await pool.query("UPDATE quotations SET status = 'REJECTED' WHERE kind = 'REPAIR' AND repair_request_id = $1", [repairId]);
     sendTextToCustomer(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งซ่อมใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
@@ -306,7 +337,7 @@ router.post(
       if (event.type === "message" && event.message?.type === "text") {
         await handleText(userId, event.message.text, event.replyToken);
       } else if (event.type === "postback") {
-        await handlePostback(userId, event.postback?.data || "");
+        await handlePostback(userId, event.postback?.data || "", event.replyToken);
       }
     }
 
