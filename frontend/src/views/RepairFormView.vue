@@ -184,7 +184,7 @@ async function checkExistingCustomer() {
     const res = await fetch(`${BASE_URL}/public/customer-by-line?line_user_id=${encodeURIComponent(lineUserId.value)}`);
     if (!res.ok) return;
     const data = await res.json();
-    if (data.found && data.customer) {
+    if (data.found && data.customer && data.customer.phone) {
       customerFound.value = true;
       form.value.name = data.customer.customer_name || profileName.value;
       form.value.phone = data.customer.phone || "";
