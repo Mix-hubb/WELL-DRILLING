@@ -122,16 +122,25 @@ export async function createFromPublicForm(req: Request, res: Response) {
 
     let customerId: number;
 
-    const existing = await client.query(
-      "SELECT customer_id FROM customers WHERE phone = $1 LIMIT 1",
-      [phone]
-    );
+    let existing;
+    if (line_user_id) {
+      existing = await client.query(
+        "SELECT customer_id FROM customers WHERE line_user_id = $1 LIMIT 1",
+        [line_user_id]
+      );
+    }
+    if (!existing?.rows.length) {
+      existing = await client.query(
+        "SELECT customer_id FROM customers WHERE phone = $1 LIMIT 1",
+        [phone]
+      );
+    }
 
-    if (existing.rows.length) {
+    if (existing?.rows.length) {
       customerId = existing.rows[0].customer_id;
       await client.query(
-        "UPDATE customers SET customer_name = COALESCE($1, customer_name), address = COALESCE($2, address), line_user_id = COALESCE($3, line_user_id), line_display_name = COALESCE($4, line_display_name), line_picture_url = COALESCE($5, line_picture_url) WHERE customer_id = $6",
-        [name, address || null, line_user_id || null, line_display_name || null, line_picture_url || null, customerId]
+        "UPDATE customers SET customer_name = COALESCE($1, customer_name), phone = COALESCE($2, phone), address = COALESCE($3, address), line_user_id = COALESCE($4, line_user_id), line_display_name = COALESCE($5, line_display_name), line_picture_url = COALESCE($6, line_picture_url) WHERE customer_id = $7",
+        [name, phone, address || null, line_user_id || null, line_display_name || null, line_picture_url || null, customerId]
       );
     } else {
       const c = await client.query(
