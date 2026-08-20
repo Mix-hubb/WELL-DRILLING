@@ -1,9 +1,9 @@
 // ============================================================
-// Types ตาม docs/database-schema.md (MySQL well_drilling)
+// Types ตาม Supabase PostgreSQL schema
 // ============================================================
 
 // ---------- Enums ----------
-export type UserRole    = "USER";
+export type UserRole    = "ADMIN" | "DRILLER";
 
 export type DrillingRequestStatus = "NEW" | "QUOTED" | "ACCEPTED" | "REJECTED" | "CANCELLED";
 export type RequestSource = "GOOGLE_FORM" | "MANUAL" | "LINE";

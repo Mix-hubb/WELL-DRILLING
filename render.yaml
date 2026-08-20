@@ -7,19 +7,9 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DB_HOST
-        value: db.tgisyatjcvddobkopbsa.supabase.co
-      - key: DB_PORT
-        value: 5432
-      - key: DB_USER
-        value: postgres
-      - key: DB_PASSWORD
+      - key: DATABASE_URL
         sync: false
-      - key: DB_NAME
-        value: postgres
       - key: DB_SSL
-        value: "true"
-      - key: DB_FORCE_IPV4
         value: "true"
       - key: CORS_ORIGIN
         value: https://well-drilling.vercel.app

@@ -4,7 +4,7 @@ export interface AuthUser {
   user_id: number;
   email: string;
   full_name: string;
-  role: "USER";
+  role: "ADMIN" | "DRILLER";
 }
 
 export interface AuthResponse {

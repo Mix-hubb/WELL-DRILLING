@@ -6,7 +6,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "welldrill-dev-secret-change-me";
 export interface AuthPayload {
   userId: string;
   email: string;
-  role: "USER";
+  role: "ADMIN" | "DRILLER";
 }
 
 declare global {

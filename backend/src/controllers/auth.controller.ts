@@ -5,7 +5,7 @@ import { pool } from "../config/db";
 import { signToken } from "../middleware/auth";
 import { UserRole } from "../types";
 
-const USER_ROLE: UserRole = "USER";
+const USER_ROLE: UserRole = "DRILLER";
 
 export async function register(req: Request, res: Response) {
   const { email, password, full_name } = req.body;

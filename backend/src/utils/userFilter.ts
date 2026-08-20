@@ -1,6 +1,6 @@
 import { Request } from "express";
 
-// สิทธิ์เดียวคือ USER (ผู้ประกอบการ) — เห็นข้อมูลทั้งหมดร่วมกัน
+// ผู้ประกอบการที่ login แล้วเห็นข้อมูลของระบบร่วมกัน
 export function userFilter(_req: Request, _alias = "c"): { sql: string; params: any[] } {
   return { sql: "", params: [] };
 }

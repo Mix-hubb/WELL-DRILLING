@@ -6,7 +6,7 @@
 well-drilling-vue/
 ├── backend/                          Node.js + Express + TypeScript REST API
 │   └── src/
-│       ├── config/db.ts              MySQL connection pool
+│       ├── config/db.ts              PostgreSQL/Supabase connection pool
 │       ├── controllers/              drillers / customers / jobs / wells / stats
 │       ├── routes/                   endpoint แยกไฟล์ตาม resource
 │       ├── utils/pdfReport.ts        สร้างรายงาน PDF ด้วย pdfkit
@@ -20,7 +20,7 @@ well-drilling-vue/
 │       ├── components/forms/         v-dialog ฟอร์มแต่ละประเภท แยกไฟล์
 │       ├── views/                    Dashboard, Jobs, JobDetail, Wells, WellDetail, Map, Customers, Drillers
 │       └── router/                   Vue Router
-├── docker-compose.yml                MySQL + Adminer พร้อม auto-load schema/seed
+├── supabase/                         PostgreSQL migrations และ seed
 └── README.md
 ```
 
@@ -39,12 +39,10 @@ well-drilling-vue/
 
 ## เริ่มต้นใช้งาน
 
-### 1) ตั้งฐานข้อมูล MySQL
+### 1) ตั้งฐานข้อมูล Supabase
 
-```bash
-docker compose up -d
-```
-MySQL ที่ `localhost:3306` (root / password / DB `well_drilling`) และ Adminer ที่ `http://localhost:8080`
+เปิดไฟล์ `supabase/migrations/0001_init.sql` และ `0002_well_detail_and_pump_catalog.sql` ใน Supabase SQL Editor แล้วรันตามลำดับ
+จากนั้นคัดลอก Supabase Session Pooler connection string ลงใน `backend/.env` เป็น `DATABASE_URL`
 
 ### 2) Backend (TypeScript)
 
@@ -74,8 +72,7 @@ npm run dev         # http://localhost:5173
 | แผนที่ | Leaflet.js + OpenStreetMap tiles |
 | Backend | Node.js + Express + TypeScript (`ts-node-dev` ระหว่างพัฒนา, `tsc` build) |
 | PDF | pdfkit (สตรีมไฟล์ตรงจาก endpoint `/api/wells/:id/report.pdf`) |
-| Database | MySQL 8 (InnoDB) — schema เดิมจากสเปกต้นฉบับ 7 ตาราง |
-| Container | Docker / docker-compose (MySQL + Adminer) |
+| Database | PostgreSQL บน Supabase |
 
 ## Type Safety
 
@@ -87,4 +84,4 @@ Type ของโมเดลข้อมูล (`DrillingJob`, `WellLog`, `Well
 
 - Frontend → Vercel/Netlify (`npm run build`, ตั้ง `VITE_API_URL`)
 - Backend → Railway/Render (`npm run build && npm start`, ตั้ง env ตาม `.env.example`)
-- Database → Railway/Render MySQL หรือ PlanetScale
+- Database → Supabase PostgreSQL
