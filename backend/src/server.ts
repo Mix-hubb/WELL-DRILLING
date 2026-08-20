@@ -27,7 +27,15 @@ app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
 app.use(express.json({ verify: (_req, _res, buf) => { (_req as any).rawBody = buf; } }));
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
-app.get("/api/health", (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+app.get("/api/health", async (_req, res) => {
+  try {
+    const { pool } = await import("./config/db");
+    const result = await pool.query("SELECT 1 as ok");
+    res.json({ ok: true, db: "connected", time: new Date().toISOString() });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, db: "disconnected", error: err.message, code: err.code });
+  }
+});
 
 // Public auth routes
 app.use("/api/auth", authRoutes);
@@ -56,10 +64,7 @@ app.use("/api/repair-records",    authMiddleware, repairRecordsRoutes);
 // centralized error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
-  if (process.env.NODE_ENV === "production") {
-    return res.status(500).json({ error: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
-  }
-  res.status(500).json({ error: err?.message || "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
+  res.status(500).json({ error: err?.message || "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์", code: err?.code });
 });
 
 process.on("unhandledRejection", (reason) => console.error("Unhandled rejection:", reason));
