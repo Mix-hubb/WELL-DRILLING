@@ -17,6 +17,7 @@ const liffReady = ref(false);
 const isLiffEnv = ref(false);
 const isLoggedIn = ref(false);
 const profileName = ref("");
+const profilePicture = ref("");
 
 onMounted(async () => {
   const liffId = import.meta.env.VITE_LIFF_ID_REPAIR || "";
@@ -31,6 +32,7 @@ onMounted(async () => {
       const profile = await liff.getProfile();
       lineUserId.value = profile?.userId || null;
       profileName.value = profile?.displayName || "";
+      profilePicture.value = profile?.pictureUrl || "";
       isLoggedIn.value = true;
     }
   } catch (e) {
@@ -63,6 +65,8 @@ async function submit() {
         problems: [form.value.problems],
         detail:  null,
         line_user_id: lineUserId.value || null,
+        line_display_name: profileName.value || null,
+        line_picture_url: profilePicture.value || null,
       }),
     });
     if (!res.ok) {

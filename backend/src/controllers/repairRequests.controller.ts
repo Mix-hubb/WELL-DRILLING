@@ -111,7 +111,7 @@ export async function create(req: Request, res: Response) {
 }
 
 export async function createFromPublicForm(req: Request, res: Response) {
-  const { name, phone, address, well_name, problems, detail, photos, scheduled_date, line_user_id } = req.body;
+  const { name, phone, address, well_name, problems, detail, photos, scheduled_date, line_user_id, line_display_name, line_picture_url } = req.body;
   if (!name || !phone || !problems?.length) {
     return res.status(400).json({ error: "ต้องระบุชื่อ, เบอร์โทร และปัญหาที่พบ" });
   }
@@ -130,13 +130,13 @@ export async function createFromPublicForm(req: Request, res: Response) {
     if (existing.rows.length) {
       customerId = existing.rows[0].customer_id;
       await client.query(
-        "UPDATE customers SET customer_name = COALESCE($1, customer_name), address = COALESCE($2, address), line_user_id = COALESCE($3, line_user_id) WHERE customer_id = $4",
-        [name, address || null, line_user_id || null, customerId]
+        "UPDATE customers SET customer_name = COALESCE($1, customer_name), address = COALESCE($2, address), line_user_id = COALESCE($3, line_user_id), line_display_name = COALESCE($4, line_display_name), line_picture_url = COALESCE($5, line_picture_url) WHERE customer_id = $6",
+        [name, address || null, line_user_id || null, line_display_name || null, line_picture_url || null, customerId]
       );
     } else {
       const c = await client.query(
-        "INSERT INTO customers (customer_name, phone, address, line_user_id) VALUES ($1, $2, $3, $4) RETURNING customer_id",
-        [name, phone, address || null, line_user_id || null]
+        "INSERT INTO customers (customer_name, phone, address, line_user_id, line_display_name, line_picture_url) VALUES ($1, $2, $3, $4, $5, $6) RETURNING customer_id",
+        [name, phone, address || null, line_user_id || null, line_display_name || null, line_picture_url || null]
       );
       customerId = c.rows[0].customer_id;
     }
