@@ -13,6 +13,7 @@ const request  = ref<RepairRequest | null>(null);
 const loading  = ref(true);
 const submitting = ref(false);
 const token    = route.params.token as string;
+const saved = ref(false);
 
 const form = ref({
   work_details:   "",
@@ -49,7 +50,7 @@ async function submit() {
       is_warranty_claim: form.value.is_warranty_claim ? 1 : 0,
       completed_at:   form.value.completed_at,
     });
-    ui.notify("บันทึกข้อมูลการซ่อมแล้ว", "success");
+    saved.value = true;
   } catch (e) {
     ui.notifyError(e);
   } finally {
@@ -61,6 +62,12 @@ async function submit() {
 <template>
   <div style="max-width:560px;margin:0 auto">
     <div v-if="loading" class="text-center py-10 text-medium-emphasis">กำลังโหลด...</div>
+
+    <!-- บันทึกสำเร็จ -->
+    <div v-else-if="saved" class="text-center py-16">
+      <v-icon icon="mdi-check-circle" size="80" color="success" class="mb-4" />
+      <div class="text-h5 font-weight-bold" style="color: #2E2418;">บันทึกสำเร็จ</div>
+    </div>
 
     <v-card v-else-if="request" class="pa-5">
       <div class="text-center mb-4">
