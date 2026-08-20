@@ -6,12 +6,8 @@ const form = ref({
   name: "",
   phone: "",
   address: "",
-  well_type: "",
-  pump_type: "",
-  pump_brand: "",
   problem_types: [] as string[],
   detail: "",
-  urgency: "",
 });
 
 const loading = ref(false);
@@ -27,34 +23,6 @@ const profilePicture = ref("");
 const photos = ref<File[]>([]);
 const photoPreview = ref<string[]>([]);
 const fileInput = ref<HTMLInputElement | null>(null);
-
-const wellTypes = [
-  "บ่อบาดาลลึก",
-  "บ่อบาดาลตื้น",
-  "บ่อน้ำผิวดิน",
-  "บ่อบริเวณ",
-];
-
-const pumpTypes = [
-  "ปั๊มจุ่ม (Submersible)",
-  "ปั๊มหอยโข่ง",
-  "ปั๊มโซล่าเซลล์",
-  "ปั๊มจั่น (Jet Pump)",
-  "ไม่แน่ใจ / ไม่ทราบ",
-];
-
-const pumpBrands = [
-  "Grundfos",
-  "Franklin Electric",
-  "Lowara",
-  "Pentair",
-  "DAB",
-  "Simor",
-  "Elephant",
-  "CRI",
-  "อื่นๆ",
-  "ไม่แน่ใจ",
-];
 
 const problemOptions = [
   "ไม่มีน้ำใช้",
@@ -72,13 +40,6 @@ const problemOptions = [
   "หน้าปัด / สwitch เสีย",
   "ต้องการย้ายตำแหน่งปั๊ม",
   "อื่นๆ",
-];
-
-const urgencyOptions = [
-  { label: "ด่วนมาก (น้ำไม่ใช้เลย)", value: "URGENT" },
-  { label: "ด่วน (น้ำไหลอ่อน)", value: "HIGH" },
-  { label: "ปานกลาง", value: "MEDIUM" },
-  { label: "ไม่เร่งด่วน (สอบถามก่อน)", value: "LOW" },
 ];
 
 function toggleProblem(p: string) {
@@ -117,13 +78,7 @@ function removePhoto(idx: number) {
   photoPreview.value.splice(idx, 1);
 }
 
-function minDate(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split("T")[0];
-}
-
-async function resizeImage(file: File, maxW = 800): Promise<string> {
+function resizeImage(file: File, maxW = 800): Promise<string> {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -178,13 +133,7 @@ async function submit() {
         phone: form.value.phone,
         address: form.value.address || null,
         problems: form.value.problem_types,
-        detail: [
-          form.value.well_type ? `ประเภทบ่อ: ${form.value.well_type}` : "",
-          form.value.pump_type ? `ประเภทปั๊ม: ${form.value.pump_type}` : "",
-          form.value.pump_brand ? `ยี่ห้อปั๊ม: ${form.value.pump_brand}` : "",
-          form.value.urgency ? `ความเร่งด่วน: ${urgencyOptions.find((u) => u.value === form.value.urgency)?.label}` : "",
-          form.value.detail ? `รายละเอียดเพิ่มเติม: ${form.value.detail}` : "",
-        ].filter(Boolean).join("\n") || null,
+        detail: form.value.detail || null,
         photos: photoData.length > 0 ? photoData : null,
         line_user_id: lineUserId.value || null,
         line_display_name: profileName.value || null,
@@ -319,65 +268,6 @@ function loginWithLine() {
 
           <v-divider class="my-4" />
 
-          <!-- ประเภทบ่อ -->
-          <div class="field-group">
-            <div class="field-label">
-              <v-icon icon="mdi-water-well" size="16" class="mr-1" />
-              ประเภทบ่อ
-            </div>
-            <v-select
-              v-model="form.well_type"
-              :items="wellTypes"
-              placeholder="เลือกประเภทบ่อ"
-              variant="outlined"
-              density="comfortable"
-              rounded="lg"
-              hide-details
-              clearable
-              class="field-input"
-            />
-          </div>
-
-          <!-- ประเภทปั๊ม -->
-          <div class="field-group">
-            <div class="field-label">
-              <v-icon icon="mdi-pump" size="16" class="mr-1" />
-              ประเภทปั๊มน้ำ
-            </div>
-            <v-select
-              v-model="form.pump_type"
-              :items="pumpTypes"
-              placeholder="เลือกประเภทปั๊ม"
-              variant="outlined"
-              density="comfortable"
-              rounded="lg"
-              hide-details
-              clearable
-              class="field-input"
-            />
-          </div>
-
-          <!-- ยี่ห้อปั๊ม -->
-          <div class="field-group">
-            <div class="field-label">
-              <v-icon icon="mdi-tag-outline" size="16" class="mr-1" />
-              ยี่ห้อปั๊มน้ำ
-            </div>
-            <v-select
-              v-model="form.pump_brand"
-              :items="pumpBrands"
-              placeholder="เลือกยี่ห้อปั๊ม"
-              variant="outlined"
-              density="comfortable"
-              rounded="lg"
-              hide-details
-              clearable
-              class="field-input"
-            />
-          </div>
-
-          <v-divider class="my-4" />
-
           <!-- อาการที่พบ -->
           <div class="field-group">
             <div class="field-label">
@@ -451,29 +341,6 @@ function loginWithLine() {
               multiple
               style="display: none;"
               @change="onFileSelect"
-            />
-          </div>
-
-          <v-divider class="my-4" />
-
-          <!-- ความเร่งด่วน -->
-          <div class="field-group">
-            <div class="field-label">
-              <v-icon icon="mdi-clock-outline" size="16" class="mr-1" />
-              ความเร่งด่วน
-            </div>
-            <v-select
-              v-model="form.urgency"
-              :items="urgencyOptions"
-              item-title="label"
-              item-value="value"
-              placeholder="เลือกระดับความเร่งด่วน"
-              variant="outlined"
-              density="comfortable"
-              rounded="lg"
-              hide-details
-              clearable
-              class="field-input"
             />
           </div>
 
