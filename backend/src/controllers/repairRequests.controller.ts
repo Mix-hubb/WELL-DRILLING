@@ -55,7 +55,7 @@ async function attachRecords(rows: RepairRequest[], dbRows: any[]) {
   const ids = dbRows.map((r) => r.repair_id);
   if (!ids.length) return rows;
   const { rows: records } = await pool.query(
-    `SELECT * FROM repair_records WHERE repair_id = ANY($1::int[]) ORDER BY created_at DESC`,
+    `SELECT * FROM repair_records WHERE repair_id = ANY($1::uuid[]) ORDER BY created_at DESC`,
     [ids]
   );
   for (const row of rows) {
