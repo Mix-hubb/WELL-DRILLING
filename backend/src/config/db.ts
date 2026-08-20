@@ -9,9 +9,9 @@ export const pool = new Pool({
   password: process.env.DB_PASSWORD || "",
   database: process.env.DB_NAME || "postgres",
   max: 10,
-  family: 4,
   ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : undefined,
-});
+  ...(process.env.DB_FORCE_IPV4 === "true" ? { family: 4 } : {}),
+} as any);
 
 pool.on("error", (err) => {
   console.error("Unexpected PG pool error:", err);
