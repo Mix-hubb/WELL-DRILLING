@@ -218,8 +218,8 @@ export async function updateStatus(req: Request, res: Response) {
     sendTextToCustomer(customerId, "ขณะนี้ช่างกำลังดำเนินการซ่อมบำรุงให้ครับ กรุณารอสักครู่", "STATUS").catch(() => {});
   }
   if (customerId && status === "CLOSED") {
-    const liffUrl = process.env.LINE_LIFF_ID
-      ? `https://liff.line.me/${process.env.LINE_LIFF_ID}/repair-form`
+    const liffUrl = process.env.LINE_LIFF_ID_REPAIR
+      ? `https://liff.line.me/${process.env.LINE_LIFF_ID_REPAIR}/repair-form`
       : `${process.env.APP_URL || "http://localhost:5173"}/repair-form`;
     sendTextToCustomer(customerId, `การซ่อมบำรุงเสร็จเรียบร้อยแล้วครับ กรุณาอัปโหลดสลิปโอนเงินผ่านลิงก์นี้:\n${liffUrl}`, "STATUS").catch(() => {});
   }
