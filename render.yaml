@@ -20,7 +20,7 @@ services:
       - key: DB_SSL
         value: "true"
       - key: CORS_ORIGIN
-        value: https://well-drilling-api.onrender.com
+        value: https://well-drilling.vercel.app
       - key: LINE_CHANNEL_SECRET
         sync: false
       - key: LINE_CHANNEL_ACCESS_TOKEN
