@@ -200,13 +200,13 @@ async function handlePostback(userId: string, data: string) {
   if (!custResult.rows.length) return;
   const customerId = custResult.rows[0].customer_id;
 
-  const acceptDrillMatch = data.match(/^accept_drill_(\d+)$/);
-  const rejectDrillMatch = data.match(/^reject_drill_(\d+)$/);
-  const acceptRepairMatch = data.match(/^accept_repair_(\d+)$/);
-  const rejectRepairMatch = data.match(/^reject_repair_(\d+)$/);
+  const acceptDrillMatch = data.match(/^accept_drill_(.+)$/);
+  const rejectDrillMatch = data.match(/^reject_drill_(.+)$/);
+  const acceptRepairMatch = data.match(/^accept_repair_(.+)$/);
+  const rejectRepairMatch = data.match(/^reject_repair_(.+)$/);
 
   if (acceptDrillMatch) {
-    const requestId = Number(acceptDrillMatch[1]);
+    const requestId = acceptDrillMatch[1];
     await pool.query("UPDATE drilling_requests SET status = 'ACCEPTED' WHERE request_id = $1", [requestId]);
 
     const reqResult = await pool.query(
@@ -223,11 +223,11 @@ async function handlePostback(userId: string, data: string) {
 
     sendTextToCustomer(customerId, "ยอมรับเรียบร้อยครับ จะดำเนินการเข้าคิวเจาะให้ต่อไป", "STATUS").catch(() => {});
   } else if (rejectDrillMatch) {
-    const requestId = Number(rejectDrillMatch[1]);
+    const requestId = rejectDrillMatch[1];
     await pool.query("UPDATE drilling_requests SET status = 'REJECTED' WHERE request_id = $1", [requestId]);
     sendTextToCustomer(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งเจาะใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
   } else if (acceptRepairMatch) {
-    const repairId = Number(acceptRepairMatch[1]);
+    const repairId = acceptRepairMatch[1];
     await pool.query("UPDATE repair_requests SET status = 'ACCEPTED' WHERE repair_id = $1", [repairId]);
     await pool.query("UPDATE quotations SET status = 'ACCEPTED' WHERE kind = 'REPAIR' AND repair_request_id = $1", [repairId]);
 
@@ -238,7 +238,7 @@ async function handlePostback(userId: string, data: string) {
     const dateText = scheduledDate ? `วันที่ ${scheduledDate}` : "กำหนดนัดหมาย";
     sendTextToCustomer(customerId, `ยอมรับเรียบร้อยครับ กรุณาเตรียมตัวสำหรับการซ่อมบำรุง${dateText} ทีมงานจะติดต่อกลับเพื่อยืนยันอีกครั้ง`, "STATUS").catch(() => {});
   } else if (rejectRepairMatch) {
-    const repairId = Number(rejectRepairMatch[1]);
+    const repairId = rejectRepairMatch[1];
     await pool.query("UPDATE repair_requests SET status = 'REJECTED' WHERE repair_id = $1", [repairId]);
     await pool.query("UPDATE quotations SET status = 'REJECTED' WHERE kind = 'REPAIR' AND repair_request_id = $1", [repairId]);
     sendTextToCustomer(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งซ่อมใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
