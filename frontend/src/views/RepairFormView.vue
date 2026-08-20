@@ -64,6 +64,9 @@ async function submit() {
       throw new Error(body.error || `HTTP ${res.status}`);
     }
     success.value = true;
+    if (isLiffEnv.value) {
+      setTimeout(() => { liff.closeWindow(); }, 3000);
+    }
   } catch (e: any) {
     error.value = e.message || "เกิดข้อผิดพลาด";
   } finally {
@@ -89,10 +92,10 @@ async function submit() {
         <div class="success-icon-wrapper">
           <v-icon icon="mdi-check-circle" size="64" color="success" />
         </div>
-        <div class="text-h6 font-weight-bold mb-2" style="color: #2E2418;">ส่งคำร้องสำเร็จ</div>
+        <div class="text-h6 font-weight-bold mb-2" style="color: #2E2418;">กรอกข้อมูลสำเร็จ</div>
         <div class="text-body-2" style="color: #6A7A8A;">
-          เตรียมพร้อมสำหรับวันนัดหมายครับ<br />
-          ทีมงานจะตรวจสอบและติดต่อกลับโดยเร็ว
+          เราได้รับคำร้องของคุณแล้ว<br />
+          กรุณารอการตอบกลับจากทีมงาน
         </div>
       </div>
 

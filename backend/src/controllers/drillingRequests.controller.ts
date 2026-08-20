@@ -87,7 +87,7 @@ export async function create(req: Request, res: Response) {
   const newId = rows[0].request_id;
 
   if (source === "LINE") {
-    sendTextToCustomer(customer_id, "เตรียมพร้อมสำหรับวันนัดหมายครับ ทีมงานจะตรวจสอบและติดต่อกลับโดยเร็ว", "STATUS").catch(() => {});
+    sendTextToCustomer(customer_id, "เราได้รับคำร้องของคุณแล้ว กรุณารอการตอบกลับจากทีมงานครับ", "STATUS").catch(() => {});
   }
 
   const result = await pool.query(`${REQUEST_SELECT} WHERE r.request_id = $1`, [newId]);

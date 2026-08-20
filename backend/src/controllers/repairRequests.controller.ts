@@ -158,7 +158,7 @@ export async function createFromPublicForm(req: Request, res: Response) {
 
     await client.query("COMMIT");
 
-    sendTextToCustomer(customerId, "ได้รับแจ้งซ่อมเรียบร้อยแล้วครับ ทีมงานจะตรวจสอบและติดต่อกลับโดยเร็ว กรุณารอการติดต่อกลับครับ", "STATUS").catch(() => {});
+    sendTextToCustomer(customerId, "เราได้รับคำร้องซ่อมของคุณแล้ว กรุณารอการตอบกลับจากทีมงานครับ", "STATUS").catch(() => {});
 
     res.status(201).json({ repair_id: r.rows[0].repair_id, customer_id: customerId });
   } catch (err) {
