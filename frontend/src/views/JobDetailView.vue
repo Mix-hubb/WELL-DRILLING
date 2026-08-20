@@ -43,10 +43,10 @@ async function setStatus(status: DrillingJobStatus) {
 async function createWellLog(form: any) {
   if (!job.value) return;
   try {
-    const well = await wellsApi.create({ customer_id: job.value.customer_id, ...form });
+    await wellsApi.create({ customer_id: job.value.customer_id, ...form });
     showWellForm.value = false;
-    ui.notify("บันทึกข้อมูลบ่อบาดาลแล้ว ประกัน 2 ปีเริ่มนับจากวันเจาะเสร็จ", "success");
-    router.push(`/wells/${well.well_id}`);
+    await load();
+    ui.notify("บันทึกข้อมูลเรียบร้อยแล้ว", "success");
   } catch (e) { ui.notifyError(e); }
 }
 
