@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import { jobsApi } from "@/api/jobs";
 import { useUiStore } from "@/stores/ui";
 import type { DrillingJob, PumpCatalogModel } from "@/types";
@@ -11,7 +11,6 @@ import {
 } from "@/constants";
 
 const route  = useRoute();
-const router = useRouter();
 const ui     = useUiStore();
 
 const job = ref<DrillingJob | null>(null);
@@ -91,6 +90,8 @@ const form = ref({
   pumps:              [] as PumpEntry[],
   control_boxes:      [] as ControlBoxEntry[],
 });
+
+const saved = ref(false);
 
 onMounted(async () => {
   try {
@@ -273,8 +274,7 @@ async function submit() {
   submitting.value = true;
   try {
     await jobsApi.completeWell(job.value.job_id, buildPayload());
-    ui.notify("บันทึกข้อมูลบ่อบาดาลแล้ว", "success");
-    router.push("/repair-form");
+    saved.value = true;
   } catch (e) {
     ui.notifyError(e);
   } finally {
@@ -286,6 +286,11 @@ async function submit() {
 <template>
   <div style="max-width:560px;margin:0 auto">
     <div v-if="loading" class="text-center py-10 text-medium-emphasis">กำลังโหลด...</div>
+
+    <div v-else-if="saved" class="text-center py-16">
+      <v-icon icon="mdi-check-circle" size="80" color="success" class="mb-4" />
+      <div class="text-h5 font-weight-bold" style="color: #2E2418;">บันทึกสำเร็จ</div>
+    </div>
 
     <v-card v-else-if="job" class="pa-5">
       <div class="text-center mb-4">
