@@ -6,7 +6,6 @@ const form = ref({
   name: "",
   phone: "",
   address: "",
-  appointment_date: "",
 });
 
 const loading = ref(false);
@@ -46,12 +45,6 @@ function loginWithLine() {
   liff.login();
 }
 
-function minDate(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split("T")[0];
-}
-
 async function submit() {
   if (!form.value.name || !form.value.phone) {
     error.value = "กรุณากรอกชื่อและเบอร์โทรศัพท์";
@@ -68,7 +61,6 @@ async function submit() {
         name: form.value.name,
         phone: form.value.phone,
         address: form.value.address || null,
-        appointment_date: form.value.appointment_date || null,
         line_user_id: lineUserId.value || null,
         line_display_name: profileName.value || null,
         line_picture_url: profilePicture.value || null,
@@ -203,23 +195,6 @@ async function submit() {
               hide-details
               rows="2"
               auto-grow
-              class="field-input"
-            />
-          </div>
-
-          <div class="field-group">
-            <div class="field-label">
-              <v-icon icon="mdi-calendar-clock-outline" size="16" class="mr-1" />
-              วันที่ต้องการให้เข้าตรวจสอบ
-            </div>
-            <v-text-field
-              v-model="form.appointment_date"
-              type="date"
-              :min="minDate()"
-              variant="outlined"
-              density="comfortable"
-              rounded="lg"
-              hide-details
               class="field-input"
             />
           </div>
