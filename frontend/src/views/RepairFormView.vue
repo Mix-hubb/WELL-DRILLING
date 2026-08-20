@@ -20,6 +20,8 @@ const isLiffEnv = ref(false);
 const isLoggedIn = ref(false);
 const profileName = ref("");
 const profilePicture = ref("");
+const customerFound = ref(false);
+const checkingExisting = ref(false);
 
 const photos = ref<File[]>([]);
 const photoPreview = ref<string[]>([]);
@@ -105,14 +107,10 @@ function resizeImage(file: File, maxW = 800): Promise<string> {
 }
 
 const canSubmit = computed(() => {
-  return form.value.name && form.value.phone && form.value.problem_types.length > 0;
+  return form.value.problem_types.length > 0;
 });
 
 async function submit() {
-  if (!form.value.name || !form.value.phone) {
-    error.value = "กรุณากรอกชื่อและเบอร์โทรศัพท์";
-    return;
-  }
   if (form.value.problem_types.length === 0) {
     error.value = "กรุณาเลือกอาการที่พบอย่างน้อย 1 รายการ";
     return;
@@ -172,6 +170,7 @@ onMounted(async () => {
       profileName.value = profile?.displayName || "";
       profilePicture.value = profile?.pictureUrl || "";
       isLoggedIn.value = true;
+      await checkExistingCustomer();
     }
   } catch (e) {
     console.warn("LIFF init error:", e);
@@ -179,6 +178,29 @@ onMounted(async () => {
     liffReady.value = true;
   }
 });
+
+async function checkExistingCustomer() {
+  if (!lineUserId.value) return;
+  checkingExisting.value = true;
+  try {
+    const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4001/api";
+    const res = await fetch(`${BASE_URL}/public/customer-by-line?line_user_id=${encodeURIComponent(lineUserId.value)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.found && data.customer) {
+      customerFound.value = true;
+      form.value.name = data.customer.customer_name || profileName.value;
+      form.value.phone = data.customer.phone || "";
+      form.value.address = data.customer.address || "";
+    } else {
+      form.value.name = profileName.value;
+    }
+  } catch {
+    form.value.name = profileName.value;
+  } finally {
+    checkingExisting.value = false;
+  }
+}
 
 function loginWithLine() {
   liff.login();
@@ -231,44 +253,26 @@ function loginWithLine() {
         </v-btn>
       </div>
 
+      <!-- Checking existing -->
+      <div v-else-if="isLoggedIn && checkingExisting" class="form-card" style="text-align: center; padding: 48px 24px;">
+        <v-progress-circular indeterminate color="primary" size="48" />
+        <div class="text-body-2 mt-4" style="color: #6A7A8A;">กำลังตรวจสอบข้อมูล...</div>
+      </div>
+
       <!-- Form -->
       <div v-else-if="isLoggedIn" class="form-card">
         <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-4" rounded="lg">
           {{ error }}
         </v-alert>
 
+        <!-- แสดงข้อมูลลูกค้าอัตโนมัติ -->
+        <v-alert v-if="customerFound" type="info" variant="tonal" density="compact" rounded="lg" class="mb-4">
+          <div class="text-body-2"><strong>{{ form.name }}</strong></div>
+          <div v-if="form.phone" class="text-caption">{{ form.phone }}</div>
+          <div v-if="form.address" class="text-caption">{{ form.address }}</div>
+        </v-alert>
+
         <v-form @submit.prevent="submit">
-
-          <!-- ชื่อ -->
-          <div class="field-group">
-            <div class="field-label">
-              <v-icon icon="mdi-account-outline" size="16" class="mr-1" />
-              ชื่อ-นามสกุล
-              <span class="text-error ml-1">*</span>
-            </div>
-            <v-text-field v-model="form.name" placeholder="กรอกชื่อ-นามสกุล" variant="outlined" density="comfortable" rounded="lg" hide-details class="field-input" />
-          </div>
-
-          <!-- เบอร์โทร -->
-          <div class="field-group">
-            <div class="field-label">
-              <v-icon icon="mdi-phone-outline" size="16" class="mr-1" />
-              เบอร์โทรศัพท์
-              <span class="text-error ml-1">*</span>
-            </div>
-            <v-text-field v-model="form.phone" placeholder="เช่น 081-234-5678" variant="outlined" density="comfortable" rounded="lg" hide-details class="field-input" />
-          </div>
-
-          <!-- ที่อยู่ -->
-          <div class="field-group">
-            <div class="field-label">
-              <v-icon icon="mdi-map-marker-outline" size="16" class="mr-1" />
-              ที่อยู่ (จุดที่ต้องการซ่อม)
-            </div>
-            <v-textarea v-model="form.address" placeholder="กรอกที่อยู่" variant="outlined" density="comfortable" rounded="lg" hide-details rows="2" auto-grow class="field-input" />
-          </div>
-
-          <v-divider class="my-4" />
 
           <!-- อาการที่พบ -->
           <div class="field-group">
@@ -311,8 +315,6 @@ function loginWithLine() {
               class="field-input"
             />
           </div>
-
-          <v-divider class="my-4" />
 
           <!-- แนบรูปภาพ -->
           <div class="field-group">
