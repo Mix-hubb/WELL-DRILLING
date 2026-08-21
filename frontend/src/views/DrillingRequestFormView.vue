@@ -28,8 +28,9 @@ onMounted(async () => {
     return;
   }
   try {
+    isLiffEnv.value = true;
     await liff.init({ liffId });
-    if (liff.isInClient() || liff.isLoggedIn()) {
+    if (liff.isLoggedIn()) {
       isLiffEnv.value = true;
       const profile = await liff.getProfile();
       lineUserId.value = profile?.userId || null;
@@ -72,15 +73,6 @@ function loginWithLine() {
 
 function editForm() {
   existingCustomer.value = false;
-}
-
-async function testSubmit() {
-  const names = ["ทดสอบ ระบบ", "ทดสอบ SSE", "ลูกค้าทดสอบ", "Test User", "แจ้งทดสอบ"];
-  const phones = ["0812345678", "0899999999", "0811111111", "0822222222"];
-  form.value.name = names[Math.floor(Math.random() * names.length)];
-  form.value.phone = phones[Math.floor(Math.random() * phones.length)];
-  form.value.address = "ที่อยู่ทดสอบ SSE " + new Date().toLocaleTimeString("th-TH");
-  await submit();
 }
 
 async function submit() {
@@ -218,7 +210,7 @@ async function submit() {
       </div>
 
       <!-- Form -->
-      <div v-else-if="isLoggedIn || !isLiffEnv" class="form-card">
+      <div v-else-if="isLoggedIn" class="form-card">
         <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-4" rounded="lg">
           {{ error }}
         </v-alert>
@@ -273,21 +265,6 @@ async function submit() {
           >
             <v-icon icon="mdi-send-outline" class="mr-2" />
             ส่งคำร้อง
-          </v-btn>
-
-          <!-- TEST BUTTON — ลบออกหลังเทสเสร็จ -->
-          <v-btn
-            variant="text"
-            color="warning"
-            block
-            size="small"
-            rounded="lg"
-            class="mt-2"
-            :loading="loading"
-            @click="testSubmit"
-            prepend-icon="mdi-test-tube"
-          >
-            ทดสอบ (ส่งข้อมูลทดสอบ)
           </v-btn>
         </v-form>
       </div>
