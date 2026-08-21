@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { statsApi } from "@/api/stats";
 import { useUiStore } from "@/stores/ui";
+import { useSSE } from "@/composables/useSSE";
 import type { StatsOverview } from "@/types";
 import { JOB_STATUS_HEX } from "@/constants";
 import StatCard   from "@/components/StatCard.vue";
@@ -13,15 +14,25 @@ const ui     = useUiStore();
 const router = useRouter();
 const stats  = ref<StatsOverview | null>(null);
 const loading = ref(true);
+const { connect, on } = useSSE();
 
-onMounted(async () => {
+async function refreshStats() {
   try {
     stats.value = await statsApi.overview();
   } catch (e) {
     ui.notifyError(e);
-  } finally {
-    loading.value = false;
   }
+}
+
+onMounted(async () => {
+  await refreshStats();
+  loading.value = false;
+
+  connect();
+  on("JOB_CREATED", refreshStats);
+  on("JOB_STATUS_CHANGED", refreshStats);
+  on("DRILLING_REQUEST_CHANGED", refreshStats);
+  on("REPAIR_REQUEST_CHANGED", refreshStats);
 });
 
 const statusSegments = computed(() => {

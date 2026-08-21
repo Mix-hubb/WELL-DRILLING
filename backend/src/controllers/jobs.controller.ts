@@ -4,6 +4,7 @@ import { pool } from "../config/db";
 import { userFilter } from "../utils/userFilter";
 import { DrillingJob } from "../types";
 import { sendTextToCustomer } from "../services/line";
+import { broadcast } from "../services/sse";
 
 function generateMagicToken(): string {
   return "drill-" + crypto.randomBytes(16).toString("hex");
@@ -132,6 +133,7 @@ export async function create(req: Request, res: Response) {
   }
 
   const row = await getJobRow(newJobId);
+  broadcast({ type: "JOB_CREATED", data: { job_id: newJobId } });
   res.status(201).json(row);
 }
 
@@ -171,6 +173,7 @@ export async function updateStatus(req: Request, res: Response) {
   await pool.query("UPDATE drilling_jobs SET status = $1 WHERE job_id = $2", [status, id]);
   const row = await getJobRow(id);
   if (!row) return res.status(404).json({ error: "ไม่พบงานเจาะ" });
+  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: Number(id), status } });
   res.json(row);
 }
 
@@ -342,6 +345,7 @@ export async function completeWell(req: Request, res: Response) {
     ? `แจ้งผลการเจาะ: เจาะสำเร็จแล้ว บ่อ ${row?.well_name || ""}\nข้อมูลอยู่ในระบบแล้วครับ`
     : "แจ้งผลการเจาะ: การเจาะไม่สำเร็จ กรุณาติดต่อช่างเพื่อหารือแนวทางต่อไปครับ";
   sendTextToCustomer(job.customer_id, msg, "STATUS").catch(() => {});
+  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: Number(id), status: "SUCCESS" } });
 
   res.json(row);
 }

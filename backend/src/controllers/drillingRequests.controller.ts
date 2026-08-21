@@ -3,6 +3,7 @@ import { pool } from "../config/db";
 import { userFilter } from "../utils/userFilter";
 import { DrillingRequest } from "../types";
 import { sendTextToCustomer } from "../services/line";
+import { broadcast } from "../services/sse";
 
 const REQUEST_SELECT = `
   SELECT
@@ -137,6 +138,7 @@ export async function updateStatus(req: Request, res: Response) {
     `${REQUEST_SELECT} WHERE r.request_id = $1`, [id]
   );
   if (!rows.length) return res.status(404).json({ error: "ไม่พบคำร้องเจาะ" });
+  broadcast({ type: "DRILLING_REQUEST_CHANGED", data: { request_id: Number(id), status } });
   res.json(mapRow(rows[0]));
 }
 

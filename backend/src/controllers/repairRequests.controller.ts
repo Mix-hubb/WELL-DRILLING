@@ -4,6 +4,7 @@ import { pool } from "../config/db";
 import { userFilter } from "../utils/userFilter";
 import { RepairRequest } from "../types";
 import { sendTextToCustomer } from "../services/line";
+import { broadcast } from "../services/sse";
 
 function generateMagicToken(): string {
   return "repair-" + crypto.randomBytes(16).toString("hex");
@@ -233,6 +234,7 @@ export async function updateStatus(req: Request, res: Response) {
     sendTextToCustomer(customerId, `การซ่อมบำรุงเสร็จเรียบร้อยแล้วครับ กรุณาอัปโหลดสลิปโอนเงินผ่านลิงก์นี้:\n${liffUrl}`, "STATUS").catch(() => {});
   }
 
+  broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(id), status } });
   res.json(mapRow(rows[0]));
 }
 
