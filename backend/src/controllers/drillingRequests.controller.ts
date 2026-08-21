@@ -92,6 +92,7 @@ export async function create(req: Request, res: Response) {
   }
 
   const result = await pool.query(`${REQUEST_SELECT} WHERE r.request_id = $1`, [newId]);
+  broadcast({ type: "DRILLING_REQUEST_CREATED", data: { request_id: newId } });
   res.status(201).json(mapRow(result.rows[0]));
 }
 
@@ -195,6 +196,7 @@ export async function createFromPublicForm(req: Request, res: Response) {
 
     await client.query("COMMIT");
 
+    broadcast({ type: "DRILLING_REQUEST_CREATED", data: { request_id: r.rows[0].request_id } });
     sendTextToCustomer(customerId, "เตรียมพร้อมสำหรับวันนัดหมายครับ ทีมงานจะตรวจสอบและติดต่อกลับโดยเร็ว", "STATUS").catch(() => {});
 
     res.status(201).json({ request_id: r.rows[0].request_id, customer_id: customerId });

@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useDrillingRequestsStore } from "@/stores/drillingRequests";
 import { useJobsStore } from "@/stores/jobs";
 import { useUiStore } from "@/stores/ui";
+import { useSSE } from "@/composables/useSSE";
 import { quotationsApi } from "@/api/quotations";
 import { money, REQUEST_STATUS } from "@/constants";
 import type { DrillingRequest } from "@/types";
@@ -13,6 +14,11 @@ const router     = useRouter();
 const requests   = useDrillingRequestsStore();
 const jobsStore  = useJobsStore();
 const ui         = useUiStore();
+const { connect, on } = useSSE();
+
+async function refreshData() {
+  try { await requests.fetchAll(); } catch (e) { ui.notifyError(e); }
+}
 
 const search   = ref("");
 const quoteDlg = ref(false);
@@ -109,6 +115,11 @@ async function doDelete() {
 
 onMounted(async () => {
   try { await requests.fetchAll(); } catch (e) { ui.notifyError(e); }
+
+  connect();
+  on("DRILLING_REQUEST_CREATED", refreshData);
+  on("DRILLING_REQUEST_CHANGED", refreshData);
+  on("JOB_CREATED", refreshData);
 });
 
 const filtered = computed(() => {

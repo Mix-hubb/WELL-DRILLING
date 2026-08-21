@@ -31,7 +31,9 @@ export function useSSE() {
     const customEvents = [
       "JOB_CREATED",
       "JOB_STATUS_CHANGED",
+      "DRILLING_REQUEST_CREATED",
       "DRILLING_REQUEST_CHANGED",
+      "REPAIR_REQUEST_CREATED",
       "REPAIR_REQUEST_CHANGED",
     ];
     for (const eventType of customEvents) {

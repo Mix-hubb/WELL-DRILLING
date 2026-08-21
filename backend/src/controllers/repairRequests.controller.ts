@@ -108,6 +108,7 @@ export async function create(req: Request, res: Response) {
   );
   const newId = rows[0].repair_id;
   const result = await pool.query(`${REQUEST_SELECT} WHERE r.repair_id = $1`, [newId]);
+  broadcast({ type: "REPAIR_REQUEST_CREATED", data: { repair_id: newId } });
   res.status(201).json(mapRow(result.rows[0]));
 }
 
@@ -168,6 +169,7 @@ export async function createFromPublicForm(req: Request, res: Response) {
 
     await client.query("COMMIT");
 
+    broadcast({ type: "REPAIR_REQUEST_CREATED", data: { repair_id: r.rows[0].repair_id } });
     sendTextToCustomer(customerId, "เราได้รับคำร้องซ่อมของคุณแล้ว กรุณารอการตอบกลับจากทีมงานครับ", "STATUS").catch(() => {});
 
     res.status(201).json({ repair_id: r.rows[0].repair_id, customer_id: customerId });
