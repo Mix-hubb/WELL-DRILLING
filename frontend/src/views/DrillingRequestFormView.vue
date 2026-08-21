@@ -28,9 +28,9 @@ onMounted(async () => {
     return;
   }
   try {
-    isLiffEnv.value = true;
     await liff.init({ liffId });
-    if (liff.isLoggedIn()) {
+    if (liff.isInClient() || liff.isLoggedIn()) {
+      isLiffEnv.value = true;
       const profile = await liff.getProfile();
       lineUserId.value = profile?.userId || null;
       profileName.value = profile?.displayName || "";
@@ -218,7 +218,7 @@ async function submit() {
       </div>
 
       <!-- Form -->
-      <div v-else-if="isLoggedIn" class="form-card">
+      <div v-else-if="isLoggedIn || !isLiffEnv" class="form-card">
         <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-4" rounded="lg">
           {{ error }}
         </v-alert>
