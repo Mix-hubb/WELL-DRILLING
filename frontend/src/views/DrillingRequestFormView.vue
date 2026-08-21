@@ -31,6 +31,7 @@ onMounted(async () => {
     isLiffEnv.value = true;
     await liff.init({ liffId });
     if (liff.isLoggedIn()) {
+      isLiffEnv.value = true;
       const profile = await liff.getProfile();
       lineUserId.value = profile?.userId || null;
       profileName.value = profile?.displayName || "";

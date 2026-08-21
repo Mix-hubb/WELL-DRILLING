@@ -17,6 +17,8 @@ import uploadRoutes          from "./routes/upload.routes";
 import webhookRoutes         from "./routes/webhooks.routes";
 import { authMiddleware }    from "./middleware/auth";
 import { asyncHandler }      from "./utils/asyncHandler";
+import { verifyToken }       from "./middleware/auth";
+import { addClient, clientCount } from "./services/sse";
 import * as jobsCtrl         from "./controllers/jobs.controller";
 import * as repairCtrl       from "./controllers/repairRequests.controller";
 import * as drillingReqCtrl  from "./controllers/drillingRequests.controller";
@@ -66,6 +68,22 @@ app.post("/api/repair-requests/:id/records", asyncHandler(repairCtrl.addRecord))
 app.use("/api/pump-catalog", pumpCatalogRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/webhooks", webhookRoutes);
+
+// SSE endpoint — real-time dashboard updates
+app.get("/api/events", (req, res) => {
+  const token = req.query.token as string;
+  if (!token) {
+    return res.status(401).json({ error: "ต้องระบุ token" });
+  }
+  try {
+    verifyToken(token);
+  } catch {
+    return res.status(401).json({ error: "Token ไม่ถูกต้องหรือหมดอายุ" });
+  }
+  const ok = addClient(res);
+  if (!ok) return;
+  req.on("close", () => {});
+});
 
 // Protected routes
 app.use("/api/customers",         authMiddleware, customersRoutes);

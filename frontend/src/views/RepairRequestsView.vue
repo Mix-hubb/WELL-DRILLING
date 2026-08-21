@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useRepairRequestsStore } from "@/stores/repairRequests";
 import { useUiStore } from "@/stores/ui";
+import { useSSE } from "@/composables/useSSE";
 import { quotationsApi } from "@/api/quotations";
 import { repairRequestsApi } from "@/api/repairRequests";
 import type { RepairRequest } from "@/types";
@@ -13,6 +14,11 @@ import DrillerLinkChip from "@/components/DrillerLinkChip.vue";
 const router   = useRouter();
 const requests = useRepairRequestsStore();
 const ui       = useUiStore();
+const { connect, on } = useSSE();
+
+async function refreshData() {
+  try { await requests.fetchAll(); } catch (e) { ui.notifyError(e); }
+}
 
 const search   = ref("");
 const quoteDlg = ref(false);
@@ -34,6 +40,10 @@ const selectMode = ref<"edit" | "delete">("edit");
 
 onMounted(async () => {
   try { await requests.fetchAll(); } catch (e) { ui.notifyError(e); }
+
+  connect();
+  on("REPAIR_REQUEST_CREATED", refreshData);
+  on("REPAIR_REQUEST_CHANGED", refreshData);
 });
 
 const STATUS_PRIORITY: Record<string, number> = {

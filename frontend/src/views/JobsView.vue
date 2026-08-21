@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useJobsStore }      from "@/stores/jobs";
 import { useCustomersStore } from "@/stores/customers";
 import { useUiStore }        from "@/stores/ui";
+import { useSSE }            from "@/composables/useSSE";
 import { jobsApi }           from "@/api/jobs";
 import type { DrillingJob }  from "@/types";
 import { JOB_STATUS }        from "@/constants";
@@ -15,6 +16,11 @@ const router          = useRouter();
 const jobsStore       = useJobsStore();
 const customersStore  = useCustomersStore();
 const ui              = useUiStore();
+const { connect, on } = useSSE();
+
+async function refreshData() {
+  try { await Promise.all([jobsStore.fetchAll(), customersStore.fetchAll()]); } catch (e) { ui.notifyError(e); }
+}
 
 const tab      = ref("ALL");
 const search   = ref("");
@@ -34,6 +40,10 @@ onMounted(async () => {
   try {
     await Promise.all([jobsStore.fetchAll(), customersStore.fetchAll()]);
   } catch (e) { ui.notifyError(e); }
+
+  connect();
+  on("JOB_CREATED", refreshData);
+  on("JOB_STATUS_CHANGED", refreshData);
 });
 
 const statusTabs = ["QUEUED", "DRILLING", "SUCCESS", "FAILED"] as const;

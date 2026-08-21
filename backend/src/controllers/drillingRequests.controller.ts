@@ -3,6 +3,7 @@ import { pool } from "../config/db";
 import { userFilter } from "../utils/userFilter";
 import { DrillingRequest } from "../types";
 import { sendTextToCustomer } from "../services/line";
+import { broadcast } from "../services/sse";
 
 const REQUEST_SELECT = `
   SELECT
@@ -91,6 +92,7 @@ export async function create(req: Request, res: Response) {
   }
 
   const result = await pool.query(`${REQUEST_SELECT} WHERE r.request_id = $1`, [newId]);
+  broadcast({ type: "DRILLING_REQUEST_CREATED", data: { request_id: newId } });
   res.status(201).json(mapRow(result.rows[0]));
 }
 
@@ -137,6 +139,7 @@ export async function updateStatus(req: Request, res: Response) {
     `${REQUEST_SELECT} WHERE r.request_id = $1`, [id]
   );
   if (!rows.length) return res.status(404).json({ error: "ไม่พบคำร้องเจาะ" });
+  broadcast({ type: "DRILLING_REQUEST_CHANGED", data: { request_id: Number(id), status } });
   res.json(mapRow(rows[0]));
 }
 
@@ -193,6 +196,7 @@ export async function createFromPublicForm(req: Request, res: Response) {
 
     await client.query("COMMIT");
 
+    broadcast({ type: "DRILLING_REQUEST_CREATED", data: { request_id: r.rows[0].request_id } });
     sendTextToCustomer(customerId, "เตรียมพร้อมสำหรับวันนัดหมายครับ ทีมงานจะตรวจสอบและติดต่อกลับโดยเร็ว", "STATUS").catch(() => {});
 
     res.status(201).json({ request_id: r.rows[0].request_id, customer_id: customerId });

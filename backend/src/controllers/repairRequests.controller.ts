@@ -4,6 +4,7 @@ import { pool } from "../config/db";
 import { userFilter } from "../utils/userFilter";
 import { RepairRequest } from "../types";
 import { sendTextToCustomer } from "../services/line";
+import { broadcast } from "../services/sse";
 
 function generateMagicToken(): string {
   return "repair-" + crypto.randomBytes(16).toString("hex");
@@ -107,6 +108,7 @@ export async function create(req: Request, res: Response) {
   );
   const newId = rows[0].repair_id;
   const result = await pool.query(`${REQUEST_SELECT} WHERE r.repair_id = $1`, [newId]);
+  broadcast({ type: "REPAIR_REQUEST_CREATED", data: { repair_id: newId } });
   res.status(201).json(mapRow(result.rows[0]));
 }
 
@@ -167,6 +169,7 @@ export async function createFromPublicForm(req: Request, res: Response) {
 
     await client.query("COMMIT");
 
+    broadcast({ type: "REPAIR_REQUEST_CREATED", data: { repair_id: r.rows[0].repair_id } });
     sendTextToCustomer(customerId, "เราได้รับคำร้องซ่อมของคุณแล้ว กรุณารอการตอบกลับจากทีมงานครับ", "STATUS").catch(() => {});
 
     res.status(201).json({ repair_id: r.rows[0].repair_id, customer_id: customerId });
@@ -233,6 +236,7 @@ export async function updateStatus(req: Request, res: Response) {
     sendTextToCustomer(customerId, `การซ่อมบำรุงเสร็จเรียบร้อยแล้วครับ กรุณาอัปโหลดสลิปโอนเงินผ่านลิงก์นี้:\n${liffUrl}`, "STATUS").catch(() => {});
   }
 
+  broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(id), status } });
   res.json(mapRow(rows[0]));
 }
 
