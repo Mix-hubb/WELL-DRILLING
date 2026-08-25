@@ -10,13 +10,20 @@ const ui = useUiStore();
 
 const fullName = ref("");
 const email = ref("");
+const phone = ref("");
 const password = ref("");
 const confirmPassword = ref("");
 const loading = ref(false);
 const showPassword = ref(false);
 
+const requiredField = (msg: string) => (v: string) => !!v || msg;
+const validEmail = (msg: string) => (v: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || msg;
+const validPhone = (msg: string) => (v: string) =>
+  /^\d{9,10}$/.test(v.replace(/[-\s]/g, "")) || msg;
+
 async function handleRegister() {
-  if (!fullName.value || !email.value || !password.value) {
+  if (!fullName.value || !email.value || !phone.value || !password.value) {
     ui.notify("กรุณากรอกข้อมูลให้ครบทุกช่อง", "warning");
     return;
   }
@@ -31,7 +38,7 @@ async function handleRegister() {
 
   loading.value = true;
   try {
-    await auth.register(email.value, password.value, fullName.value);
+    await auth.register(email.value, password.value, fullName.value, phone.value);
     ui.notify("ลงทะเบียนสำเร็จ", "success");
     router.push("/dashboard");
   } catch (err) {
@@ -70,6 +77,18 @@ async function handleRegister() {
                 prepend-inner-icon="mdi-email-outline"
                 variant="outlined"
                 density="comfortable"
+                :rules="[requiredField('กรุณากรอกอีเมล'), validEmail('รูปแบบอีเมลไม่ถูกต้อง')]"
+                class="mb-2"
+              />
+              <v-text-field
+                v-model="phone"
+                label="เบอร์โทรศัพท์"
+                type="tel"
+                prepend-inner-icon="mdi-phone-outline"
+                variant="outlined"
+                density="comfortable"
+                hint="สำหรับกู้คืนรหัสผ่าน"
+                :rules="[requiredField('กรุณากรอกเบอร์โทรศัพท์'), validPhone('เบอร์โทรศัพท์ต้องเป็นตัวเลข 9-10 หลัก')]"
                 class="mb-2"
               />
               <v-text-field
