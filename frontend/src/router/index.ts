@@ -57,6 +57,11 @@ const routes = [
     props: true,
     meta: { hidden: true },
   },
+  {
+    path: "/settings", name: "settings",
+    component: () => import("@/views/SettingsView.vue"),
+    meta: { label: "ตั้งค่าระบบ", icon: "mdi-cog-outline" },
+  },
 
   // ===== ลูกค้า (public) =====
   {

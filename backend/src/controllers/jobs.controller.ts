@@ -133,7 +133,7 @@ export async function create(req: Request, res: Response) {
   }
 
   const row = await getJobRow(newJobId);
-  broadcast({ type: "JOB_CREATED", data: { job_id: newJobId } });
+  broadcast({ type: "JOB_CREATED", data: { job_id: newJobId }, orgId: req.user?.orgId });
   res.status(201).json(row);
 }
 
@@ -173,7 +173,7 @@ export async function updateStatus(req: Request, res: Response) {
   await pool.query("UPDATE drilling_jobs SET status = $1 WHERE job_id = $2", [status, id]);
   const row = await getJobRow(id);
   if (!row) return res.status(404).json({ error: "ไม่พบงานเจาะ" });
-  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: Number(id), status } });
+  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: Number(id), status }, orgId: req.user?.orgId });
   res.json(row);
 }
 
@@ -345,7 +345,7 @@ export async function completeWell(req: Request, res: Response) {
     ? `แจ้งผลการเจาะ: เจาะสำเร็จแล้ว บ่อ ${row?.well_name || ""}\nข้อมูลอยู่ในระบบแล้วครับ`
     : "แจ้งผลการเจาะ: การเจาะไม่สำเร็จ กรุณาติดต่อช่างเพื่อหารือแนวทางต่อไปครับ";
   sendTextToCustomer(job.customer_id, msg, "STATUS").catch(() => {});
-  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: Number(id), status: "SUCCESS" } });
+  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: Number(id), status: "SUCCESS" }, orgId: req.user?.orgId });
 
   res.json(row);
 }

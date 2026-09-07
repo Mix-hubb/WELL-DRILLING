@@ -15,6 +15,7 @@ import repairRecordsRoutes   from "./routes/repairRecords.routes";
 import pumpCatalogRoutes     from "./routes/pumpCatalog.routes";
 import uploadRoutes          from "./routes/upload.routes";
 import webhookRoutes         from "./routes/webhooks.routes";
+import lineSettingsRoutes     from "./routes/lineSettings.routes";
 import { authMiddleware }    from "./middleware/auth";
 import { asyncHandler }      from "./utils/asyncHandler";
 import { verifyToken }       from "./middleware/auth";
@@ -75,12 +76,14 @@ app.get("/api/events", (req, res) => {
   if (!token) {
     return res.status(401).json({ error: "ต้องระบุ token" });
   }
+  let orgId: string | null | undefined;
   try {
-    verifyToken(token);
+    const decoded = verifyToken(token);
+    orgId = decoded.orgId;
   } catch {
     return res.status(401).json({ error: "Token ไม่ถูกต้องหรือหมดอายุ" });
   }
-  const ok = addClient(res);
+  const ok = addClient(res, undefined, orgId);
   if (!ok) return;
   req.on("close", () => {});
 });
@@ -94,6 +97,7 @@ app.use("/api/drilling-requests", authMiddleware, drillingRequestsRoutes);
 app.use("/api/repair-requests",   authMiddleware, repairRequestsRoutes);
 app.use("/api/quotations",        authMiddleware, quotationsRoutes);
 app.use("/api/repair-records",    authMiddleware, repairRecordsRoutes);
+app.use("/api/line-settings",     authMiddleware, lineSettingsRoutes);
 
 // centralized error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

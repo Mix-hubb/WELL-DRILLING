@@ -3,12 +3,13 @@ import { Response } from "express";
 export interface SSEEvent {
   type: string;
   data: any;
+  orgId?: string | null;
 }
 
 const MAX_CLIENTS = 50;
 const HEARTBEAT_INTERVAL = 30_000;
 
-const clients = new Map<Response, { userId?: string; lastPing: number }>();
+const clients = new Map<Response, { userId?: string; orgId?: string | null; lastPing: number }>();
 let heartbeatTimer: NodeJS.Timeout | null = null;
 
 function startHeartbeat() {
@@ -37,7 +38,7 @@ function stopHeartbeat() {
   }
 }
 
-export function addClient(res: Response, userId?: string): boolean {
+export function addClient(res: Response, userId?: string, orgId?: string | null): boolean {
   if (clients.size >= MAX_CLIENTS) {
     res.status(429).json({ error: "เชื่อมต่อจำนวนสูงสุดแล้ว" });
     return false;
@@ -52,7 +53,7 @@ export function addClient(res: Response, userId?: string): boolean {
 
   res.write(": connected\n\n");
 
-  clients.set(res, { userId, lastPing: Date.now() });
+  clients.set(res, { userId, orgId, lastPing: Date.now() });
 
   res.on("close", () => {
     removeClient(res);
@@ -69,11 +70,23 @@ export function removeClient(res: Response) {
 
 export function broadcast(event: SSEEvent) {
   const payload = `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`;
-  for (const [res] of clients) {
-    try {
-      res.write(payload);
-    } catch {
-      removeClient(res);
+  if (event.orgId) {
+    for (const [res, meta] of clients) {
+      if (meta.orgId === event.orgId) {
+        try {
+          res.write(payload);
+        } catch {
+          removeClient(res);
+        }
+      }
+    }
+  } else {
+    for (const [res] of clients) {
+      try {
+        res.write(payload);
+      } catch {
+        removeClient(res);
+      }
     }
   }
 }
