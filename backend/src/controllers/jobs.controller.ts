@@ -213,10 +213,9 @@ export async function completeWell(req: Request, res: Response) {
   }
 
   const client = await pool.connect();
+  let wellId = job.well_id;
   try {
     await client.query("BEGIN");
-
-    let wellId = job.well_id;
     if (!wellId) {
       const wellResult = (result === "FAIL" || result === "FAILED") ? "FAIL" : "SUCCESS";
       const w = await client.query(
@@ -346,6 +345,7 @@ export async function completeWell(req: Request, res: Response) {
     : "แจ้งผลการเจาะ: การเจาะไม่สำเร็จ กรุณาติดต่อช่างเพื่อหารือแนวทางต่อไปครับ";
   sendTextToCustomer(job.customer_id, msg, "STATUS").catch(() => {});
   broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: Number(id), status: "SUCCESS" }, orgId: req.user?.orgId });
+  broadcast({ type: "WELL_CREATED", data: { well_id: wellId, customer_id: job.customer_id }, orgId: req.user?.orgId });
 
   res.json(row);
 }

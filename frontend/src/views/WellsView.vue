@@ -4,18 +4,29 @@ import { useRouter } from "vue-router";
 import { useCustomersStore } from "@/stores/customers";
 import { useWellsStore } from "@/stores/wells";
 import { useUiStore } from "@/stores/ui";
+import { useSSE } from "@/composables/useSSE";
 
 const router = useRouter();
 const customersStore = useCustomersStore();
 const wellsStore = useWellsStore();
 const ui = useUiStore();
+const { connect, on } = useSSE();
 
 const search = ref("");
 
-onMounted(async () => {
+async function refresh() {
   try {
     await Promise.all([customersStore.fetchAll(), wellsStore.fetchAll()]);
   } catch (e) { ui.notifyError(e); }
+}
+
+onMounted(async () => {
+  await refresh();
+  connect();
+  on("WELL_CREATED", refresh);
+  on("WELL_UPDATED", refresh);
+  on("DRILLING_REQUEST_CHANGED", refresh);
+  on("REPAIR_REQUEST_CHANGED", refresh);
 });
 
 const filtered = computed(() => {

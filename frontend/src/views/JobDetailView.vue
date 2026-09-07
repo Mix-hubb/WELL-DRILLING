@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { jobsApi }       from "@/api/jobs";
 import { wellsApi }      from "@/api/wells";
 import { useUiStore }    from "@/stores/ui";
+import { useSSE }        from "@/composables/useSSE";
 import type { DrillingJob, DrillingJobStatus } from "@/types";
 import { JOB_STATUS } from "@/constants";
 import StatusChip      from "@/components/StatusChip.vue";
@@ -13,6 +14,7 @@ import WellLogFormDialog from "@/components/forms/WellLogFormDialog.vue";
 const route  = useRoute();
 const router = useRouter();
 const ui     = useUiStore();
+const { connect, on } = useSSE();
 
 const job          = ref<DrillingJob | null>(null);
 const wellId       = ref<number | null>(null);
@@ -30,7 +32,14 @@ async function load() {
   }
 }
 
-onMounted(load);
+onMounted(async () => {
+  await load();
+  connect();
+  on("JOB_STATUS_CHANGED", (data) => {
+    if (data.job_id === Number(route.params.id)) load();
+  });
+  on("WELL_CREATED", () => load());
+});
 
 async function setStatus(status: DrillingJobStatus) {
   if (!job.value) return;
