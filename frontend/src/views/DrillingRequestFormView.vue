@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import liff from "@line/liff";
 
 const form = ref({
   name: "",
@@ -16,11 +17,10 @@ const isLiffEnv = ref(false);
 const isLoggedIn = ref(false);
 const profileName = ref("");
 const profilePicture = ref("");
+const actualLiffId = ref<string | null>(null);
 
 const existingCustomer = ref(false);
 const checkingExisting = ref(false);
-
-const LIFF_BASE = "https://liff.line.me/2011186152-nmGNOupm";
 
 onMounted(async () => {
   const liffId = import.meta.env.VITE_LIFF_ID_DRILLING || "";
@@ -29,11 +29,11 @@ onMounted(async () => {
     return;
   }
   try {
-    const liffModule = await import("@line/liff");
-    const liff = liffModule.default;
-    await liff.init({ liffId });
     isLiffEnv.value = true;
+    await liff.init({ liffId });
     if (liff.isLoggedIn()) {
+      isLiffEnv.value = true;
+      actualLiffId.value = liff.getId();
       const profile = await liff.getProfile();
       lineUserId.value = profile?.userId || null;
       profileName.value = profile?.displayName || "";
@@ -47,10 +47,6 @@ onMounted(async () => {
     liffReady.value = true;
   }
 });
-
-function openLiff() {
-  window.location.href = `${LIFF_BASE}/request-drill`;
-}
 
 async function checkExistingCustomer() {
   if (!lineUserId.value) return;
@@ -74,7 +70,7 @@ async function checkExistingCustomer() {
 }
 
 function loginWithLine() {
-  import("@line/liff").then((m) => m.default.login());
+  liff.login();
 }
 
 function editForm() {
@@ -100,6 +96,7 @@ async function submit() {
         line_user_id: lineUserId.value || null,
         line_display_name: profileName.value || null,
         line_picture_url: profilePicture.value || null,
+        liff_id: actualLiffId.value || import.meta.env.VITE_LIFF_ID_DRILLING || null,
       }),
     });
     if (!res.ok) {
@@ -108,7 +105,7 @@ async function submit() {
     }
     success.value = true;
     if (isLiffEnv.value) {
-      setTimeout(() => { import("@line/liff").then((m) => m.default.closeWindow()); }, 3000);
+      setTimeout(() => { liff.closeWindow(); }, 3000);
     }
   } catch (e: any) {
     error.value = e.message || "เกิดข้อผิดพลาด";
@@ -145,21 +142,6 @@ async function submit() {
       <div v-else-if="!liffReady" class="form-card" style="text-align: center; padding: 48px 24px;">
         <v-progress-circular indeterminate color="primary" size="48" />
         <div class="text-body-2 mt-4" style="color: #6A7A8A;">กำลังเชื่อมต่อ...</div>
-      </div>
-
-      <!-- Not in LIFF — redirect to LIFF -->
-      <div v-else-if="!isLiffEnv" class="form-card" style="text-align: center; padding: 48px 24px;">
-        <div class="header-icon" style="margin-bottom: 20px;">
-          <v-icon icon="mdi-cellphone-link" size="40" color="primary" />
-        </div>
-        <div class="text-h6 font-weight-bold mb-2" style="color: #2E2418;">เปิดจากแอป LINE</div>
-        <div class="text-body-2 mb-6" style="color: #6A7A8A;">
-          กรุณาเปิดลิงก์นี้จาก Rich Menu ใน LINE<br />เพื่อเข้าสู่ระบบด้วยบัญชี LINE
-        </div>
-        <v-btn color="#06C755" size="x-large" rounded="lg" elevation="0" class="submit-btn" @click="openLiff">
-          <v-icon icon="mdi-open-in-new" class="mr-2" />
-          เปิดผ่าน LINE
-        </v-btn>
       </div>
 
       <!-- Login with LINE -->
