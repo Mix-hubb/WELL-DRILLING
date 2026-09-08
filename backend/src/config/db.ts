@@ -12,7 +12,9 @@ export const pool = new Pool({
         password: process.env.DB_PASSWORD || "",
         database: process.env.DB_NAME || "postgres",
       }),
-  max: 10,
+  max: 20,
+  connectionTimeoutMillis: 5000,
+  idleTimeoutMillis: 10000,
   ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : undefined,
   ...(process.env.DB_FORCE_IPV4 === "true" ? { family: 4 } : {}),
 } as any);

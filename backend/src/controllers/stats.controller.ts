@@ -6,68 +6,71 @@ import { StatsOverview } from "../types";
 export async function overview(req: Request, res: Response) {
   const { sql, params } = userFilter(req);
 
-  const reqCounts = await pool.query(`
-    SELECT
-      COUNT(*) FILTER (WHERE r.status = 'NEW')      AS new_count,
-      COUNT(*) FILTER (WHERE r.status = 'QUOTED')    AS quoted_count,
-      COUNT(*) FILTER (WHERE r.status = 'ACCEPTED')  AS accepted_count
-    FROM drilling_requests r
-    JOIN customers c ON c.customer_id = r.customer_id
-    WHERE 1=1 ${sql}
-  `, params);
+  const [reqCounts, jobCounts, repairCounts, wellAgg, warrantyCounts, recentJobs] =
+    await Promise.all([
+      pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE r.status = 'NEW')      AS new_count,
+          COUNT(*) FILTER (WHERE r.status = 'QUOTED')    AS quoted_count,
+          COUNT(*) FILTER (WHERE r.status = 'ACCEPTED')  AS accepted_count
+        FROM drilling_requests r
+        JOIN customers c ON c.customer_id = r.customer_id
+        WHERE 1=1 ${sql}
+      `, params),
 
-  const jobCounts = await pool.query(`
-    SELECT
-      COUNT(*) FILTER (WHERE j.status = 'QUEUED')    AS queued,
-      COUNT(*) FILTER (WHERE j.status = 'DRILLING')  AS drilling,
-      COUNT(*) FILTER (WHERE j.status = 'SUCCESS')   AS success,
-      COUNT(*) FILTER (WHERE j.status = 'FAILED')    AS failed,
-      COUNT(*) FILTER (WHERE j.status = 'CLOSED')    AS closed,
-      COUNT(*)                                        AS total
-    FROM drilling_jobs j
-    JOIN customers c ON c.customer_id = j.customer_id
-    WHERE 1=1 ${sql}
-  `, params);
+      pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE j.status = 'QUEUED')    AS queued,
+          COUNT(*) FILTER (WHERE j.status = 'DRILLING')  AS drilling,
+          COUNT(*) FILTER (WHERE j.status = 'SUCCESS')   AS success,
+          COUNT(*) FILTER (WHERE j.status = 'FAILED')    AS failed,
+          COUNT(*) FILTER (WHERE j.status = 'CLOSED')    AS closed,
+          COUNT(*)                                        AS total
+        FROM drilling_jobs j
+        JOIN customers c ON c.customer_id = j.customer_id
+        WHERE 1=1 ${sql}
+      `, params),
 
-  const repairCounts = await pool.query(`
-    SELECT
-      COUNT(*) FILTER (WHERE r.status = 'NEW')                          AS new_count,
-      COUNT(*) FILTER (WHERE r.status IN ('SCHEDULED','IN_PROGRESS'))    AS in_progress_count,
-      COUNT(*) FILTER (WHERE r.status = 'COMPLETED')                     AS completed_count
-    FROM repair_requests r
-    JOIN customers c ON c.customer_id = r.customer_id
-    WHERE 1=1 ${sql}
-  `, params);
+      pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE r.status = 'NEW')                          AS new_count,
+          COUNT(*) FILTER (WHERE r.status IN ('SCHEDULED','IN_PROGRESS'))    AS in_progress_count,
+          COUNT(*) FILTER (WHERE r.status = 'COMPLETED')                     AS completed_count
+        FROM repair_requests r
+        JOIN customers c ON c.customer_id = r.customer_id
+        WHERE 1=1 ${sql}
+      `, params),
 
-  const wellAgg = await pool.query(`
-    SELECT
-      COUNT(*)                         AS well_count,
-      COALESCE(AVG(w.total_depth_m),0) AS avg_depth,
-      COALESCE(MAX(w.total_depth_m),0) AS max_depth,
-      COALESCE(AVG(w.water_quantity_m3hr),0) AS avg_water
-    FROM wells w
-    JOIN customers c ON c.customer_id = w.customer_id
-    WHERE 1=1 ${sql}
-  `, params);
+      pool.query(`
+        SELECT
+          COUNT(*)                         AS well_count,
+          COALESCE(AVG(w.total_depth_m),0) AS avg_depth,
+          COALESCE(MAX(w.total_depth_m),0) AS max_depth,
+          COALESCE(AVG(w.water_quantity_m3hr),0) AS avg_water
+        FROM wells w
+        JOIN customers c ON c.customer_id = w.customer_id
+        WHERE 1=1 ${sql}
+      `, params),
 
-  const warrantyCounts = await pool.query(`
-    SELECT
-      COUNT(*) FILTER (WHERE w.warranty_expire_date >= CURRENT_DATE)                                                  AS warranty_active,
-      COUNT(*) FILTER (WHERE w.warranty_expire_date >= CURRENT_DATE AND (w.warranty_expire_date - CURRENT_DATE) <= 30) AS warranty_expiring_soon,
-      COUNT(*) FILTER (WHERE w.warranty_expire_date < CURRENT_DATE)                                                    AS warranty_expired
-    FROM wells w
-    JOIN customers c ON c.customer_id = w.customer_id
-    WHERE w.warranty_expire_date IS NOT NULL ${sql}
-  `, params);
+      pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE w.warranty_expire_date >= CURRENT_DATE)                                                  AS warranty_active,
+          COUNT(*) FILTER (WHERE w.warranty_expire_date >= CURRENT_DATE AND (w.warranty_expire_date - CURRENT_DATE) <= 30) AS warranty_expiring_soon,
+          COUNT(*) FILTER (WHERE w.warranty_expire_date < CURRENT_DATE)                                                    AS warranty_expired
+        FROM wells w
+        JOIN customers c ON c.customer_id = w.customer_id
+        WHERE w.warranty_expire_date IS NOT NULL ${sql}
+      `, params),
 
-  const recentJobs = await pool.query(`
-    SELECT j.job_id, j.job_title, j.status, j.scheduled_date, c.customer_name
-    FROM drilling_jobs j
-    JOIN customers c ON c.customer_id = j.customer_id
-    WHERE 1=1 ${sql}
-    ORDER BY j.created_at DESC
-    LIMIT 6
-  `, params);
+      pool.query(`
+        SELECT j.job_id, j.job_title, j.status, j.scheduled_date, c.customer_name
+        FROM drilling_jobs j
+        JOIN customers c ON c.customer_id = j.customer_id
+        WHERE 1=1 ${sql}
+        ORDER BY j.created_at DESC
+        LIMIT 6
+      `, params),
+    ]);
 
   const overview: StatsOverview = {
     requests: {

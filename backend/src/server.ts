@@ -30,10 +30,20 @@ app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
 app.use(express.json({ verify: (_req, _res, buf) => { (_req as any).rawBody = buf; } }));
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
+// Request timeout middleware (30s)
+app.use((_req, res, next) => {
+  res.setTimeout(30000, () => {
+    if (!res.headersSent) {
+      res.status(504).json({ error: "Request timeout" });
+    }
+  });
+  next();
+});
+
 app.get("/api/health", async (_req, res) => {
   try {
     const { pool } = await import("./config/db");
-    const result = await pool.query("SELECT 1 as ok");
+    await pool.query("SELECT 1 as ok");
     res.json({ ok: true, db: "connected", time: new Date().toISOString() });
   } catch (err: any) {
     res.status(500).json({ ok: false, db: "disconnected", error: err.message, code: err.code });
@@ -70,8 +80,12 @@ app.use("/api/pump-catalog", pumpCatalogRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/webhooks", webhookRoutes);
 
-// SSE endpoint — real-time dashboard updates
+// SSE endpoint — real-time dashboard updates (cap at 50 concurrent)
+const MAX_SSE_CLIENTS = 50;
 app.get("/api/events", (req, res) => {
+  if (clientCount() >= MAX_SSE_CLIENTS) {
+    return res.status(429).json({ error: "Too many SSE connections" });
+  }
   const token = req.query.token as string;
   if (!token) {
     return res.status(401).json({ error: "ต้องระบุ token" });
@@ -107,5 +121,25 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 
 process.on("unhandledRejection", (reason) => console.error("Unhandled rejection:", reason));
 
+// Graceful shutdown
+async function shutdown(signal: string) {
+  console.log(`\n${signal} received. Shutting down gracefully...`);
+  const { pool } = await import("./config/db");
+  server.close(() => {
+    console.log("HTTP server closed.");
+    pool.end().then(() => {
+      console.log("Database pool closed.");
+      process.exit(0);
+    });
+  });
+  setTimeout(() => {
+    console.error("Forced shutdown after timeout.");
+    process.exit(1);
+  }, 10000);
+}
+
 const PORT = Number(process.env.PORT) || 4000;
-app.listen(PORT, () => console.log(`✅ Well-Drilling API listening on http://localhost:${PORT}`));
+const server = app.listen(PORT, () => console.log(`✅ Well-Drilling API listening on http://localhost:${PORT}`));
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
