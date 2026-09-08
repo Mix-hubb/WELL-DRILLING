@@ -16,9 +16,16 @@ const router = useRouter();
 
 theme.global.name.value = ui.theme;
 
-onMounted(() => {
-  if (auth.token && !auth.user) {
-    auth.fetchUser();
+onMounted(async () => {
+  if (auth.token && !auth.user && !route.meta.public) {
+    try {
+      await auth.fetchUser();
+    } catch {
+      // token expired on protected route — redirect to login via router
+      if (!route.meta.public) {
+        router.push("/login");
+      }
+    }
   }
 });
 

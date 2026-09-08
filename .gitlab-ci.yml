@@ -5,6 +5,7 @@
 # ============================================================
 
 stages:
+  - test
   - build
   - deploy
 
@@ -17,11 +18,37 @@ cache:
     - backend/node_modules/
     - frontend/node_modules/
 
+# ---------- TEST ----------
+
+test-backend:
+  stage: test
+  image: node:20
+  script:
+    - cd backend
+    - npm ci
+    - npm test
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      when: always
+
+test-frontend:
+  stage: test
+  image: node:20
+  script:
+    - cd frontend
+    - npm ci
+    - npm test
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      when: always
+
 # ---------- BUILD ----------
 
 build-backend:
   stage: build
   image: node:20
+  needs:
+    - test-backend
   script:
     - cd backend
     - npm ci
@@ -37,6 +64,8 @@ build-backend:
 build-frontend:
   stage: build
   image: node:20
+  needs:
+    - test-frontend
   script:
     - cd frontend
     - npm ci
