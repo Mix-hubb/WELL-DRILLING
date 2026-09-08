@@ -123,8 +123,18 @@ export async function create(req: Request, res: Response) {
   res.status(201).json(mapRow(result.rows[0]));
 }
 
+async function resolveOrgId(client: any, liffId?: string, explicitOrgId?: string): Promise<string | null> {
+  if (explicitOrgId) return explicitOrgId;
+  if (!liffId) return null;
+  const { rows } = await client.query(
+    "SELECT org_id FROM organizations WHERE line_liff_id_drilling = $1 OR line_liff_id_repair = $1",
+    [liffId]
+  );
+  return rows[0]?.org_id || null;
+}
+
 export async function createFromPublicForm(req: Request, res: Response) {
-  const { name, phone, address, well_name, problems, detail, photos, scheduled_date, line_user_id, line_display_name, line_picture_url, org_id } = req.body;
+  const { name, phone, address, well_name, problems, detail, photos, scheduled_date, line_user_id, line_display_name, line_picture_url, org_id, liff_id } = req.body;
   if (!name || !phone || !problems?.length) {
     return res.status(400).json({ error: "ต้องระบุชื่อ, เบอร์โทร และปัญหาที่พบ" });
   }
@@ -133,32 +143,44 @@ export async function createFromPublicForm(req: Request, res: Response) {
   try {
     await client.query("BEGIN");
 
+    const resolvedOrgId = await resolveOrgId(client, liff_id, org_id);
+
     let customerId: number;
 
     let existing;
     if (line_user_id) {
-      existing = await client.query(
-        "SELECT customer_id FROM customers WHERE line_user_id = $1 LIMIT 1",
-        [line_user_id]
-      );
+      existing = resolvedOrgId
+        ? await client.query(
+            "SELECT customer_id FROM customers WHERE line_user_id = $1 AND org_id = $2 LIMIT 1",
+            [line_user_id, resolvedOrgId]
+          )
+        : await client.query(
+            "SELECT customer_id FROM customers WHERE line_user_id = $1 LIMIT 1",
+            [line_user_id]
+          );
     }
     if (!existing?.rows.length) {
-      existing = await client.query(
-        "SELECT customer_id FROM customers WHERE phone = $1 LIMIT 1",
-        [phone]
-      );
+      existing = resolvedOrgId
+        ? await client.query(
+            "SELECT customer_id FROM customers WHERE phone = $1 AND org_id = $2 LIMIT 1",
+            [phone, resolvedOrgId]
+          )
+        : await client.query(
+            "SELECT customer_id FROM customers WHERE phone = $1 LIMIT 1",
+            [phone]
+          );
     }
 
     if (existing?.rows.length) {
       customerId = existing.rows[0].customer_id;
       await client.query(
-        "UPDATE customers SET customer_name = COALESCE($1, customer_name), phone = COALESCE($2, phone), address = COALESCE($3, address), line_user_id = COALESCE($4, line_user_id), line_display_name = COALESCE($5, line_display_name), line_picture_url = COALESCE($6, line_picture_url) WHERE customer_id = $7",
-        [name, phone, address || null, line_user_id || null, line_display_name || null, line_picture_url || null, customerId]
+        "UPDATE customers SET customer_name = COALESCE($1, customer_name), phone = COALESCE($2, phone), address = COALESCE($3, address), line_user_id = COALESCE($4, line_user_id), line_display_name = COALESCE($5, line_display_name), line_picture_url = COALESCE($6, line_picture_url), org_id = COALESCE($7, org_id) WHERE customer_id = $8",
+        [name, phone, address || null, line_user_id || null, line_display_name || null, line_picture_url || null, resolvedOrgId, customerId]
       );
     } else {
       const c = await client.query(
         "INSERT INTO customers (customer_name, phone, address, line_user_id, line_display_name, line_picture_url, org_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING customer_id",
-        [name, phone, address || null, line_user_id || null, line_display_name || null, line_picture_url || null, org_id || null]
+        [name, phone, address || null, line_user_id || null, line_display_name || null, line_picture_url || null, resolvedOrgId]
       );
       customerId = c.rows[0].customer_id;
     }

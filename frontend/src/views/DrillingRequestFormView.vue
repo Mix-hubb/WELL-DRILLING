@@ -17,6 +17,7 @@ const isLiffEnv = ref(false);
 const isLoggedIn = ref(false);
 const profileName = ref("");
 const profilePicture = ref("");
+const actualLiffId = ref<string | null>(null);
 
 const existingCustomer = ref(false);
 const checkingExisting = ref(false);
@@ -32,6 +33,7 @@ onMounted(async () => {
     await liff.init({ liffId });
     if (liff.isLoggedIn()) {
       isLiffEnv.value = true;
+      actualLiffId.value = liff.getId();
       const profile = await liff.getProfile();
       lineUserId.value = profile?.userId || null;
       profileName.value = profile?.displayName || "";
@@ -94,6 +96,7 @@ async function submit() {
         line_user_id: lineUserId.value || null,
         line_display_name: profileName.value || null,
         line_picture_url: profilePicture.value || null,
+        liff_id: actualLiffId.value || import.meta.env.VITE_LIFF_ID_DRILLING || null,
       }),
     });
     if (!res.ok) {
