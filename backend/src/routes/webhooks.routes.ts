@@ -2,37 +2,46 @@ import { Router, Request, Response } from "express";
 import crypto from "crypto";
 import { pool } from "../config/db";
 import { asyncHandler } from "../utils/asyncHandler";
-import { sendTextToCustomer } from "../services/line";
 
 const router = Router();
 
-const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "";
-const CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "";
-const LIFF_ID_DRILLING = process.env.LINE_LIFF_ID_DRILLING || "";
-const LIFF_ID_REPAIR = process.env.LINE_LIFF_ID_REPAIR || "";
+interface OrgLineConfig {
+  org_id: string;
+  line_channel_secret: string;
+  line_channel_access_token: string;
+  line_liff_id_drilling: string | null;
+  line_liff_id_repair: string | null;
+}
 
-function verifySignature(rawBody: Buffer, signature: string): boolean {
-  if (!CHANNEL_SECRET) return true;
-  const hmac = crypto.createHmac("sha256", CHANNEL_SECRET).update(rawBody).digest("base64");
+async function getOrgByChannelId(channelId: string): Promise<OrgLineConfig | null> {
+  const { rows } = await pool.query(
+    `SELECT org_id, line_channel_secret, line_channel_access_token,
+            line_liff_id_drilling, line_liff_id_repair
+     FROM organizations WHERE line_channel_id = $1`,
+    [channelId]
+  );
+  return rows[0] || null;
+}
+
+function verifySignature(rawBody: Buffer, signature: string, channelSecret: string): boolean {
+  if (!channelSecret) return true;
+  const hmac = crypto.createHmac("sha256", channelSecret).update(rawBody).digest("base64");
   return hmac === signature;
 }
 
-async function reply(replyToken: string, text: string) {
-  if (!CHANNEL_ACCESS_TOKEN) {
-    console.log(`[LINE webhook] would reply (no token): ${text}`);
-    return;
-  }
+async function reply(accessToken: string, replyToken: string, text: string) {
+  if (!accessToken) return;
   await fetch("https://api.line.me/v2/bot/message/reply", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${CHANNEL_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify({ replyToken, messages: [{ type: "text", text }] }),
   });
 }
 
-async function findOrCreateCustomerByLine(userId: string, profile: any): Promise<number> {
+async function findOrCreateCustomerByLine(userId: string, profile: any, orgId: string | null): Promise<number> {
   const { rows } = await pool.query(
     "SELECT customer_id FROM customers WHERE line_user_id = $1",
     [userId]
@@ -50,38 +59,38 @@ async function findOrCreateCustomerByLine(userId: string, profile: any): Promise
   const name = profile?.displayName || "ลูกค้า LINE";
   const placeholderPhone = (userId.startsWith("U") ? userId.slice(0, 20) : userId).replace(/\W/g, "");
   const result = await pool.query(
-    "INSERT INTO customers (line_user_id, customer_name, phone, line_display_name, line_picture_url) VALUES ($1, $2, $3, $4, $5) RETURNING customer_id",
-    [userId, name, placeholderPhone, profile?.displayName || null, profile?.pictureUrl || null]
+    "INSERT INTO customers (line_user_id, customer_name, phone, line_display_name, line_picture_url, org_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING customer_id",
+    [userId, name, placeholderPhone, profile?.displayName || null, profile?.pictureUrl || null, orgId]
   );
   return result.rows[0].customer_id;
 }
 
-async function handleText(userId: string, text: string, replyToken: string) {
+async function handleText(userId: string, text: string, replyToken: string, org: OrgLineConfig) {
   const custResult = await pool.query(
     "SELECT customer_id, customer_name FROM customers WHERE line_user_id = $1",
     [userId]
   );
 
   if (/แจ้งเจาะ|ขุดเจาะ|เจาะบ่อ/.test(text)) {
-    const liffUrl = LIFF_ID_DRILLING
-      ? `https://liff.line.me/${LIFF_ID_DRILLING}/request-drill`
+    const liffUrl = org.line_liff_id_drilling
+      ? `https://liff.line.me/${org.line_liff_id_drilling}/request-drill`
       : `${process.env.APP_URL || "http://localhost:5173"}/request-drill`;
-    return reply(replyToken,
+    return reply(org.line_channel_access_token, replyToken,
       "เปิดฟอร์มแจ้งเจาะบ่อบาดาลได้เลยครับ:\n" + liffUrl
     );
   }
 
   if (/แจ้งซ่อม|ซ่อมแซม|ซ่อมบำรุง/.test(text)) {
-    const liffUrl = LIFF_ID_REPAIR
-      ? `https://liff.line.me/${LIFF_ID_REPAIR}/repair-form`
+    const liffUrl = org.line_liff_id_repair
+      ? `https://liff.line.me/${org.line_liff_id_repair}/repair-form`
       : `${process.env.APP_URL || "http://localhost:5173"}/repair-form`;
-    return reply(replyToken,
+    return reply(org.line_channel_access_token, replyToken,
       "เปิดฟอร์มแจ้งซ่อมบ่อบาดาลได้เลยครับ:\n" + liffUrl
     );
   }
 
   if (!custResult.rows.length) {
-    return reply(replyToken, "ยังไม่มีข้อมูลบ่อของคุณในระบบ กรุณาแจ้งเจาะก่อนครับ");
+    return reply(org.line_channel_access_token, replyToken, "ยังไม่มีข้อมูลบ่อของคุณในระบบ กรุณาแจ้งเจาะก่อนครับ");
   }
   const customer = custResult.rows[0];
 
@@ -189,10 +198,10 @@ async function handleText(userId: string, text: string, replyToken: string) {
     );
   }
 
-  return reply(replyToken, lines.join("\n"));
+  return reply(org.line_channel_access_token, replyToken, lines.join("\n"));
 }
 
-async function handlePostback(userId: string, data: string, replyToken?: string) {
+async function handlePostback(userId: string, data: string, org: OrgLineConfig, replyToken?: string) {
   const custResult = await pool.query(
     "SELECT customer_id, customer_name FROM customers WHERE line_user_id = $1",
     [userId]
@@ -209,9 +218,8 @@ async function handlePostback(userId: string, data: string, replyToken?: string)
     const requestId = acceptDrillMatch[1];
     const existing = await pool.query("SELECT status FROM drilling_requests WHERE request_id = $1", [requestId]);
     if (!existing.rows.length) return;
-    const currentStatus = existing.rows[0].status;
-    if (currentStatus !== "QUOTED") {
-      if (replyToken) reply(replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
+    if (existing.rows[0].status !== "QUOTED") {
+      if (replyToken) reply(org.line_channel_access_token, replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
       return;
     }
 
@@ -230,25 +238,27 @@ async function handlePostback(userId: string, data: string, replyToken?: string)
       [requestId, customerId, `เจาะบ่อ ${req?.name || ""}`, req?.address || null, req?.appointment_date || null]
     );
 
-    sendTextToCustomer(customerId, "ยอมรับเรียบร้อยครับ จะดำเนินการเข้าคิวเจาะให้ต่อไป", "STATUS").catch(() => {});
+    const { sendTextToCustomerById } = await import("../services/line");
+    sendTextToCustomerById(customerId, "ยอมรับเรียบร้อยครับ จะดำเนินการเข้าคิวเจาะให้ต่อไป", "STATUS").catch(() => {});
   } else if (rejectDrillMatch) {
     const requestId = rejectDrillMatch[1];
     const existing = await pool.query("SELECT status FROM drilling_requests WHERE request_id = $1", [requestId]);
     if (!existing.rows.length) return;
     if (existing.rows[0].status !== "QUOTED") {
-      if (replyToken) reply(replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
+      if (replyToken) reply(org.line_channel_access_token, replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
       return;
     }
 
     await pool.query("UPDATE drilling_requests SET status = 'REJECTED' WHERE request_id = $1", [requestId]);
     await pool.query("UPDATE quotations SET status = 'REJECTED' WHERE kind = 'DRILLING' AND drilling_request_id = $1", [requestId]);
-    sendTextToCustomer(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งเจาะใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
+    const { sendTextToCustomerById } = await import("../services/line");
+    sendTextToCustomerById(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งเจาะใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
   } else if (acceptRepairMatch) {
     const repairId = acceptRepairMatch[1];
     const existing = await pool.query("SELECT status FROM repair_requests WHERE repair_id = $1", [repairId]);
     if (!existing.rows.length) return;
     if (existing.rows[0].status !== "QUOTED") {
-      if (replyToken) reply(replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
+      if (replyToken) reply(org.line_channel_access_token, replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
       return;
     }
 
@@ -260,19 +270,21 @@ async function handlePostback(userId: string, data: string, replyToken?: string)
     );
     const scheduledDate = reqResult.rows[0]?.scheduled_date;
     const dateText = scheduledDate ? `วันที่ ${scheduledDate}` : "กำหนดนัดหมาย";
-    sendTextToCustomer(customerId, `ยอมรับเรียบร้อยครับ กรุณาเตรียมตัวสำหรับการซ่อมบำรุง${dateText} ทีมงานจะติดต่อกลับเพื่อยืนยันอีกครั้ง`, "STATUS").catch(() => {});
+    const { sendTextToCustomerById } = await import("../services/line");
+    sendTextToCustomerById(customerId, `ยอมรับเรียบร้อยครับ กรุณาเตรียมตัวสำหรับการซ่อมบำรุง${dateText} ทีมงานจะติดต่อกลับเพื่อยืนยันอีกครั้ง`, "STATUS").catch(() => {});
   } else if (rejectRepairMatch) {
     const repairId = rejectRepairMatch[1];
     const existing = await pool.query("SELECT status FROM repair_requests WHERE repair_id = $1", [repairId]);
     if (!existing.rows.length) return;
     if (existing.rows[0].status !== "QUOTED") {
-      if (replyToken) reply(replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
+      if (replyToken) reply(org.line_channel_access_token, replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
       return;
     }
 
     await pool.query("UPDATE repair_requests SET status = 'REJECTED' WHERE repair_id = $1", [repairId]);
     await pool.query("UPDATE quotations SET status = 'REJECTED' WHERE kind = 'REPAIR' AND repair_request_id = $1", [repairId]);
-    sendTextToCustomer(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งซ่อมใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
+    const { sendTextToCustomerById } = await import("../services/line");
+    sendTextToCustomerById(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งซ่อมใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
   }
 }
 
@@ -323,21 +335,33 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const raw = (req as any).rawBody as Buffer;
     const signature = req.headers["x-line-signature"] as string;
-    if (raw && signature && !verifySignature(raw, signature)) {
+    const body = req.body;
+    const destination = body?.destination as string | undefined;
+
+    if (!destination) {
+      return res.status(400).json({ error: "No destination" });
+    }
+
+    const org = await getOrgByChannelId(destination);
+    if (!org) {
+      console.warn(`[LINE webhook] No org found for channel: ${destination}`);
+      return res.json({ ok: true });
+    }
+
+    if (raw && signature && !verifySignature(raw, signature, org.line_channel_secret)) {
       return res.status(400).json({ error: "Invalid signature" });
     }
 
-    const body = req.body;
     const events = body?.events || [];
     for (const event of events) {
       const userId = event.source?.userId;
       if (!userId) continue;
-      await findOrCreateCustomerByLine(userId, undefined);
+      await findOrCreateCustomerByLine(userId, undefined, org.org_id);
 
       if (event.type === "message" && event.message?.type === "text") {
-        await handleText(userId, event.message.text, event.replyToken);
+        await handleText(userId, event.message.text, event.replyToken, org);
       } else if (event.type === "postback") {
-        await handlePostback(userId, event.postback?.data || "", event.replyToken);
+        await handlePostback(userId, event.postback?.data || "", org, event.replyToken);
       }
     }
 

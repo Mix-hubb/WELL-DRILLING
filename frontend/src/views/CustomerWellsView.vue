@@ -3,18 +3,20 @@ import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { customersApi, type CustomerOverview } from "@/api/customers";
 import { useUiStore } from "@/stores/ui";
+import { useSSE } from "@/composables/useSSE";
 import { DRILLING_METHOD } from "@/constants";
 
 const route = useRoute();
 const router = useRouter();
 const ui = useUiStore();
+const { connect, on } = useSSE();
 
 const loading = ref(true);
 const data = ref<CustomerOverview | null>(null);
 
 const customer = computed(() => data.value?.customer);
 
-onMounted(async () => {
+async function refresh() {
   try {
     data.value = await customersApi.overview(route.params.id as string);
   } catch (e) {
@@ -22,6 +24,14 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+}
+
+onMounted(async () => {
+  await refresh();
+  connect();
+  on("WELL_CREATED", refresh);
+  on("WELL_UPDATED", refresh);
+  on("JOB_STATUS_CHANGED", refresh);
 });
 
 function fmtDate(d?: string | null) {

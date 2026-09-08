@@ -108,7 +108,7 @@ export async function create(req: Request, res: Response) {
   );
   const newId = rows[0].repair_id;
   const result = await pool.query(`${REQUEST_SELECT} WHERE r.repair_id = $1`, [newId]);
-  broadcast({ type: "REPAIR_REQUEST_CREATED", data: { repair_id: newId } });
+  broadcast({ type: "REPAIR_REQUEST_CREATED", data: { repair_id: newId }, orgId: req.user?.orgId });
   res.status(201).json(mapRow(result.rows[0]));
 }
 
@@ -169,7 +169,11 @@ export async function createFromPublicForm(req: Request, res: Response) {
 
     await client.query("COMMIT");
 
-    broadcast({ type: "REPAIR_REQUEST_CREATED", data: { repair_id: r.rows[0].repair_id } });
+    const { rows: orgRows } = await pool.query(
+      "SELECT org_id FROM customers WHERE customer_id = $1", [customerId]
+    );
+    const orgId = orgRows[0]?.org_id;
+    broadcast({ type: "REPAIR_REQUEST_CREATED", data: { repair_id: r.rows[0].repair_id }, orgId });
     sendTextToCustomer(customerId, "เราได้รับคำร้องซ่อมของคุณแล้ว กรุณารอการตอบกลับจากทีมงานครับ", "STATUS").catch(() => {});
 
     res.status(201).json({ repair_id: r.rows[0].repair_id, customer_id: customerId });
@@ -236,7 +240,7 @@ export async function updateStatus(req: Request, res: Response) {
     sendTextToCustomer(customerId, `การซ่อมบำรุงเสร็จเรียบร้อยแล้วครับ กรุณาอัปโหลดสลิปโอนเงินผ่านลิงก์นี้:\n${liffUrl}`, "STATUS").catch(() => {});
   }
 
-  broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(id), status } });
+  broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(id), status }, orgId: req.user?.orgId });
   res.json(mapRow(rows[0]));
 }
 

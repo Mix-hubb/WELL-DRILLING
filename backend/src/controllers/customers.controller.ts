@@ -71,8 +71,8 @@ export async function create(req: Request, res: Response) {
     return res.status(400).json({ error: "ต้องระบุ customer_name, phone" });
   }
   const { rows } = await pool.query(
-    `INSERT INTO customers (user_id, customer_name, phone, phone_alt, address) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [req.user!.userId, customer_name, phone, phone_alt || null, address || null]
+    `INSERT INTO customers (user_id, org_id, customer_name, phone, phone_alt, address) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [req.user!.userId, req.user!.orgId || null, customer_name, phone, phone_alt || null, address || null]
   );
   res.status(201).json(rows[0]);
 }

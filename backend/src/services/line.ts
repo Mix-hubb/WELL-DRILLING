@@ -1,9 +1,19 @@
 import { pool } from "../config/db";
 
-const CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "";
 const MESSAGING_API = "https://api.line.me/v2/bot/message/push";
 
-export async function sendTextToCustomer(
+async function getAccessTokenForCustomer(customerId: number): Promise<string | null> {
+  const { rows } = await pool.query(
+    `SELECT o.line_channel_access_token
+     FROM customers c
+     JOIN organizations o ON c.org_id = o.org_id
+     WHERE c.customer_id = $1`,
+    [customerId]
+  );
+  return rows[0]?.line_channel_access_token || null;
+}
+
+export async function sendTextToCustomerById(
   customerId: number,
   text: string,
   kind: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" = "OTHER"
@@ -20,7 +30,8 @@ export async function sendTextToCustomer(
       return false;
     }
 
-    if (!CHANNEL_ACCESS_TOKEN) {
+    const accessToken = await getAccessTokenForCustomer(customerId);
+    if (!accessToken) {
       await logNotification(customerId, kind, text, "", "FAILED");
       return false;
     }
@@ -29,7 +40,7 @@ export async function sendTextToCustomer(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${CHANNEL_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
         to: customer.line_user_id,
@@ -54,7 +65,7 @@ export async function sendTextToCustomer(
   }
 }
 
-export async function sendFlexToCustomer(
+export async function sendFlexToCustomerById(
   customerId: number,
   altText: string,
   flexContent: any,
@@ -72,8 +83,9 @@ export async function sendFlexToCustomer(
       return false;
     }
 
-    if (!CHANNEL_ACCESS_TOKEN) {
-      console.log(`[LINE] would send flex (no token): ${altText}`);
+    const accessToken = await getAccessTokenForCustomer(customerId);
+    if (!accessToken) {
+      console.log(`[LINE] would send flex (no token for org): ${altText}`);
       await logNotification(customerId, kind, altText, "", "FAILED");
       return false;
     }
@@ -82,7 +94,7 @@ export async function sendFlexToCustomer(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${CHANNEL_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
         to: customer.line_user_id,
@@ -109,6 +121,23 @@ export async function sendFlexToCustomer(
     await logNotification(customerId, kind, altText, "", "FAILED").catch(() => {});
     return false;
   }
+}
+
+export async function sendTextToCustomer(
+  customerId: number,
+  text: string,
+  kind: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" = "OTHER"
+): Promise<boolean> {
+  return sendTextToCustomerById(customerId, text, kind);
+}
+
+export async function sendFlexToCustomer(
+  customerId: number,
+  altText: string,
+  flexContent: any,
+  kind: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" = "OTHER"
+): Promise<boolean> {
+  return sendFlexToCustomerById(customerId, altText, flexContent, kind);
 }
 
 async function logNotification(

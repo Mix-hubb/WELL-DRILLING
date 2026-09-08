@@ -3,6 +3,8 @@ import { createRouter, createWebHistory } from "vue-router";
 const routes = [
   { path: "/login", name: "login", component: () => import("@/views/LoginView.vue"), meta: { public: true } },
   { path: "/register", name: "register", component: () => import("@/views/RegisterView.vue"), meta: { public: true } },
+  { path: "/forgot-password", name: "forgot-password", component: () => import("@/views/ForgotPasswordView.vue"), meta: { public: true } },
+  { path: "/reset-password", name: "reset-password", component: () => import("@/views/ResetPasswordView.vue"), meta: { public: true } },
   { path: "/", redirect: "/dashboard" },
 
   // ===== ผู้ประกอบการ =====
@@ -54,6 +56,11 @@ const routes = [
     component: () => import("@/views/WellDetailView.vue"),
     props: true,
     meta: { hidden: true },
+  },
+  {
+    path: "/settings", name: "settings",
+    component: () => import("@/views/SettingsView.vue"),
+    meta: { label: "ตั้งค่าระบบ", icon: "mdi-cog-outline" },
   },
 
   // ===== ลูกค้า (public) =====

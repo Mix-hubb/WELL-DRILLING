@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
@@ -8,15 +8,25 @@ const router = useRouter();
 const auth = useAuthStore();
 const ui = useUiStore();
 
+const mode = ref<"new" | "join">("new");
 const fullName = ref("");
 const email = ref("");
+const phone = ref("");
 const password = ref("");
 const confirmPassword = ref("");
+const orgName = ref("");
+const inviteCode = ref("");
 const loading = ref(false);
 const showPassword = ref(false);
 
+const requiredField = (msg: string) => (v: string) => !!v || msg;
+const validEmail = (msg: string) => (v: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || msg;
+const validPhone = (msg: string) => (v: string) =>
+  /^\d{9,10}$/.test(v.replace(/[-\s]/g, "")) || msg;
+
 async function handleRegister() {
-  if (!fullName.value || !email.value || !password.value) {
+  if (!fullName.value || !email.value || !phone.value || !password.value) {
     ui.notify("กรุณากรอกข้อมูลให้ครบทุกช่อง", "warning");
     return;
   }
@@ -28,10 +38,21 @@ async function handleRegister() {
     ui.notify("รหัสผ่านไม่ตรงกัน", "warning");
     return;
   }
+  if (mode.value === "new" && !orgName.value) {
+    ui.notify("กรุณากรอกชื่อบริษัท/องค์กร", "warning");
+    return;
+  }
+  if (mode.value === "join" && !inviteCode.value) {
+    ui.notify("กรุณากรอก Invite Code", "warning");
+    return;
+  }
 
   loading.value = true;
   try {
-    await auth.register(email.value, password.value, fullName.value);
+    const opts = mode.value === "new"
+      ? { org_name: orgName.value }
+      : { invite_code: inviteCode.value };
+    await auth.register(email.value, password.value, fullName.value, phone.value, opts);
     ui.notify("ลงทะเบียนสำเร็จ", "success");
     router.push("/dashboard");
   } catch (err) {
@@ -54,7 +75,37 @@ async function handleRegister() {
           </v-card-title>
 
           <v-card-text class="pt-4">
+            <v-btn-toggle v-model="mode" mandatory color="primary" variant="outlined" divided class="mb-4" density="compact">
+              <v-btn value="new" size="small" class="flex-grow-1">
+                <v-icon start>mdi-office-building-outline</v-icon>
+                สร้างบริษัทใหม่
+              </v-btn>
+              <v-btn value="join" size="small" class="flex-grow-1">
+                <v-icon start>mdi-key-outline</v-icon>
+                เข้าร่วมบริษัท
+              </v-btn>
+            </v-btn-toggle>
+
             <v-form @submit.prevent="handleRegister">
+              <v-text-field
+                v-if="mode === 'new'"
+                v-model="orgName"
+                label="ชื่อบริษัท / องค์กร"
+                prepend-inner-icon="mdi-office-building-outline"
+                variant="outlined"
+                density="comfortable"
+                class="mb-2"
+              />
+              <v-text-field
+                v-if="mode === 'join'"
+                v-model="inviteCode"
+                label="Invite Code"
+                prepend-inner-icon="mdi-key-outline"
+                variant="outlined"
+                density="comfortable"
+                hint="ขอ Invite Code จากผู้ดูแลระบบ"
+                class="mb-2"
+              />
               <v-text-field
                 v-model="fullName"
                 label="ชื่อ-นามสกุล"
@@ -70,6 +121,18 @@ async function handleRegister() {
                 prepend-inner-icon="mdi-email-outline"
                 variant="outlined"
                 density="comfortable"
+                :rules="[requiredField('กรุณากรอกอีเมล'), validEmail('รูปแบบอีเมลไม่ถูกต้อง')]"
+                class="mb-2"
+              />
+              <v-text-field
+                v-model="phone"
+                label="เบอร์โทรศัพท์"
+                type="tel"
+                prepend-inner-icon="mdi-phone-outline"
+                variant="outlined"
+                density="comfortable"
+                hint="สำหรับกู้คืนรหัสผ่าน"
+                :rules="[requiredField('กรุณากรอกเบอร์โทรศัพท์'), validPhone('เบอร์โทรศัพท์ต้องเป็นตัวเลข 9-10 หลัก')]"
                 class="mb-2"
               />
               <v-text-field

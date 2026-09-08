@@ -35,6 +35,8 @@ export function useSSE() {
       "DRILLING_REQUEST_CHANGED",
       "REPAIR_REQUEST_CREATED",
       "REPAIR_REQUEST_CHANGED",
+      "WELL_CREATED",
+      "WELL_UPDATED",
     ];
     for (const eventType of customEvents) {
       eventSource.addEventListener(eventType, ((e: MessageEvent) => {

@@ -5,6 +5,7 @@ import { repairRequestsApi } from "@/api/repairRequests";
 import { quotationsApi } from "@/api/quotations";
 import { api } from "@/api/client";
 import { useUiStore } from "@/stores/ui";
+import { useSSE } from "@/composables/useSSE";
 import type { RepairRequest } from "@/types";
 import { REPAIR_STATUS, QUOTATION_STATUS, money } from "@/constants";
 import StatusChip from "@/components/StatusChip.vue";
@@ -13,6 +14,7 @@ import DrillerLinkChip from "@/components/DrillerLinkChip.vue";
 const route = useRoute();
 const router = useRouter();
 const ui = useUiStore();
+const { connect, on } = useSSE();
 
 const request = ref<RepairRequest | null>(null);
 const loading = ref(true);
@@ -23,19 +25,22 @@ const quoteNotes = ref("");
 
 const canQuote = computed(() => request.value && !request.value.quotation && request.value.status === "NEW");
 
-onMounted(async () => {
+async function reload() {
   try {
     request.value = await repairRequestsApi.getOne(route.params.id as string);
   } catch (e) {
     ui.notifyError(e);
-  } finally {
-    loading.value = false;
   }
-});
-
-async function reload() {
-  request.value = await repairRequestsApi.getOne(route.params.id as string);
 }
+
+onMounted(async () => {
+  await reload();
+  loading.value = false;
+  connect();
+  on("REPAIR_REQUEST_CHANGED", (data) => {
+    if (data.repair_id === Number(route.params.id)) reload();
+  });
+});
 
 function fmtDate(d?: string | null) {
   if (!d) return "-";

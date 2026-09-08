@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useWellsStore } from "@/stores/wells";
 import { useUiStore } from "@/stores/ui";
 import { api } from "@/api/client";
+import { useSSE } from "@/composables/useSSE";
 import { PIPE_MATERIAL, PIPE_TYPE, PUMP_TYPE, LITHOLOGY_TYPE, PROTECTION_TYPE } from "@/constants";
 import StrataColumn from "@/components/StrataColumn.vue";
 import SectionHeader from "@/components/SectionHeader.vue";
@@ -17,6 +18,7 @@ const route  = useRoute();
 const router = useRouter();
 const store  = useWellsStore();
 const ui     = useUiStore();
+const { connect, on } = useSSE();
 
 /* ---- dialogs ---- */
 const showStrata    = ref(false);
@@ -26,10 +28,18 @@ const showCtrl      = ref(false);
 
 const wellId = () => Number(route.params.id);
 
-onMounted(async () => {
+async function refresh() {
   try {
     await store.fetchOne(String(route.params.id));
   } catch (e) { ui.notifyError(e); }
+}
+
+onMounted(async () => {
+  await refresh();
+  connect();
+  on("WELL_UPDATED", (data) => {
+    if (data.well_id === wellId()) refresh();
+  });
 });
 
 async function addStrata(form: any) {

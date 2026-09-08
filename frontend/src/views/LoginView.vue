@@ -36,6 +36,8 @@ const highlights = [
 // Helpers
 // ============================================================
 const requiredField = (message: string) => (value: string) => !!value || message;
+const validEmail = (msg: string) => (v: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || msg;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // ============================================================
@@ -117,7 +119,7 @@ async function handleLogin() {
                 prepend-inner-icon="mdi-email-outline"
                 variant="outlined"
                 density="comfortable"
-                :rules="[requiredField('กรุณากรอกอีเมล')]"
+                :rules="[requiredField('กรุณากรอกอีเมล'), validEmail('รูปแบบอีเมลไม่ถูกต้อง')]"
                 class="mb-3"
               />
               <v-text-field
@@ -143,6 +145,11 @@ async function handleLogin() {
               >
                 เข้าสู่ระบบ
               </v-btn>
+              <div class="text-center mt-3">
+                <v-btn variant="text" color="primary" size="small" to="/forgot-password">
+                  ลืมรหัสผ่าน?
+                </v-btn>
+              </div>
             </v-form>
           </v-card-text>
 
@@ -187,7 +194,7 @@ async function handleLogin() {
   pointer-events: none;
 }
 .v-theme--darkTheme .login-hero {
-  color: rgb(var(--v-theme-on-primary));
+  color: #ffffff;
   text-shadow: none;
 }
 .hero-inner { position: relative; z-index: 1; max-width: 520px; padding: 32px; }
@@ -211,8 +218,8 @@ async function handleLogin() {
   flex-shrink: 0;
 }
 .v-theme--darkTheme .hero-item-icon {
-  background: rgba(0,0,0,0.08);
-  border-color: rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.25);
   box-shadow: none;
 }
 

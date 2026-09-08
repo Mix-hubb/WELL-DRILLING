@@ -1,5 +1,18 @@
 export type UserRole = "ADMIN" | "DRILLER";
 
+export interface Organization {
+  org_id: string;
+  name: string;
+  slug: string;
+  invite_code: string;
+  line_channel_secret?: string | null;
+  line_channel_access_token?: string | null;
+  line_liff_id_drilling?: string | null;
+  line_liff_id_repair?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export type DrillingRequestSource = "GOOGLE_FORM" | "MANUAL" | "LINE";
 export type DrillingRequestStatus = "NEW" | "QUOTED" | "ACCEPTED" | "REJECTED" | "CANCELLED";
 export type DrillingJobStatus = "QUEUED" | "DRILLING" | "SUCCESS" | "FAILED" | "CLOSED";
