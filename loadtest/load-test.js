@@ -15,11 +15,11 @@ const TEST_PASSWORD = "asdzxc123";
 // ===== Staged Load Test =====
 export const options = {
   stages: [
-    { duration: "20s", target: 5 },    // Warm up: 0→5 VUs
-    { duration: "30s", target: 10 },   // Baseline: 5→10 VUs
-    { duration: "30s", target: 20 },   // Moderate: 10→20 VUs
-    { duration: "30s", target: 30 },   // Peak: 20→30 VUs
-    { duration: "20s", target: 0 },    // Cool down: 30→0 VUs
+    { duration: "20s", target: 5 },
+    { duration: "30s", target: 10 },
+    { duration: "30s", target: 100 },
+    { duration: "30s", target: 500 },
+    { duration: "20s", target: 0 },
   ],
   thresholds: {
     http_req_duration: ["p(95)<5000"],
