@@ -164,7 +164,8 @@ onMounted(async () => {
     isLiffEnv.value = true;
     await liff.init({ liffId });
     if (liff.isLoggedIn()) {
-      actualLiffId.value = liff.getId();
+      const pathMatch = window.location.pathname.match(/^\/([^/]+)/);
+      actualLiffId.value = pathMatch ? pathMatch[1] : null;
       const profile = await liff.getProfile();
       lineUserId.value = profile?.userId || null;
       profileName.value = profile?.displayName || "";
