@@ -66,14 +66,14 @@ async function attachRecords(rows: RepairRequest[], dbRows: any[]) {
 
 export async function list(req: Request, res: Response) {
   const { status } = req.query;
-  const { sql, params } = userFilter(req);
-
-  let where = "1=1";
   const whereParams: any[] = [];
+  let where = "1=1";
   if (status && status !== "ALL") {
     where += " AND r.status = $1";
     whereParams.push(status);
   }
+
+  const { sql, params } = userFilter(req, "c", whereParams.length);
 
   const { rows: dbRows } = await pool.query(
     `${REQUEST_SELECT} WHERE ${where} ${sql} ORDER BY r.created_at DESC`,
@@ -86,8 +86,9 @@ export async function list(req: Request, res: Response) {
 
 export async function getOne(req: Request, res: Response) {
   const { id } = req.params;
+  const { sql, params } = userFilter(req, "c", 1);
   const { rows: dbRows } = await pool.query(
-    `${REQUEST_SELECT} WHERE r.repair_id = $1`, [id]
+    `${REQUEST_SELECT} WHERE r.repair_id = $1${sql}`, [id, ...params]
   );
   if (!dbRows.length) return res.status(404).json({ error: "ไม่พบคำร้องซ่อม" });
   const row = mapRow(dbRows[0]);
@@ -100,6 +101,16 @@ export async function create(req: Request, res: Response) {
   if (!customer_id || !problems?.length) {
     return res.status(400).json({ error: "ต้องระบุ customer_id และ problems" });
   }
+
+  const { sql, params } = userFilter(req, "c", 1);
+  const ownershipCheck = await pool.query(
+    `SELECT c.customer_id FROM customers c WHERE c.customer_id = $1${sql}`,
+    [customer_id, ...params]
+  );
+  if (!ownershipCheck.rows.length) {
+    return res.status(404).json({ error: "ไม่พบลูกค้าหรือไม่มีสิทธิ์เข้าถึง" });
+  }
+
   const { rows } = await pool.query(
     `INSERT INTO repair_requests (customer_id, well_id, problems, detail, photos, scheduled_date, magic_link_token, magic_link_expires_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW() + INTERVAL '7 days')
@@ -113,7 +124,7 @@ export async function create(req: Request, res: Response) {
 }
 
 export async function createFromPublicForm(req: Request, res: Response) {
-  const { name, phone, address, well_name, problems, detail, photos, scheduled_date, line_user_id, line_display_name, line_picture_url } = req.body;
+  const { name, phone, address, well_name, problems, detail, photos, scheduled_date, line_user_id, line_display_name, line_picture_url, org_id } = req.body;
   if (!name || !phone || !problems?.length) {
     return res.status(400).json({ error: "ต้องระบุชื่อ, เบอร์โทร และปัญหาที่พบ" });
   }
@@ -146,8 +157,8 @@ export async function createFromPublicForm(req: Request, res: Response) {
       );
     } else {
       const c = await client.query(
-        "INSERT INTO customers (customer_name, phone, address, line_user_id, line_display_name, line_picture_url) VALUES ($1, $2, $3, $4, $5, $6) RETURNING customer_id",
-        [name, phone, address || null, line_user_id || null, line_display_name || null, line_picture_url || null]
+        "INSERT INTO customers (customer_name, phone, address, line_user_id, line_display_name, line_picture_url, org_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING customer_id",
+        [name, phone, address || null, line_user_id || null, line_display_name || null, line_picture_url || null, org_id || null]
       );
       customerId = c.rows[0].customer_id;
     }
@@ -189,8 +200,10 @@ export async function update(req: Request, res: Response) {
   const { id } = req.params;
   const { well_id, problems, detail, scheduled_date } = req.body;
 
+  const { sql, params } = userFilter(req, "c", 1);
   const existing = await pool.query(
-    "SELECT * FROM repair_requests WHERE repair_id = $1", [id]
+    `SELECT r.* FROM repair_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.repair_id = $1${sql}`,
+    [id, ...params]
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้องซ่อม" });
 
@@ -207,10 +220,10 @@ export async function update(req: Request, res: Response) {
     ]
   );
 
-  const { rows } = await pool.query(
+  const result = await pool.query(
     `${REQUEST_SELECT} WHERE r.repair_id = $1`, [id]
   );
-  res.json(mapRow(rows[0]));
+  res.json(mapRow(result.rows[0]));
 }
 
 export async function updateStatus(req: Request, res: Response) {
@@ -222,12 +235,18 @@ export async function updateStatus(req: Request, res: Response) {
     return res.status(400).json({ error: `สถานะไม่ถูกต้อง ต้องเป็น ${valid.join(", ")}` });
   }
 
+  const { sql, params } = userFilter(req, "c", 1);
+  const existing = await pool.query(
+    `SELECT r.repair_id, r.customer_id FROM repair_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.repair_id = $1${sql}`,
+    [id, ...params]
+  );
+  if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้องซ่อม" });
+
   await pool.query("UPDATE repair_requests SET status = $1 WHERE repair_id = $2", [status, id]);
 
   const { rows } = await pool.query(
     `${REQUEST_SELECT} WHERE r.repair_id = $1`, [id]
   );
-  if (!rows.length) return res.status(404).json({ error: "ไม่พบคำร้องซ่อม" });
 
   const customerId = rows[0].customer_id;
   if (customerId && status === "IN_PROGRESS") {
@@ -316,12 +335,24 @@ export async function addRecord(req: Request, res: Response) {
 }
 
 export async function remove(req: Request, res: Response) {
+  const { sql, params } = userFilter(req, "c", 1);
+  const existing = await pool.query(
+    `SELECT r.repair_id FROM repair_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.repair_id = $1${sql}`,
+    [req.params.id, ...params]
+  );
+  if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้อง" });
   await pool.query("DELETE FROM repair_requests WHERE repair_id = $1", [req.params.id]);
   res.status(204).end();
 }
 
 export async function generateMagicLink(req: Request, res: Response) {
   const { id } = req.params;
+  const { sql, params } = userFilter(req, "c", 1);
+  const existing = await pool.query(
+    `SELECT r.repair_id FROM repair_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.repair_id = $1${sql}`,
+    [req.params.id, ...params]
+  );
+  if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้อง" });
   const token = generateMagicToken();
   await pool.query(
     "UPDATE repair_requests SET magic_link_token = $1, magic_link_expires_at = NOW() + INTERVAL '7 days' WHERE repair_id = $2",

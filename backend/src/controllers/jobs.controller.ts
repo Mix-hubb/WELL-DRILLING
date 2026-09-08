@@ -10,7 +10,9 @@ function generateMagicToken(): string {
   return "drill-" + crypto.randomBytes(16).toString("hex");
 }
 
-async function getJobRow(id: string): Promise<any | null> {
+async function getJobRow(id: string, orgId?: string | null): Promise<any | null> {
+  const orgClause = orgId ? ` AND c.org_id = $2` : "";
+  const params = orgId ? [id, orgId] : [id];
   const { rows } = await pool.query(`
     SELECT
       j.*,
@@ -22,21 +24,21 @@ async function getJobRow(id: string): Promise<any | null> {
     FROM drilling_jobs j
     JOIN customers c ON c.customer_id = j.customer_id
     LEFT JOIN wells w ON w.well_id = j.well_id
-    WHERE j.job_id = $1
-  `, [id]);
+    WHERE j.job_id = $1${orgClause}
+  `, params);
   return rows[0] || null;
 }
 
 export async function list(req: Request, res: Response) {
   const { status } = req.query;
-  const { sql, params } = userFilter(req);
-
-  let where = "1=1";
   const whereParams: any[] = [];
+  let where = "1=1";
   if (status && status !== "ALL") {
     where += " AND j.status = $1";
     whereParams.push(status);
   }
+
+  const { sql, params } = userFilter(req, "c", whereParams.length);
 
   const { rows } = await pool.query(`
     SELECT
@@ -58,13 +60,15 @@ export async function list(req: Request, res: Response) {
 
 export async function getOne(req: Request, res: Response) {
   const { id } = req.params;
-  const row = await getJobRow(id);
+  const orgId = req.user?.orgId;
+  const row = await getJobRow(id, orgId);
   if (!row) return res.status(404).json({ error: "ไม่พบงานเจาะ" });
 
   let request = null;
   if (row.request_id) {
+    const { sql, params } = userFilter(req, "r");
     const reqResult = await pool.query(
-      "SELECT * FROM drilling_requests WHERE request_id = $1", [row.request_id]
+      `SELECT r.* FROM drilling_requests r WHERE r.request_id = $1${sql}`, [row.request_id, ...params]
     );
     if (reqResult.rows.length) {
       request = reqResult.rows[0];
@@ -117,6 +121,15 @@ export async function create(req: Request, res: Response) {
     return res.status(400).json({ error: "ต้องระบุ customer_id" });
   }
 
+  const { sql, params } = userFilter(req, "c", 1);
+  const ownershipCheck = await pool.query(
+    `SELECT c.customer_id FROM customers c WHERE c.customer_id = $1${sql}`,
+    [customer_id, ...params]
+  );
+  if (!ownershipCheck.rows.length) {
+    return res.status(404).json({ error: "ไม่พบลูกค้าหรือไม่มีสิทธิ์เข้าถึง" });
+  }
+
   const token = generateMagicToken();
   const { rows } = await pool.query(
     `INSERT INTO drilling_jobs
@@ -132,7 +145,7 @@ export async function create(req: Request, res: Response) {
     await pool.query("UPDATE drilling_requests SET status = 'ACCEPTED' WHERE request_id = $1", [request_id]);
   }
 
-  const row = await getJobRow(newJobId);
+  const row = await getJobRow(newJobId, req.user?.orgId);
   broadcast({ type: "JOB_CREATED", data: { job_id: newJobId }, orgId: req.user?.orgId });
   res.status(201).json(row);
 }
@@ -141,7 +154,7 @@ export async function update(req: Request, res: Response) {
   const { id } = req.params;
   const { job_title, site_address, province, district, scheduled_date, notes } = req.body;
 
-  const existing = await getJobRow(id);
+  const existing = await getJobRow(id, req.user?.orgId);
   if (!existing) return res.status(404).json({ error: "ไม่พบงาน" });
 
   await pool.query(
@@ -157,7 +170,7 @@ export async function update(req: Request, res: Response) {
     ]
   );
 
-  const row = await getJobRow(id);
+  const row = await getJobRow(id, req.user?.orgId);
   res.json(row);
 }
 
@@ -170,9 +183,11 @@ export async function updateStatus(req: Request, res: Response) {
     return res.status(400).json({ error: `สถานะไม่ถูกต้อง ต้องเป็น ${valid.join(", ")}` });
   }
 
+  const existing = await getJobRow(id, req.user?.orgId);
+  if (!existing) return res.status(404).json({ error: "ไม่พบงานเจาะ" });
+
   await pool.query("UPDATE drilling_jobs SET status = $1 WHERE job_id = $2", [status, id]);
-  const row = await getJobRow(id);
-  if (!row) return res.status(404).json({ error: "ไม่พบงานเจาะ" });
+  const row = await getJobRow(id, req.user?.orgId);
   broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: Number(id), status }, orgId: req.user?.orgId });
   res.json(row);
 }
@@ -344,19 +359,37 @@ export async function completeWell(req: Request, res: Response) {
     ? `แจ้งผลการเจาะ: เจาะสำเร็จแล้ว บ่อ ${row?.well_name || ""}\nข้อมูลอยู่ในระบบแล้วครับ`
     : "แจ้งผลการเจาะ: การเจาะไม่สำเร็จ กรุณาติดต่อช่างเพื่อหารือแนวทางต่อไปครับ";
   sendTextToCustomer(job.customer_id, msg, "STATUS").catch(() => {});
-  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: Number(id), status: "SUCCESS" }, orgId: req.user?.orgId });
-  broadcast({ type: "WELL_CREATED", data: { well_id: wellId, customer_id: job.customer_id }, orgId: req.user?.orgId });
+
+  const { rows: orgRows } = await pool.query(
+    "SELECT org_id FROM customers WHERE customer_id = $1", [job.customer_id]
+  );
+  const orgId = orgRows[0]?.org_id;
+  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: Number(id), status: "SUCCESS" }, orgId });
+  broadcast({ type: "WELL_CREATED", data: { well_id: wellId, customer_id: job.customer_id }, orgId });
 
   res.json(row);
 }
 
 export async function remove(req: Request, res: Response) {
+  const orgId = req.user?.orgId;
+  const { sql, params } = userFilter(req, "c", 1);
+  const existing = await pool.query(
+    `SELECT j.job_id FROM drilling_jobs j JOIN customers c ON c.customer_id = j.customer_id WHERE j.job_id = $1${sql}`,
+    [req.params.id, ...params]
+  );
+  if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบงาน" });
   await pool.query("DELETE FROM drilling_jobs WHERE job_id = $1", [req.params.id]);
   res.status(204).end();
 }
 
 export async function generateMagicLink(req: Request, res: Response) {
   const { id } = req.params;
+  const { sql, params } = userFilter(req, "c", 1);
+  const existing = await pool.query(
+    `SELECT j.job_id FROM drilling_jobs j JOIN customers c ON c.customer_id = j.customer_id WHERE j.job_id = $1${sql}`,
+    [req.params.id, ...params]
+  );
+  if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบงาน" });
   const token = generateMagicToken();
   await pool.query(
     "UPDATE drilling_jobs SET magic_link_token = $1, magic_link_expires_at = NOW() + INTERVAL '7 days' WHERE job_id = $2",

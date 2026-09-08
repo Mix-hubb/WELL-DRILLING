@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
+import { userFilter } from "../utils/userFilter";
 import { Quotation } from "../types";
 import { sendFlexToCustomer } from "../services/line";
 
@@ -108,6 +109,22 @@ export async function create(req: Request, res: Response) {
     return res.status(400).json({ error: "ต้องระบุราคาที่มากกว่า 0" });
   }
 
+  if (kind === "DRILLING") {
+    const { sql, params } = userFilter(req, "c", 1);
+    const ownershipCheck = await pool.query(
+      `SELECT r.request_id FROM drilling_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.request_id = $1${sql}`,
+      [drilling_request_id, ...params]
+    );
+    if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบคำร้องหรือไม่มีสิทธิ์" });
+  } else {
+    const { sql, params } = userFilter(req, "c", 1);
+    const ownershipCheck = await pool.query(
+      `SELECT r.repair_id FROM repair_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.repair_id = $1${sql}`,
+      [repair_request_id, ...params]
+    );
+    if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบคำร้องหรือไม่มีสิทธิ์" });
+  }
+
   const { rows } = await pool.query(
     `INSERT INTO quotations (kind, drilling_request_id, repair_request_id, requested_depth_m, requested_diameter_m, price, notes)
      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING quotation_id`,
@@ -165,6 +182,18 @@ export async function updateStatus(req: Request, res: Response) {
     return res.status(400).json({ error: `สถานะไม่ถูกต้อง ต้องเป็น ${valid.join(", ")}` });
   }
 
+  const { sql, params } = userFilter(req, "c", 1);
+  const ownershipCheck = await pool.query(
+    `SELECT q.quotation_id
+     FROM quotations q
+     LEFT JOIN drilling_requests r ON q.drilling_request_id = r.request_id
+     LEFT JOIN repair_requests rp ON q.repair_request_id = rp.repair_id
+     JOIN customers c ON c.customer_id = COALESCE(r.customer_id, rp.customer_id)
+     WHERE q.quotation_id = $1${sql}`,
+    [id, ...params]
+  );
+  if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบใบเสนอราคา" });
+
   await pool.query("UPDATE quotations SET status = $1 WHERE quotation_id = $2", [status, id]);
 
   if (status === "ACCEPTED") {
@@ -183,11 +212,21 @@ export async function updateStatus(req: Request, res: Response) {
   const { rows } = await pool.query(
     "SELECT * FROM quotations WHERE quotation_id = $1", [id]
   );
-  if (!rows.length) return res.status(404).json({ error: "ไม่พบใบเสนอราคา" });
   res.json(rows[0]);
 }
 
 export async function remove(req: Request, res: Response) {
+  const { sql, params } = userFilter(req, "c", 1);
+  const ownershipCheck = await pool.query(
+    `SELECT q.quotation_id
+     FROM quotations q
+     LEFT JOIN drilling_requests r ON q.drilling_request_id = r.request_id
+     LEFT JOIN repair_requests rp ON q.repair_request_id = rp.repair_id
+     JOIN customers c ON c.customer_id = COALESCE(r.customer_id, rp.customer_id)
+     WHERE q.quotation_id = $1${sql}`,
+    [req.params.id, ...params]
+  );
+  if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบใบเสนอราคา" });
   await pool.query("DELETE FROM quotations WHERE quotation_id = $1", [req.params.id]);
   res.status(204).end();
 }

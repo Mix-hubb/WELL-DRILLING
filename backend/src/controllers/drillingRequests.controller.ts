@@ -49,14 +49,14 @@ function mapRow(row: any): DrillingRequest {
 
 export async function list(req: Request, res: Response) {
   const { status } = req.query;
-  const { sql, params } = userFilter(req);
-
-  let where = "1=1";
   const whereParams: any[] = [];
+  let where = "1=1";
   if (status && status !== "ALL") {
     where += " AND r.status = $1";
     whereParams.push(status);
   }
+
+  const { sql, params } = userFilter(req, "c", whereParams.length);
 
   const { rows } = await pool.query(
     `${REQUEST_SELECT} WHERE ${where} ${sql} ORDER BY r.created_at DESC`,
@@ -67,8 +67,9 @@ export async function list(req: Request, res: Response) {
 
 export async function getOne(req: Request, res: Response) {
   const { id } = req.params;
+  const { sql, params } = userFilter(req, "c", 1);
   const { rows } = await pool.query(
-    `${REQUEST_SELECT} WHERE r.request_id = $1`, [id]
+    `${REQUEST_SELECT} WHERE r.request_id = $1${sql}`, [id, ...params]
   );
   if (!rows.length) return res.status(404).json({ error: "ไม่พบคำร้องเจาะ" });
   res.json(mapRow(rows[0]));
@@ -79,6 +80,16 @@ export async function create(req: Request, res: Response) {
   if (!customer_id || !name || !phone || !address) {
     return res.status(400).json({ error: "ต้องระบุ customer_id, name, phone, address" });
   }
+
+  const { sql, params } = userFilter(req, "c", 1);
+  const ownershipCheck = await pool.query(
+    `SELECT c.customer_id FROM customers c WHERE c.customer_id = $1${sql}`,
+    [customer_id, ...params]
+  );
+  if (!ownershipCheck.rows.length) {
+    return res.status(404).json({ error: "ไม่พบลูกค้าหรือไม่มีสิทธิ์เข้าถึง" });
+  }
+
   const { rows } = await pool.query(
     `INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m, appointment_date, notes)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING request_id`,
@@ -100,8 +111,10 @@ export async function update(req: Request, res: Response) {
   const { id } = req.params;
   const { name, phone, address, requested_depth_m, appointment_date, notes } = req.body;
 
+  const { sql, params } = userFilter(req, "c", 1);
   const existing = await pool.query(
-    "SELECT * FROM drilling_requests WHERE request_id = $1", [id]
+    `SELECT * FROM drilling_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.request_id = $1${sql}`,
+    [id, ...params]
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้องเจาะ" });
 
@@ -118,10 +131,10 @@ export async function update(req: Request, res: Response) {
     ]
   );
 
-  const { rows } = await pool.query(
+  const result = await pool.query(
     `${REQUEST_SELECT} WHERE r.request_id = $1`, [id]
   );
-  res.json(mapRow(rows[0]));
+  res.json(mapRow(result.rows[0]));
 }
 
 export async function updateStatus(req: Request, res: Response) {
@@ -133,23 +146,35 @@ export async function updateStatus(req: Request, res: Response) {
     return res.status(400).json({ error: `สถานะไม่ถูกต้อง ต้องเป็น ${valid.join(", ")}` });
   }
 
+  const { sql, params } = userFilter(req, "c", 1);
+  const existing = await pool.query(
+    `SELECT r.request_id FROM drilling_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.request_id = $1${sql}`,
+    [id, ...params]
+  );
+  if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้องเจาะ" });
+
   await pool.query("UPDATE drilling_requests SET status = $1 WHERE request_id = $2", [status, id]);
 
   const { rows } = await pool.query(
     `${REQUEST_SELECT} WHERE r.request_id = $1`, [id]
   );
-  if (!rows.length) return res.status(404).json({ error: "ไม่พบคำร้องเจาะ" });
   broadcast({ type: "DRILLING_REQUEST_CHANGED", data: { request_id: Number(id), status }, orgId: req.user?.orgId });
   res.json(mapRow(rows[0]));
 }
 
 export async function remove(req: Request, res: Response) {
+  const { sql, params } = userFilter(req, "c", 1);
+  const existing = await pool.query(
+    `SELECT r.request_id FROM drilling_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.request_id = $1${sql}`,
+    [req.params.id, ...params]
+  );
+  if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้อง" });
   await pool.query("DELETE FROM drilling_requests WHERE request_id = $1", [req.params.id]);
   res.status(204).end();
 }
 
 export async function createFromPublicForm(req: Request, res: Response) {
-  const { name, phone, address, requested_depth_m, appointment_date, notes, line_user_id, line_display_name, line_picture_url } = req.body;
+  const { name, phone, address, requested_depth_m, appointment_date, notes, line_user_id, line_display_name, line_picture_url, org_id } = req.body;
   if (!name || !phone) {
     return res.status(400).json({ error: "ต้องระบุชื่อและเบอร์โทร" });
   }
@@ -182,8 +207,8 @@ export async function createFromPublicForm(req: Request, res: Response) {
       );
     } else {
       const c = await client.query(
-        "INSERT INTO customers (customer_name, phone, address, line_user_id, line_display_name, line_picture_url) VALUES ($1, $2, $3, $4, $5, $6) RETURNING customer_id",
-        [name, phone, address || null, line_user_id || null, line_display_name || null, line_picture_url || null]
+        "INSERT INTO customers (customer_name, phone, address, line_user_id, line_display_name, line_picture_url, org_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING customer_id",
+        [name, phone, address || null, line_user_id || null, line_display_name || null, line_picture_url || null, org_id || null]
       );
       customerId = c.rows[0].customer_id;
     }

@@ -5,7 +5,9 @@ import { FullWell } from "../types";
 import { streamWellReportPdf } from "../utils/pdfReport";
 import { broadcast } from "../services/sse";
 
-async function getWellRow(id: string): Promise<any | null> {
+async function getWellRow(id: string, orgId?: string | null): Promise<any | null> {
+  const orgClause = orgId ? ` AND c.org_id = $2` : "";
+  const params = orgId ? [id, orgId] : [id];
   const { rows } = await pool.query(`
     SELECT
       w.*,
@@ -20,13 +22,13 @@ async function getWellRow(id: string): Promise<any | null> {
       (w.warranty_expire_date - CURRENT_DATE) AS days_left
     FROM wells w
     JOIN customers c ON c.customer_id = w.customer_id
-    WHERE w.well_id = $1
-  `, [id]);
+    WHERE w.well_id = $1${orgClause}
+  `, params);
   return rows[0] || null;
 }
 
 export async function list(req: Request, res: Response) {
-  const { sql, params } = userFilter(req);
+  const { sql, params } = userFilter(req, "c");
 
   const { rows } = await pool.query(`
     SELECT
@@ -51,7 +53,7 @@ export async function list(req: Request, res: Response) {
 
 export async function getOne(req: Request, res: Response) {
   const { id } = req.params;
-  const well = await getWellRow(id);
+  const well = await getWellRow(id, req.user?.orgId);
   if (!well) return res.status(404).json({ error: "ไม่พบบ่อบาดาล" });
 
   const strata = await pool.query(
@@ -78,13 +80,17 @@ export async function getOne(req: Request, res: Response) {
 
 export async function getByJob(req: Request, res: Response) {
   const { jobId } = req.params;
+  const orgId = req.user?.orgId;
+  const orgClause = orgId ? ` AND c.org_id = $2` : "";
+  const params = orgId ? [jobId, orgId] : [jobId];
   const { rows } = await pool.query(
-    "SELECT well_id FROM drilling_jobs WHERE job_id = $1", [jobId]
+    `SELECT j.well_id FROM drilling_jobs j JOIN customers c ON c.customer_id = j.customer_id WHERE j.job_id = $1${orgClause}`,
+    params
   );
   if (!rows.length || !rows[0].well_id) {
     return res.status(404).json({ error: "ไม่พบประวัติบ่อของงานนี้" });
   }
-  const well = await getWellRow(rows[0].well_id);
+  const well = await getWellRow(rows[0].well_id, orgId);
   if (!well) return res.status(404).json({ error: "ไม่พบบ่อบาดาล" });
 
   const strata = await pool.query(
@@ -127,6 +133,15 @@ export async function create(req: Request, res: Response) {
     return res.status(400).json({ error: "ต้องระบุ customer_id" });
   }
 
+  const { sql, params } = userFilter(req, "c", 1);
+  const ownershipCheck = await pool.query(
+    `SELECT c.customer_id FROM customers c WHERE c.customer_id = $1${sql}`,
+    [customer_id, ...params]
+  );
+  if (!ownershipCheck.rows.length) {
+    return res.status(404).json({ error: "ไม่พบลูกค้าหรือไม่มีสิทธิ์เข้าถึง" });
+  }
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -167,7 +182,7 @@ export async function create(req: Request, res: Response) {
     }
 
     await client.query("COMMIT");
-    const well = await getWellRow(newWellId);
+    const well = await getWellRow(newWellId, req.user?.orgId);
     broadcast({ type: "WELL_CREATED", data: { well_id: newWellId, customer_id }, orgId: req.user?.orgId });
     res.status(201).json(well);
   } catch (err) {
@@ -179,6 +194,12 @@ export async function create(req: Request, res: Response) {
 }
 
 export async function remove(req: Request, res: Response) {
+  const { sql, params } = userFilter(req, "c", 1);
+  const existing = await pool.query(
+    `SELECT w.well_id FROM wells w JOIN customers c ON c.customer_id = w.customer_id WHERE w.well_id = $1${sql}`,
+    [req.params.id, ...params]
+  );
+  if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบบ่อ" });
   await pool.query("DELETE FROM wells WHERE well_id = $1", [req.params.id]);
   broadcast({ type: "WELL_UPDATED", data: { well_id: Number(req.params.id) }, orgId: req.user?.orgId });
   res.status(204).end();
@@ -190,6 +211,13 @@ export async function addStrata(req: Request, res: Response) {
   if (depth_from_m == null || depth_to_m == null) {
     return res.status(400).json({ error: "ต้องระบุ depth_from_m และ depth_to_m" });
   }
+  const { sql, params } = userFilter(req, "c", 1);
+  const ownershipCheck = await pool.query(
+    `SELECT w.well_id FROM wells w JOIN customers c ON c.customer_id = w.customer_id WHERE w.well_id = $1${sql}`,
+    [wellId, ...params]
+  );
+  if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบบ่อหรือไม่มีสิทธิ์" });
+
   const { rows } = await pool.query(
     `INSERT INTO well_strata_logs (well_id, depth_from_m, depth_to_m, lithology_type, lithology_name, color_hex, hardness, water_bearing, description)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
@@ -211,6 +239,13 @@ export async function addPipe(req: Request, res: Response) {
   if (depth_from_m == null || depth_to_m == null) {
     return res.status(400).json({ error: "ต้องระบุ depth_from_m และ depth_to_m" });
   }
+  const { sql, params } = userFilter(req, "c", 1);
+  const ownershipCheck = await pool.query(
+    `SELECT w.well_id FROM wells w JOIN customers c ON c.customer_id = w.customer_id WHERE w.well_id = $1${sql}`,
+    [wellId, ...params]
+  );
+  if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบบ่อหรือไม่มีสิทธิ์" });
+
   const { rows } = await pool.query(
     `INSERT INTO well_pipes (well_id, material, pipe_type, size_mm, depth_from_m, depth_to_m, quantity, notes)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
@@ -232,6 +267,13 @@ export async function addPump(req: Request, res: Response) {
     pump_type, brand, pump_model, horsepower, power_kw, impeller_stages, installation_depth_m,
     voltage, phase, discharge_size_mm, rated_flow_m3hr, rated_head_m, installed_date, notes,
   } = req.body;
+  const { sql, params } = userFilter(req, "c", 1);
+  const ownershipCheck = await pool.query(
+    `SELECT w.well_id FROM wells w JOIN customers c ON c.customer_id = w.customer_id WHERE w.well_id = $1${sql}`,
+    [wellId, ...params]
+  );
+  if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบบ่อหรือไม่มีสิทธิ์" });
+
   const { rows } = await pool.query(
     `INSERT INTO well_pumps
       (well_id, pump_type, brand, pump_model, horsepower, power_kw, impeller_stages, installation_depth_m,
@@ -257,6 +299,13 @@ export async function removePump(req: Request, res: Response) {
 export async function addControlBox(req: Request, res: Response) {
   const { wellId } = req.params;
   const { brand, model, capacity, voltage, protection_type, features, installed_date, notes } = req.body;
+  const { sql, params } = userFilter(req, "c", 1);
+  const ownershipCheck = await pool.query(
+    `SELECT w.well_id FROM wells w JOIN customers c ON c.customer_id = w.customer_id WHERE w.well_id = $1${sql}`,
+    [wellId, ...params]
+  );
+  if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบบ่อหรือไม่มีสิทธิ์" });
+
   const { rows } = await pool.query(
     `INSERT INTO well_control_boxes (well_id, brand, model, capacity, voltage, protection_type, features, installed_date, notes)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
@@ -274,7 +323,7 @@ export async function removeControlBox(req: Request, res: Response) {
 
 export async function exportReport(req: Request, res: Response) {
   const { id } = req.params;
-  const well = await getWellRow(id);
+  const well = await getWellRow(id, req.user?.orgId);
   if (!well) return res.status(404).json({ error: "ไม่พบบ่อบาดาล" });
 
   const strata = await pool.query(

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
+import { userFilter } from "../utils/userFilter";
 import { RepairRecord } from "../types";
 
 function mapRow(row: any): RepairRecord {
@@ -17,26 +18,44 @@ function mapRow(row: any): RepairRecord {
 }
 
 export async function list(req: Request, res: Response) {
+  const { sql, params } = userFilter(req, "c");
   const { rows } = await pool.query(`
     SELECT rec.*, r.customer_id, c.customer_name, c.phone AS customer_phone
     FROM repair_records rec
     JOIN repair_requests r ON r.repair_id = rec.repair_id
     JOIN customers c ON c.customer_id = r.customer_id
+    WHERE 1=1 ${sql}
     ORDER BY rec.created_at DESC
-  `);
+  `, params);
   res.json(rows.map(mapRow));
 }
 
 export async function getOne(req: Request, res: Response) {
   const { id } = req.params;
+  const { sql, params } = userFilter(req, "c", 1);
   const { rows } = await pool.query(
-    "SELECT * FROM repair_records WHERE record_id = $1", [id]
+    `SELECT rec.*
+     FROM repair_records rec
+     JOIN repair_requests r ON r.repair_id = rec.repair_id
+     JOIN customers c ON c.customer_id = r.customer_id
+     WHERE rec.record_id = $1${sql}`,
+    [id, ...params]
   );
   if (!rows.length) return res.status(404).json({ error: "ไม่พบบันทึกการซ่อม" });
   res.json(mapRow(rows[0]));
 }
 
 export async function remove(req: Request, res: Response) {
+  const { sql, params } = userFilter(req, "c", 1);
+  const existing = await pool.query(
+    `SELECT rec.record_id
+     FROM repair_records rec
+     JOIN repair_requests r ON r.repair_id = rec.repair_id
+     JOIN customers c ON c.customer_id = r.customer_id
+     WHERE rec.record_id = $1${sql}`,
+    [req.params.id, ...params]
+  );
+  if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบบันทึก" });
   await pool.query("DELETE FROM repair_records WHERE record_id = $1", [req.params.id]);
   res.status(204).end();
 }
