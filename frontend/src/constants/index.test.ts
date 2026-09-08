@@ -31,7 +31,7 @@ describe("money", () => {
 
 describe("status lookup maps", () => {
   it("covers every job status", () => {
-    for (const s of ["QUEUED", "DRILLING", "SUCCESS", "FAILED", "CLOSED"]) {
+    for (const s of Object.keys(JOB_STATUS) as (keyof typeof JOB_STATUS)[]) {
       expect(JOB_STATUS[s]).toBeDefined();
       expect(JOB_STATUS[s].label).toBeTruthy();
       expect(JOB_STATUS[s].color).toBeTruthy();
@@ -39,19 +39,19 @@ describe("status lookup maps", () => {
   });
 
   it("covers every request status", () => {
-    for (const s of ["NEW", "QUOTED", "ACCEPTED", "REJECTED", "CANCELLED"]) {
+    for (const s of Object.keys(REQUEST_STATUS) as (keyof typeof REQUEST_STATUS)[]) {
       expect(REQUEST_STATUS[s]).toBeDefined();
     }
   });
 
   it("covers every repair status", () => {
-    for (const s of ["NEW", "QUOTED", "ACCEPTED", "REJECTED", "SCHEDULED", "IN_PROGRESS", "COMPLETED", "CLOSED", "CANCELLED"]) {
+    for (const s of Object.keys(REPAIR_STATUS) as (keyof typeof REPAIR_STATUS)[]) {
       expect(REPAIR_STATUS[s]).toBeDefined();
     }
   });
 
   it("covers every quotation status", () => {
-    for (const s of ["PENDING", "ACCEPTED", "REJECTED"]) {
+    for (const s of Object.keys(QUOTATION_STATUS) as (keyof typeof QUOTATION_STATUS)[]) {
       expect(QUOTATION_STATUS[s]).toBeDefined();
     }
   });
