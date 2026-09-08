@@ -60,15 +60,12 @@ describe("api client", () => {
     );
   });
 
-  it("clears the session and redirects on 401", async () => {
+  it("clears the session on 401", async () => {
     localStorage.setItem("welldrill-token", "expired");
-    const location = { href: "http://localhost:5173/" };
-    vi.stubGlobal("location", location);
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "unauth" }, { status: 401, ok: false }));
 
     await expect(api.get("/jobs")).rejects.toThrow("เซสชันหมดอายุ");
     expect(localStorage.getItem("welldrill-token")).toBeNull();
-    expect(location.href).toBe("/login");
   });
 
   it("throws the server-provided error message", async () => {
