@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS public.organizations (
   name                   text NOT NULL,
   slug                   text UNIQUE NOT NULL,
   invite_code            text UNIQUE NOT NULL DEFAULT substr(gen_random_uuid()::text, 1, 8),
+  line_channel_id         text,
   line_channel_secret    text,
   line_channel_access_token text,
   line_liff_id_drilling  text,
