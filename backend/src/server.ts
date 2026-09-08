@@ -20,6 +20,7 @@ import { authMiddleware }    from "./middleware/auth";
 import { asyncHandler }      from "./utils/asyncHandler";
 import { verifyToken }       from "./middleware/auth";
 import { addClient, clientCount } from "./services/sse";
+import { apiLimiter, authLimiter, publicLimiter } from "./middleware/rateLimit";
 import * as jobsCtrl         from "./controllers/jobs.controller";
 import * as repairCtrl       from "./controllers/repairRequests.controller";
 import * as drillingReqCtrl  from "./controllers/drillingRequests.controller";
@@ -50,13 +51,13 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 
-// Public auth routes
-app.use("/api/auth", authRoutes);
+// Public auth routes (rate limit: 10 attempts / 15 min)
+app.use("/api/auth", authLimiter, authRoutes);
 
-// Public routes — ฟอร์มลูกค้า (สร้างคำร้องซ่อม/เจาะ) + magic link ช่าง
-app.post("/api/public/repair-requests", asyncHandler(repairCtrl.createFromPublicForm));
-app.post("/api/public/drilling-requests", asyncHandler(drillingReqCtrl.createFromPublicForm));
-app.get("/api/public/customer-by-line", asyncHandler(async (req: any, res: any) => {
+// Public routes — ฟอร์มลูกค้า (rate limit: 20 req/min)
+app.post("/api/public/repair-requests", publicLimiter, asyncHandler(repairCtrl.createFromPublicForm));
+app.post("/api/public/drilling-requests", publicLimiter, asyncHandler(drillingReqCtrl.createFromPublicForm));
+app.get("/api/public/customer-by-line", publicLimiter, asyncHandler(async (req: any, res: any) => {
   const { line_user_id } = req.query;
   if (!line_user_id) return res.status(400).json({ error: "ต้องระบุ line_user_id" });
   const { pool } = await import("./config/db");
@@ -102,16 +103,16 @@ app.get("/api/events", (req, res) => {
   req.on("close", () => {});
 });
 
-// Protected routes
-app.use("/api/customers",         authMiddleware, customersRoutes);
-app.use("/api/jobs",              authMiddleware, jobsRoutes);
-app.use("/api/wells",             authMiddleware, wellsRoutes);
-app.use("/api/stats",             authMiddleware, statsRoutes);
-app.use("/api/drilling-requests", authMiddleware, drillingRequestsRoutes);
-app.use("/api/repair-requests",   authMiddleware, repairRequestsRoutes);
-app.use("/api/quotations",        authMiddleware, quotationsRoutes);
-app.use("/api/repair-records",    authMiddleware, repairRecordsRoutes);
-app.use("/api/line-settings",     authMiddleware, lineSettingsRoutes);
+// Protected routes (rate limit: 60 req/min)
+app.use("/api/customers",         authMiddleware, apiLimiter, customersRoutes);
+app.use("/api/jobs",              authMiddleware, apiLimiter, jobsRoutes);
+app.use("/api/wells",             authMiddleware, apiLimiter, wellsRoutes);
+app.use("/api/stats",             authMiddleware, apiLimiter, statsRoutes);
+app.use("/api/drilling-requests", authMiddleware, apiLimiter, drillingRequestsRoutes);
+app.use("/api/repair-requests",   authMiddleware, apiLimiter, repairRequestsRoutes);
+app.use("/api/quotations",        authMiddleware, apiLimiter, quotationsRoutes);
+app.use("/api/repair-records",    authMiddleware, apiLimiter, repairRecordsRoutes);
+app.use("/api/line-settings",     authMiddleware, apiLimiter, lineSettingsRoutes);
 
 // centralized error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
