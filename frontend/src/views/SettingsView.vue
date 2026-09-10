@@ -34,6 +34,8 @@ const liffIdRepair = ref("");
 const webhookUrl = "https://well-drilling-api.onrender.com/api/webhooks/line";
 const drillUrl = computed(() => liffIdDrilling.value ? `https://liff.line.me/${liffIdDrilling.value}/request-drill` : "");
 const repairUrl = computed(() => liffIdRepair.value ? `https://liff.line.me/${liffIdRepair.value}/repair-form` : "");
+const drillEndpoint = computed(() => liffIdDrilling.value ? `https://well-drilling.vercel.app/request-drill?liffId=${liffIdDrilling.value}` : "");
+const repairEndpoint = computed(() => liffIdRepair.value ? `https://well-drilling.vercel.app/repair-form?liffId=${liffIdRepair.value}` : "");
 
 async function loadSettings() {
   try {
@@ -228,26 +230,58 @@ function copyToClipboard(text: string, label: string) {
                     <li>สร้าง <strong>Provider</strong> ใหม่ → สร้าง <strong>Channel</strong> ประเภท <strong>Messaging API</strong></li>
                     <li>ไป tab <strong>LIFF</strong> → กด <strong>Add</strong></li>
                     <li>ตั้ง <strong>App name</strong> เช่น "ฟอร์มแจ้งเจาะ" หรือ "ฟอร์มแจ้งซ่อม"</li>
-                    <li>ตั้ง <strong>Endpoint URL</strong> ตามตารางด้านล่าง</li>
+                    <li>คัดลอก <strong>Endpoint URL</strong> ด้านล่างไปใส่ (ตาม LIFF ID ที่กรอกไว้)</li>
                     <li>เลือก Scope = <strong>profile</strong> + <strong>openid</strong></li>
                     <li>กด <strong>Submit</strong> → คัดลอก <strong>LIFF ID</strong> มาใส่ในช่องด้านบน</li>
                   </ol>
                 </div>
               </v-alert>
 
-              <v-alert type="warning" variant="tonal" density="compact" class="mt-2">
+              <v-alert v-if="drillEndpoint || repairEndpoint" type="warning" variant="tonal" density="compact" class="mt-2">
                 <div class="text-body-2">
                   <strong>Endpoint URL ที่ต้องตั้งค่าใน LIFF App:</strong>
                   <div class="mt-2">
-                    <div class="d-flex align-center mb-1">
-                      <v-icon icon="mdi-water-well" size="14" color="primary" class="mr-1" />
-                      <strong>ฟอร์มแจ้งเจาะ:</strong>&nbsp;
-                      <code>https://well-drilling.vercel.app/request-drill</code>
+                    <div v-if="drillEndpoint" class="mb-2">
+                      <div class="d-flex align-center mb-1">
+                        <v-icon icon="mdi-water-well" size="14" color="primary" class="mr-1" />
+                        <strong>ฟอร์มแจ้งเจาะ:</strong>
+                      </div>
+                      <v-text-field
+                        :model-value="drillEndpoint"
+                        variant="outlined"
+                        density="compact"
+                        readonly
+                        hide-details
+                      >
+                        <template #append-inner>
+                          <v-icon
+                            icon="mdi-content-copy"
+                            style="cursor: pointer"
+                            @click="copyToClipboard(drillEndpoint, 'Endpoint URL แจ้งเจาะ')"
+                          />
+                        </template>
+                      </v-text-field>
                     </div>
-                    <div class="d-flex align-center">
-                      <v-icon icon="mdi-wrench-outline" size="14" color="warning" class="mr-1" />
-                      <strong>ฟอร์มแจ้งซ่อม:</strong>&nbsp;
-                      <code>https://well-drilling.vercel.app/repair-form</code>
+                    <div v-if="repairEndpoint">
+                      <div class="d-flex align-center mb-1">
+                        <v-icon icon="mdi-wrench-outline" size="14" color="warning" class="mr-1" />
+                        <strong>ฟอร์มแจ้งซ่อม:</strong>
+                      </div>
+                      <v-text-field
+                        :model-value="repairEndpoint"
+                        variant="outlined"
+                        density="compact"
+                        readonly
+                        hide-details
+                      >
+                        <template #append-inner>
+                          <v-icon
+                            icon="mdi-content-copy"
+                            style="cursor: pointer"
+                            @click="copyToClipboard(repairEndpoint, 'Endpoint URL แจ้งซ่อม')"
+                          />
+                        </template>
+                      </v-text-field>
                     </div>
                   </div>
                 </div>
