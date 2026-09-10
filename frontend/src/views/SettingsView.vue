@@ -32,8 +32,8 @@ const liffIdDrilling = ref("");
 const liffIdRepair = ref("");
 
 const webhookUrl = "https://well-drilling-api.onrender.com/api/webhooks/line";
-const drillUrl = computed(() => liffIdDrilling.value ? `https://liff.line.me/${liffIdDrilling.value}/request-drill` : "");
-const repairUrl = computed(() => liffIdRepair.value ? `https://liff.line.me/${liffIdRepair.value}/repair-form` : "");
+const drillUrl = computed(() => liffIdDrilling.value ? `https://liff.line.me/${liffIdDrilling.value}/liff-login?redirect=/request-drill` : "");
+const repairUrl = computed(() => liffIdRepair.value ? `https://liff.line.me/${liffIdRepair.value}/liff-login?redirect=/repair-form` : "");
 
 async function loadSettings() {
   try {

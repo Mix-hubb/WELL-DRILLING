@@ -176,7 +176,7 @@ onMounted(async () => {
   const liff = liffModule.default;
 
   if (!liff.isLoggedIn()) {
-    liff.login();
+    window.location.href = `/liff-login?liffId=${urlLiffId}&redirect=/repair-form`;
     return;
   }
 
