@@ -153,6 +153,10 @@ async function submit() {
   }
 }
 
+function loginWithLine() {
+  import("@line/liff").then((m) => m.default.login());
+}
+
 onMounted(async () => {
   const urlLiffId = new URLSearchParams(window.location.search).get("liffId") || "";
   if (!urlLiffId) {
@@ -213,10 +217,6 @@ async function checkExistingCustomer() {
     checkingExisting.value = false;
   }
 }
-
-function loginWithLine() {
-  import("@line/liff").then((m) => m.default.login());
-}
 </script>
 
 <template>
@@ -243,13 +243,13 @@ function loginWithLine() {
       </div>
 
       <!-- Loading LIFF -->
-      <div v-if="!success && !liffReady" class="form-card" style="text-align: center; padding: 48px 24px;">
+      <div v-else-if="!liffReady" class="form-card" style="text-align: center; padding: 48px 24px;">
         <v-progress-circular indeterminate color="primary" size="48" />
         <div class="text-body-2 mt-4" style="color: #6A7A8A;">กำลังเชื่อมต่อ...</div>
       </div>
 
       <!-- Login with LINE -->
-      <div v-else-if="!success && isLiffEnv && !isLoggedIn" class="form-card" style="text-align: center; padding: 48px 24px;">
+      <div v-else-if="isLiffEnv && !isLoggedIn" class="form-card" style="text-align: center; padding: 48px 24px;">
         <div class="header-icon" style="margin-bottom: 20px;">
           <v-icon icon="mdi-login" size="40" color="primary" />
         </div>
@@ -266,13 +266,13 @@ function loginWithLine() {
       </div>
 
       <!-- Checking existing -->
-      <div v-else-if="!success && isLoggedIn && checkingExisting" class="form-card" style="text-align: center; padding: 48px 24px;">
+      <div v-else-if="checkingExisting" class="form-card" style="text-align: center; padding: 48px 24px;">
         <v-progress-circular indeterminate color="primary" size="48" />
         <div class="text-body-2 mt-4" style="color: #6A7A8A;">กำลังตรวจสอบข้อมูล...</div>
       </div>
 
       <!-- Form -->
-      <div v-else-if="!success && isLoggedIn" class="form-card">
+      <div v-else class="form-card">
         <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-4" rounded="lg">
           {{ error }}
         </v-alert>

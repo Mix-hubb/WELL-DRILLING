@@ -24,6 +24,7 @@ const checkingExisting = ref(false);
 
 onMounted(async () => {
   const urlLiffId = new URLSearchParams(window.location.search).get("liffId") || "";
+
   if (!urlLiffId) {
     liffReady.value = true;
     return;
@@ -169,13 +170,13 @@ async function submit() {
       </div>
 
       <!-- Checking existing -->
-      <div v-else-if="isLoggedIn && checkingExisting" class="form-card" style="text-align: center; padding: 48px 24px;">
+      <div v-else-if="checkingExisting" class="form-card" style="text-align: center; padding: 48px 24px;">
         <v-progress-circular indeterminate color="primary" size="48" />
         <div class="text-body-2 mt-4" style="color: #6A7A8A;">กำลังตรวจสอบข้อมูล...</div>
       </div>
 
       <!-- Quick Submit: มีข้อมูลเดิมแล้ว -->
-      <div v-else-if="isLoggedIn && existingCustomer && !checkingExisting" class="form-card">
+      <div v-else-if="existingCustomer" class="form-card">
         <div class="text-center mb-4">
           <v-icon icon="mdi-account-check-outline" size="48" color="success" class="mb-2" />
           <div class="text-h6 font-weight-bold" style="color: #2E2418;">พบข้อมูลของคุณในระบบ</div>
@@ -220,7 +221,7 @@ async function submit() {
       </div>
 
       <!-- Form -->
-      <div v-else-if="isLoggedIn" class="form-card">
+      <div v-else class="form-card">
         <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-4" rounded="lg">
           {{ error }}
         </v-alert>
