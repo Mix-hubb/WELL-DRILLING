@@ -159,17 +159,20 @@ function loginWithLine() {
 
 onMounted(async () => {
   const urlLiffId = new URLSearchParams(window.location.search).get("liffId") || "";
-  if (!urlLiffId) {
+  const liffId = urlLiffId || sessionStorage.getItem("liffId") || "";
+
+  if (!liffId) {
     liffReady.value = true;
     return;
   }
 
   isLiffEnv.value = true;
+  actualLiffId.value = liffId;
 
   try {
     const liffModule = await import("@line/liff");
     const liff = liffModule.default;
-    await liff.init({ liffId: urlLiffId });
+    await liff.init({ liffId });
   } catch (e) {
     console.warn("LIFF init error:", e);
     liffReady.value = true;
@@ -180,16 +183,18 @@ onMounted(async () => {
   const liff = liffModule.default;
 
   if (!liff.isLoggedIn()) {
+    sessionStorage.setItem("liffId", liffId);
     liffReady.value = true;
     return;
   }
+
+  sessionStorage.removeItem("liffId");
 
   const profile = await liff.getProfile();
   lineUserId.value = profile?.userId || null;
   profileName.value = profile?.displayName || "";
   profilePicture.value = profile?.pictureUrl || "";
   isLoggedIn.value = true;
-  actualLiffId.value = urlLiffId;
 
   await checkExistingCustomer();
   liffReady.value = true;

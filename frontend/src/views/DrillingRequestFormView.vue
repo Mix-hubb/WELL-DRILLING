@@ -24,16 +24,18 @@ const checkingExisting = ref(false);
 
 onMounted(async () => {
   const urlLiffId = new URLSearchParams(window.location.search).get("liffId") || "";
+  const liffId = urlLiffId || sessionStorage.getItem("liffId") || "";
 
-  if (!urlLiffId) {
+  if (!liffId) {
     liffReady.value = true;
     return;
   }
 
   isLiffEnv.value = true;
+  actualLiffId.value = liffId;
 
   try {
-    await liff.init({ liffId: urlLiffId });
+    await liff.init({ liffId });
   } catch (e) {
     console.warn("LIFF init error:", e);
     liffReady.value = true;
@@ -41,16 +43,18 @@ onMounted(async () => {
   }
 
   if (!liff.isLoggedIn()) {
+    sessionStorage.setItem("liffId", liffId);
     liffReady.value = true;
     return;
   }
+
+  sessionStorage.removeItem("liffId");
 
   const profile = await liff.getProfile();
   lineUserId.value = profile?.userId || null;
   profileName.value = profile?.displayName || "";
   profilePicture.value = profile?.pictureUrl || "";
   isLoggedIn.value = true;
-  actualLiffId.value = urlLiffId;
 
   await checkExistingCustomer();
   liffReady.value = true;
