@@ -38,7 +38,7 @@ const liffRepairStatus = ref<"ok" | "duplicate" | null>(null);
 const liffDrillUsedBy = ref("");
 const liffRepairUsedBy = ref("");
 
-const webhookUrl = computed(() => `${window.location.origin}/api/webhooks/line`);
+const webhookUrl = "https://well-drilling-api.onrender.com/api/webhooks/line";
 const drillUrl = computed(() => liffIdDrilling.value ? `https://liff.line.me/${liffIdDrilling.value}/request-drill` : "");
 const repairUrl = computed(() => liffIdRepair.value ? `https://liff.line.me/${liffIdRepair.value}/repair-form` : "");
 const drillEndpoint = computed(() => liffIdDrilling.value ? `https://well-drilling.vercel.app/request-drill?liffId=${liffIdDrilling.value}` : "");
