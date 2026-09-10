@@ -51,6 +51,75 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 
+app.get("/api/debug/postback-test/:customerId/:requestId", async (req, res) => {
+  try {
+    const { pool } = await import("./config/db");
+    const { customerId, requestId } = req.params;
+
+    const cust = await pool.query(
+      "SELECT customer_id, customer_name, line_user_id, org_id FROM customers WHERE customer_id = $1", [customerId]
+    );
+    if (!cust.rows.length) return res.status(404).json({ error: "ไม่พบลูกค้า" });
+
+    const org = cust.rows[0].org_id
+      ? (await pool.query("SELECT org_id, line_channel_access_token, line_channel_id FROM organizations WHERE org_id = $1", [cust.rows[0].org_id])).rows[0]
+      : null;
+
+    const drillReq = await pool.query(
+      "SELECT request_id, status, customer_id FROM drilling_requests WHERE request_id = $1", [requestId]
+    );
+
+    const quotation = await pool.query(
+      "SELECT quotation_id, kind, price, status, drilling_request_id FROM quotations WHERE drilling_request_id = $1", [requestId]
+    );
+
+    res.json({
+      customer: cust.rows[0],
+      organization: org ? { org_id: org.org_id, channel_id: org.line_channel_id, has_token: !!org.line_channel_access_token } : null,
+      drilling_request: drillReq.rows[0] || null,
+      quotation: quotation.rows[0] || null,
+      postback_data_accept: `accept_drill_${requestId}`,
+      postback_data_reject: `reject_drill_${requestId}`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/debug/overview", async (_req, res) => {
+  try {
+    const { pool } = await import("./config/db");
+    const customers = await pool.query(
+      "SELECT customer_id, customer_name, phone, line_user_id, org_id FROM customers ORDER BY created_at DESC LIMIT 20"
+    );
+    const drillingReqs = await pool.query(
+      "SELECT request_id, customer_id, status, name, phone FROM drilling_requests ORDER BY created_at DESC LIMIT 20"
+    );
+    const repairReqs = await pool.query(
+      "SELECT repair_id, customer_id, status FROM repair_requests ORDER BY created_at DESC LIMIT 20"
+    );
+    const quotations = await pool.query(
+      "SELECT quotation_id, kind, drilling_request_id, repair_request_id, price, status FROM quotations ORDER BY created_at DESC LIMIT 20"
+    );
+    const jobs = await pool.query(
+      "SELECT job_id, request_id, customer_id, status FROM drilling_jobs ORDER BY created_at DESC LIMIT 10"
+    );
+    const orgs = await pool.query(
+      "SELECT org_id, org_name, line_channel_id, line_liff_id_drilling, line_liff_id_repair, CASE WHEN line_channel_access_token IS NOT NULL AND length(line_channel_access_token) > 0 THEN true ELSE false END as has_token FROM organizations"
+    );
+    res.json({
+      customers: customers.rows,
+      drilling_requests: drillingReqs.rows,
+      repair_requests: repairReqs.rows,
+      quotations: quotations.rows,
+      jobs: jobs.rows,
+      organizations: orgs.rows,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Public auth routes (rate limit: 10 attempts / 15 min)
 app.use("/api/auth", authLimiter, authRoutes);
 
