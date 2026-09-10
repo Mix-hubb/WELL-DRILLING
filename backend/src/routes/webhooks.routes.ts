@@ -78,8 +78,9 @@ async function handleText(userId: string, text: string, replyToken: string, org:
   );
 
   if (/แจ้งเจาะ|ขุดเจาะ|เจาะบ่อ/.test(text)) {
-    const liffUrl = org.line_liff_id_drilling
-      ? `https://liff.line.me/${org.line_liff_id_drilling}/request-drill`
+    const liffId = org.line_liff_id_drilling;
+    const liffUrl = liffId
+      ? `https://liff.line.me/${liffId}/request-drill?liffId=${liffId}`
       : `${process.env.APP_URL || "http://localhost:5173"}/request-drill`;
     return reply(org.line_channel_access_token, replyToken,
       "เปิดฟอร์มแจ้งเจาะบ่อบาดาลได้เลยครับ:\n" + liffUrl
@@ -87,8 +88,9 @@ async function handleText(userId: string, text: string, replyToken: string, org:
   }
 
   if (/แจ้งซ่อม|ซ่อมแซม|ซ่อมบำรุง/.test(text)) {
-    const liffUrl = org.line_liff_id_repair
-      ? `https://liff.line.me/${org.line_liff_id_repair}/repair-form`
+    const liffId = org.line_liff_id_repair;
+    const liffUrl = liffId
+      ? `https://liff.line.me/${liffId}/repair-form?liffId=${liffId}`
       : `${process.env.APP_URL || "http://localhost:5173"}/repair-form`;
     return reply(org.line_channel_access_token, replyToken,
       "เปิดฟอร์มแจ้งซ่อมบ่อบาดาลได้เลยครับ:\n" + liffUrl
