@@ -38,11 +38,20 @@ router.get(
       return res.status(400).json({ error: "ต้องระบุ liff_id" });
     }
 
+    const { rows: myOrg } = await pool.query(
+      `SELECT o.org_id FROM organizations o
+       JOIN users u ON u.org_id = o.org_id
+       WHERE u.user_id = $1`,
+      [req.user!.userId]
+    );
+    const myOrgId = myOrg[0]?.org_id;
+
     const { rows } = await pool.query(
       `SELECT org_id, name FROM organizations
-       WHERE line_liff_id_drilling = $1 OR line_liff_id_repair = $1
+       WHERE (line_liff_id_drilling = $1 OR line_liff_id_repair = $1)
+       AND org_id != $2
        ORDER BY created_at ASC LIMIT 1`,
-      [liff_id]
+      [liff_id, myOrgId]
     );
 
     if (!rows.length) {
