@@ -56,6 +56,7 @@ beforeEach(() => {
     if (sql.includes("SELECT well_id FROM drilling_jobs")) return { rows: [] };
     if (sql.includes("INSERT INTO drilling_jobs")) return { rows: [{ job_id: 1 }] };
     if (sql.includes("FROM drilling_jobs j")) return { rows: [jobRow] };
+    if (sql.includes("FROM customers c")) return { rows: [{ customer_id: 2 }] };
     if (sql.includes("UPDATE drilling_requests SET status")) return { rows: [] };
     if (sql.includes("SELECT * FROM drilling_requests")) return { rows: [] };
     return { rows: [] };
@@ -294,7 +295,7 @@ describe("remove / generateMagicLink", () => {
   it("generateMagicLink regenerates the token", async () => {
     const res = createRes();
     await jobs.generateMagicLink(createReq({ params: { id: "1" } }), res);
-    const call = mocks.poolQuery.mock.calls[0];
+    const call = mocks.poolQuery.mock.calls[1];
     expect(call[0]).toContain("UPDATE drilling_jobs SET magic_link_token");
     expect(String(call[1][0])).toMatch(/^drill-[0-9a-f]{32}$/);
     expect(res.json).toHaveBeenCalledWith({ token: expect.any(String) });

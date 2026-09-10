@@ -36,6 +36,7 @@ const wellRow = { well_id: 1, customer_id: 1, well_name: "บ่อบ้าน"
 function setDefaultPoolQuery() {
   mocks.poolQuery.mockImplementation(async (sql: string) => {
     if (sql.includes("FROM wells w")) return { rows: [wellRow] };
+    if (sql.includes("FROM customers c")) return { rows: [{ customer_id: 1 }] };
     if (sql.includes("FROM well_strata_logs")) return { rows: [{ strata_id: 1 }] };
     if (sql.includes("FROM well_pipes")) return { rows: [{ pipe_id: 1 }] };
     if (sql.includes("FROM well_pumps")) return { rows: [{ pump_id: 1 }] };
@@ -108,6 +109,7 @@ describe("create", () => {
     });
     mocks.poolQuery.mockImplementation(async (sql: string) => {
       if (sql.includes("FROM wells w")) return { rows: [wellRow] };
+      if (sql.includes("FROM customers c")) return { rows: [{ customer_id: 1 }] };
       return { rows: [] };
     });
     const res = createRes();
@@ -162,7 +164,7 @@ describe("strata / pipes / pumps / control boxes", () => {
       }),
       res
     );
-    const [sql, params] = mocks.poolQuery.mock.calls[0];
+    const [sql, params] = mocks.poolQuery.mock.calls[1];
     expect(sql).toContain("INSERT INTO well_strata_logs");
     expect(params[0]).toBe("1");
     expect(params[3]).toBe("CLAY");
@@ -196,7 +198,7 @@ describe("strata / pipes / pumps / control boxes", () => {
       }),
       res
     );
-    const [sql, params] = mocks.poolQuery.mock.calls[0];
+    const [sql, params] = mocks.poolQuery.mock.calls[1];
     expect(sql).toContain("INSERT INTO well_pipes");
     expect(params[6]).toBe(1);
     expect(res.status).toHaveBeenCalledWith(201);
@@ -217,7 +219,7 @@ describe("strata / pipes / pumps / control boxes", () => {
       }),
       res
     );
-    const [sql, params] = mocks.poolQuery.mock.calls[0];
+    const [sql, params] = mocks.poolQuery.mock.calls[1];
     expect(sql).toContain("INSERT INTO well_pumps");
     expect(params[1]).toBe("AC_SUBMERSIBLE");
     expect(res.status).toHaveBeenCalledWith(201);
@@ -235,7 +237,7 @@ describe("strata / pipes / pumps / control boxes", () => {
       createReq({ params: { wellId: "1" }, body: { brand: "X", model: "Y" } }),
       res
     );
-    const [sql, params] = mocks.poolQuery.mock.calls[0];
+    const [sql, params] = mocks.poolQuery.mock.calls[1];
     expect(sql).toContain("INSERT INTO well_control_boxes");
     expect(params[1]).toBe("X");
     expect(res.status).toHaveBeenCalledWith(201);

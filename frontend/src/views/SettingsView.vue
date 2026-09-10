@@ -31,7 +31,7 @@ const channelAccessToken = ref("");
 const liffIdDrilling = ref("");
 const liffIdRepair = ref("");
 
-onMounted(async () => {
+async function loadSettings() {
   try {
     const data = await api.get<LineSettings>("/line-settings");
     settings.value = data;
@@ -45,7 +45,9 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-});
+}
+
+onMounted(loadSettings);
 
 async function handleSave() {
   saving.value = true;
@@ -57,6 +59,11 @@ async function handleSave() {
       line_liff_id_drilling: liffIdDrilling.value,
       line_liff_id_repair: liffIdRepair.value,
     });
+    channelSecret.value = "";
+    channelAccessToken.value = "";
+    showSecret.value = false;
+    showToken.value = false;
+    await loadSettings();
     ui.notify("บันทึกสำเร็จ", "success");
   } catch (err) {
     ui.notifyError(err);
