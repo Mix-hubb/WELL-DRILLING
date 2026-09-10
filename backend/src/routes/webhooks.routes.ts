@@ -212,6 +212,8 @@ async function handleText(userId: string, text: string, replyToken: string, org:
 }
 
 async function handlePostback(userId: string, data: string, org: OrgLineConfig, replyToken?: string) {
+  console.log(`[postback] Processing: userId=${userId} data="${data}" org=${org.org_id}`);
+
   const custResult = await pool.query(
     "SELECT customer_id, customer_name, org_id FROM customers WHERE line_user_id = $1",
     [userId]
@@ -222,6 +224,7 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     return;
   }
   const customerId = custResult.rows[0].customer_id;
+  console.log(`[postback] Found customer: id=${customerId} name=${custResult.rows[0].customer_name} org_id=${custResult.rows[0].org_id}`);
 
   if (!custResult.rows[0].org_id) {
     await pool.query("UPDATE customers SET org_id = $1 WHERE customer_id = $2", [org.org_id, customerId]);
@@ -234,13 +237,16 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
   const acceptRepairMatch = data.match(/^accept_repair_(.+)$/);
   const rejectRepairMatch = data.match(/^reject_repair_(.+)$/);
 
+  console.log(`[postback] Match results: acceptDrill=${!!acceptDrillMatch} rejectDrill=${!!rejectDrillMatch} acceptRepair=${!!acceptRepairMatch} rejectRepair=${!!rejectRepairMatch}`);
+
   if (acceptDrillMatch) {
     const requestId = acceptDrillMatch[1];
+    console.log(`[postback] Accepting drilling request ${requestId}`);
     const existing = await pool.query(
       "SELECT status, customer_id FROM drilling_requests WHERE request_id = $1", [requestId]
     );
-    if (!existing.rows.length) return;
-    if (existing.rows[0].customer_id !== customerId) return;
+    if (!existing.rows.length) { console.warn(`[postback] Drilling request ${requestId} not found`); return; }
+    if (existing.rows[0].customer_id !== customerId) { console.warn(`[postback] Customer mismatch: request owner=${existing.rows[0].customer_id} presser=${customerId}`); return; }
     if (existing.rows[0].status !== "QUOTED") {
       if (replyToken) reply(org.line_channel_access_token, replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
       return;
@@ -343,6 +349,8 @@ router.post(
     const body = req.body;
     const destination = body?.destination as string | undefined;
 
+    console.log(`[LINE webhook] destination=${destination} events=${body?.events?.length || 0}`);
+
     if (!destination) {
       return res.status(400).json({ error: "No destination" });
     }
@@ -354,6 +362,7 @@ router.post(
     }
 
     if (raw && signature && !verifySignature(raw, signature, org.line_channel_secret)) {
+      console.warn(`[LINE webhook] Invalid signature for channel: ${destination}`);
       return res.status(400).json({ error: "Invalid signature" });
     }
 
@@ -363,10 +372,17 @@ router.post(
       if (!userId) continue;
       await findOrCreateCustomerByLine(userId, undefined, org.org_id);
 
-      if (event.type === "message" && event.message?.type === "text") {
-        await handleText(userId, event.message.text, event.replyToken, org);
-      } else if (event.type === "postback") {
-        await handlePostback(userId, event.postback?.data || "", org, event.replyToken);
+      console.log(`[LINE webhook] event type=${event.type} userId=${userId}`);
+
+      try {
+        if (event.type === "message" && event.message?.type === "text") {
+          await handleText(userId, event.message.text, event.replyToken, org);
+        } else if (event.type === "postback") {
+          console.log(`[LINE webhook] postback data=${event.postback?.data}`);
+          await handlePostback(userId, event.postback?.data || "", org, event.replyToken);
+        }
+      } catch (err) {
+        console.error(`[LINE webhook] Error handling event:`, err);
       }
     }
 
