@@ -32,6 +32,10 @@ const scheduleDate = ref("");
 const slips = ref<PaymentSlip[]>([]);
 const slipsLoading = ref(false);
 const previewImage = ref<string | null>(null);
+const previewDlg = computed({
+  get: () => !!previewImage.value,
+  set: (val) => { if (!val) previewImage.value = null; },
+});
 const rejectDlg = ref(false);
 const rejectSlipId = ref("");
 const rejectNotes = ref("");
@@ -472,7 +476,7 @@ async function confirmRejectSlip() {
       </v-dialog>
 
       <!-- Image Preview Dialog -->
-      <v-dialog v-model="previewImage" max-width="600">
+      <v-dialog v-model="previewDlg" max-width="600">
         <v-card class="pa-2 text-center" v-if="previewImage">
           <img :src="previewImage" style="max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 4px;" />
           <v-btn class="mt-2" variant="tonal" size="small" @click="previewImage = null">ปิด</v-btn>

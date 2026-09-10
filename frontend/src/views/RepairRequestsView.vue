@@ -272,15 +272,17 @@ function fmtDate(d: string) {
               ซ่อมเสร็จ
             </v-btn>
           </div>
-          <div v-else-if="r.status === 'COMPLETED'" class="d-flex ga-2 align-center">
-            <v-btn size="small" color="grey-darken-1" variant="flat" prepend-icon="mdi-check-all" @click="setStatus(r.repair_id, 'CLOSED')">
-              ปิดงาน
-            </v-btn>
-          </div>
-          <div v-else-if="r.status === 'COMPLETED'" class="text-caption text-medium-emphasis">
-            <div v-if="r.quotation">ใบราคา {{ money(r.quotation.price) }} บาท</div>
-            <div v-if="r.records?.[0]?.final_price" class="mt-1 font-weight-bold text-success">
-              จบงาน {{ money(r.records[0].final_price) }} บาท
+          <div v-else-if="r.status === 'COMPLETED'">
+            <div class="d-flex ga-2 align-center mb-2">
+              <v-btn size="small" color="grey-darken-1" variant="flat" prepend-icon="mdi-check-all" @click="setStatus(r.repair_id, 'CLOSED')">
+                ปิดงาน
+              </v-btn>
+            </div>
+            <div class="text-caption text-medium-emphasis">
+              <div v-if="r.quotation">ใบราคา {{ money(r.quotation.price) }} บาท</div>
+              <div v-if="r.records?.[0]?.final_price" class="mt-1 font-weight-bold text-success">
+                จบงาน {{ money(r.records[0].final_price) }} บาท
+              </div>
             </div>
           </div>
           <div v-else class="text-caption text-medium-emphasis">
