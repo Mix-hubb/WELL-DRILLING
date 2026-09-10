@@ -238,13 +238,12 @@ function copyToClipboard(text: string, label: string) {
                   <strong>ขั้นตอนการตั้งค่า (ทำครั้งเดียว):</strong>
                   <ol class="mt-1 mb-0 pl-4">
                     <li>ไปที่ <a href="https://developers.line.me" target="_blank" class="text-primary">LINE Developers Console</a></li>
-                    <li>สร้าง <strong>Provider</strong> ใหม่ → สร้าง <strong>Channel</strong> ประเภท <strong>Messaging API</strong></li>
-                    <li>คัดลอก <strong>Channel ID</strong>, <strong>Channel Secret</strong>, <strong>Channel Access Token</strong> มาใส่ด้านล่าง</li>
-                    <li>ไป tab <strong>LIFF</strong> → กด <strong>Add</strong> → สร้าง 2 LIFF Apps (แจ้งเจาะ + แจ้งซ่อม)</li>
+                    <li><strong>ฝั่ง Messaging API channel:</strong> คัดลอก <strong>Channel ID</strong>, <strong>Channel Secret</strong>, <strong>Channel Access Token</strong> มาใส่ด้านล่าง</li>
+                    <li><strong>ฝั่ง LINE Login channel:</strong> ไป tab <strong>LIFF</strong> → กด <strong>Add</strong> → สร้าง 2 LIFF Apps (แจ้งเจาะ + แจ้งซ่อม)</li>
                     <li>คัดลอก <strong>LIFF ID</strong> แต่ละตัวมาใส่ด้านล่าง</li>
                     <li>ตั้งค่า <strong>Endpoint URL</strong> ที่ระบบแสดงให้ (ตาม LIFF ID ที่กรอก)</li>
                     <li>Scope = <strong>profile</strong> + <strong>openid</strong>, Bot Prompt = <strong>Aggressive</strong></li>
-                    <li>ไปตั้ง <strong>Webhook URL</strong> ที่ระบบแสดงให้</li>
+                    <li>ไปตั้ง <strong>Webhook URL</strong> ที่ระบบแสดงให้ (ที่ Messaging API channel)</li>
                   </ol>
                 </div>
               </v-alert>
@@ -305,10 +304,10 @@ function copyToClipboard(text: string, label: string) {
               <!-- LIFF IDs -->
               <div class="text-subtitle-2 font-weight-bold mb-1">
                 <v-icon start icon="mdi-link-variant" size="16" />
-                LIFF App IDs
+                LIFF App IDs (จาก LINE Login channel)
               </div>
               <div class="text-caption text-medium-emphasis mb-3">
-                สร้าง LIFF App 2 ตัวใน LINE Developers Console → LIFF tab → Add
+                LIFF App สร้างในฝั่ง LINE Login channel → LIFF tab → Add
               </div>
 
               <!-- LIFF Drilling -->
