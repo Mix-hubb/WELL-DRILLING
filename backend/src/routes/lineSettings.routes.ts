@@ -9,6 +9,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const { rows } = await pool.query(
       `SELECT o.org_id, o.name, o.slug, o.invite_code,
+              o.line_channel_id,
               o.line_channel_secret,
               o.line_channel_access_token, o.line_liff_id_drilling, o.line_liff_id_repair,
               o.created_at
@@ -33,7 +34,7 @@ router.put(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
     const {
-      line_channel_secret, line_channel_access_token,
+      line_channel_id, line_channel_secret, line_channel_access_token,
       line_liff_id_drilling, line_liff_id_repair,
     } = req.body;
 
@@ -52,6 +53,7 @@ router.put(
     const params: any[] = [];
     let idx = 1;
 
+    if (line_channel_id !== undefined) { updates.push(`line_channel_id = $${idx++}`); params.push(line_channel_id || null); }
     if (line_channel_secret !== undefined && line_channel_secret !== "••••••••") { updates.push(`line_channel_secret = $${idx++}`); params.push(line_channel_secret || null); }
     if (line_channel_access_token !== undefined && line_channel_access_token !== "••••••••") { updates.push(`line_channel_access_token = $${idx++}`); params.push(line_channel_access_token || null); }
     if (line_liff_id_drilling !== undefined) { updates.push(`line_liff_id_drilling = $${idx++}`); params.push(line_liff_id_drilling || null); }
