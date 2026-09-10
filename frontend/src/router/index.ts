@@ -6,7 +6,6 @@ const routes = [
   { path: "/forgot-password", name: "forgot-password", component: () => import("@/views/ForgotPasswordView.vue"), meta: { public: true } },
   { path: "/reset-password", name: "reset-password", component: () => import("@/views/ResetPasswordView.vue"), meta: { public: true } },
   { path: "/", redirect: "/login" },
-  { path: "/:pathMatch(.*)*", redirect: "/login" },
 
   // ===== ผู้ประกอบการ =====
   {
@@ -63,19 +62,33 @@ const routes = [
     component: () => import("@/views/SettingsView.vue"),
     meta: { label: "ตั้งค่าระบบ", icon: "mdi-cog-outline" },
   },
-
-  // ===== ลูกค้า (public) =====
+  // ===== ลูกค้า (public, ผ่าน LIFF) =====
   {
-    path: "/request-drill", name: "request-drill",
+    path: "/:liffId/request-drill",
+    name: "request-drill-liff",
     component: () => import("@/views/DrillingRequestFormView.vue"),
     meta: { public: true, hidden: true },
   },
   {
-    path: "/repair-form", name: "repair-form",
+    path: "/:liffId/repair-form",
+    name: "repair-form-liff",
     component: () => import("@/views/RepairFormView.vue"),
     meta: { public: true, hidden: true },
   },
 
+  // ===== ลูกค้า (public, direct URL) =====
+  {
+    path: "/request-drill",
+    name: "request-drill",
+    component: () => import("@/views/DrillingRequestFormView.vue"),
+    meta: { public: true, hidden: true },
+  },
+  {
+    path: "/repair-form",
+    name: "repair-form",
+    component: () => import("@/views/RepairFormView.vue"),
+    meta: { public: true, hidden: true },
+  },
   // ===== ช่าง (magic link, public) =====
   {
     path: "/d/repair/:token", name: "driller-repair",
@@ -89,6 +102,7 @@ const routes = [
     props: true,
     meta: { public: true, hidden: true },
   },
+  { path: "/:pathMatch(.*)*", redirect: "/login" },
 ];
 
 export const router = createRouter({
