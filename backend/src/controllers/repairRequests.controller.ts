@@ -308,7 +308,7 @@ export async function updateStatus(req: Request, res: Response) {
        WHERE c.customer_id = $1`,
       [customerId]
     );
-    const liffId = custOrgRows[0]?.line_liff_id_repair || process.env.LINE_LIFF_ID_REPAIR;
+    const liffId = custOrgRows[0]?.line_liff_id_repair;
     const liffUrl = liffId
       ? `https://liff.line.me/${liffId}/repair-form`
       : `${process.env.APP_URL || "http://localhost:5173"}/repair-form`;

@@ -155,11 +155,17 @@ function copyInviteCode() {
                 variant="outlined"
                 density="compact"
                 prepend-inner-icon="mdi-key-outline"
-                :append-inner-icon="showSecret ? 'mdi-eye-off' : 'mdi-eye'"
                 :hint="settings.line_channel_secret ? 'ใส่ใหม่เฉพาะเมื่อต้องการเปลี่ยน' : 'จาก LINE Developers Console'"
                 class="mb-2"
-                @click:append-inner="showSecret = !showSecret"
-              />
+              >
+                <template #append-inner>
+                  <v-icon
+                    :icon="showSecret ? 'mdi-eye-off' : 'mdi-eye'"
+                    @click="showSecret = !showSecret"
+                    style="cursor: pointer"
+                  />
+                </template>
+              </v-text-field>
               <v-text-field
                 v-model="channelAccessToken"
                 label="Channel Access Token"
@@ -167,11 +173,17 @@ function copyInviteCode() {
                 variant="outlined"
                 density="compact"
                 prepend-inner-icon="mdi-key-variant"
-                :append-inner-icon="showToken ? 'mdi-eye-off' : 'mdi-eye'"
                 :hint="settings.line_channel_access_token ? 'ใส่ใหม่เฉพาะเมื่อต้องการเปลี่ยน' : 'จาก LINE Developers Console'"
                 class="mb-2"
-                @click:append-inner="showToken = !showToken"
-              />
+              >
+                <template #append-inner>
+                  <v-icon
+                    :icon="showToken ? 'mdi-eye-off' : 'mdi-eye'"
+                    @click="showToken = !showToken"
+                    style="cursor: pointer"
+                  />
+                </template>
+              </v-text-field>
 
               <v-divider class="my-3" />
 
