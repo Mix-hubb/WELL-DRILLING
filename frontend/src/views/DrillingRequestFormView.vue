@@ -23,18 +23,17 @@ const existingCustomer = ref(false);
 const checkingExisting = ref(false);
 
 onMounted(async () => {
-  const pathMatch = window.location.pathname.match(/^\/([^/]+)/);
-  const liffId = pathMatch ? pathMatch[1] : "";
-  if (!liffId) {
+  const urlLiffId = new URLSearchParams(window.location.search).get("liffId") || "";
+  if (!urlLiffId) {
     liffReady.value = true;
     return;
   }
   try {
     isLiffEnv.value = true;
-    await liff.init({ liffId });
+    await liff.init({ liffId: urlLiffId });
     if (liff.isLoggedIn()) {
       isLiffEnv.value = true;
-      actualLiffId.value = liffId;
+      actualLiffId.value = urlLiffId;
       const profile = await liff.getProfile();
       lineUserId.value = profile?.userId || null;
       profileName.value = profile?.displayName || "";

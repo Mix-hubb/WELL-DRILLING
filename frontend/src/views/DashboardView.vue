@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { statsApi } from "@/api/stats";
+import { api } from "@/api/client";
 import { useUiStore } from "@/stores/ui";
 import { useSSE } from "@/composables/useSSE";
 import type { StatsOverview } from "@/types";
@@ -9,12 +10,16 @@ import { JOB_STATUS_HEX } from "@/constants";
 import StatCard   from "@/components/StatCard.vue";
 import DonutChart from "@/components/DonutChart.vue";
 import StatusChip from "@/components/StatusChip.vue";
+import OnboardingWizard from "@/components/OnboardingWizard.vue";
 
 const ui     = useUiStore();
 const router = useRouter();
 const stats  = ref<StatsOverview | null>(null);
 const loading = ref(true);
 const { connect, on } = useSSE();
+
+const showOnboarding = ref(false);
+const orgChannelId = ref<string | null>(null);
 
 async function refreshStats() {
   try {
@@ -33,6 +38,14 @@ onMounted(async () => {
   on("JOB_STATUS_CHANGED", refreshStats);
   on("DRILLING_REQUEST_CHANGED", refreshStats);
   on("REPAIR_REQUEST_CHANGED", refreshStats);
+
+  if (!localStorage.getItem("onboarding-done")) {
+    try {
+      const data = await api.get<{ line_channel_id: string | null }>("/line-settings");
+      orgChannelId.value = data.line_channel_id;
+    } catch {}
+    showOnboarding.value = true;
+  }
 });
 
 const statusSegments = computed(() => {
@@ -207,5 +220,11 @@ const todayLabel = new Date().toLocaleDateString("th-TH", {
         </v-col>
       </v-row>
     </template>
+
+    <OnboardingWizard
+      v-if="showOnboarding"
+      :channel-id="orgChannelId"
+      @done="showOnboarding = false"
+    />
   </div>
 </template>

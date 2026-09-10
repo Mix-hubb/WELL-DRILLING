@@ -154,19 +154,18 @@ async function submit() {
 }
 
 onMounted(async () => {
-  const pathMatch = window.location.pathname.match(/^\/([^/]+)/);
-  const liffId = pathMatch ? pathMatch[1] : "";
-  if (!liffId) {
+  const urlLiffId = new URLSearchParams(window.location.search).get("liffId") || "";
+  if (!urlLiffId) {
     liffReady.value = true;
     return;
   }
   try {
     const liffModule = await import("@line/liff");
     const liff = liffModule.default;
-    await liff.init({ liffId });
+    await liff.init({ liffId: urlLiffId });
     isLiffEnv.value = true;
     if (liff.isLoggedIn()) {
-      actualLiffId.value = liffId;
+      actualLiffId.value = urlLiffId;
       const profile = await liff.getProfile();
       lineUserId.value = profile?.userId || null;
       profileName.value = profile?.displayName || "";
@@ -209,10 +208,9 @@ function loginWithLine() {
 }
 
 function openLiff() {
-  const pathMatch = window.location.pathname.match(/^\/([^/]+)/);
-  const liffId = pathMatch ? pathMatch[1] : "";
-  if (liffId) {
-    window.location.href = `https://liff.line.me/${liffId}/repair-form`;
+  const urlLiffId = new URLSearchParams(window.location.search).get("liffId") || "";
+  if (urlLiffId) {
+    window.location.href = `https://liff.line.me/${urlLiffId}/repair-form`;
   }
 }
 </script>

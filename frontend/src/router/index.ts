@@ -62,21 +62,7 @@ const routes = [
     component: () => import("@/views/SettingsView.vue"),
     meta: { label: "ตั้งค่าระบบ", icon: "mdi-cog-outline" },
   },
-  // ===== ลูกค้า (public, ผ่าน LIFF) =====
-  {
-    path: "/:liffId/request-drill",
-    name: "request-drill-liff",
-    component: () => import("@/views/DrillingRequestFormView.vue"),
-    meta: { public: true, hidden: true },
-  },
-  {
-    path: "/:liffId/repair-form",
-    name: "repair-form-liff",
-    component: () => import("@/views/RepairFormView.vue"),
-    meta: { public: true, hidden: true },
-  },
-
-  // ===== ลูกค้า (public, direct URL) =====
+  // ===== ลูกค้า (public) =====
   {
     path: "/request-drill",
     name: "request-drill",
