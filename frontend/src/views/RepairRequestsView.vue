@@ -38,6 +38,34 @@ const fabOpen = ref(false);
 const selectDlg = ref(false);
 const selectMode = ref<"edit" | "delete">("edit");
 
+// Schedule Dialog (Flow 2)
+const scheduleDlg = ref(false);
+const scheduleTarget = ref<RepairRequest | null>(null);
+const scheduleDate = ref("");
+
+function openSchedule(r: RepairRequest) {
+  scheduleTarget.value = r;
+  if (r.scheduled_date) {
+    scheduleDate.value = new Date(r.scheduled_date).toISOString().split("T")[0];
+  } else {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    scheduleDate.value = d.toISOString().split("T")[0];
+  }
+  scheduleDlg.value = true;
+}
+
+async function submitSchedule() {
+  if (!scheduleTarget.value || !scheduleDate.value) return;
+  try {
+    await requests.setStatus(scheduleTarget.value.repair_id, "SCHEDULED", scheduleDate.value);
+    ui.notify("ยืนยันวันนัดซ่อมและส่ง LINE แจ้งลูกค้าเรียบร้อยแล้ว", "success");
+    scheduleDlg.value = false;
+  } catch (e) {
+    ui.notifyError(e);
+  }
+}
+
 onMounted(async () => {
   try { await requests.fetchAll(); } catch (e) { ui.notifyError(e); }
 
@@ -226,14 +254,27 @@ function fmtDate(d: string) {
               ยอมรับ → ตกลง
             </v-btn>
           </div>
-          <div v-else-if="r.status === 'ACCEPTED' || r.status === 'SCHEDULED'" class="d-flex ga-2">
+          <div v-else-if="r.status === 'ACCEPTED'" class="d-flex ga-2">
+            <v-btn size="small" color="blue-darken-2" variant="flat" prepend-icon="mdi-calendar-clock" @click="openSchedule(r)">
+              นัดวันซ่อม
+            </v-btn>
+          </div>
+          <div v-else-if="r.status === 'SCHEDULED'" class="d-flex ga-2">
             <v-btn size="small" color="deep-orange-darken-1" variant="flat" prepend-icon="mdi-play" @click="setStatus(r.repair_id, 'IN_PROGRESS')">
               เริ่มซ่อม
+            </v-btn>
+            <v-btn size="small" color="blue-grey" variant="tonal" prepend-icon="mdi-calendar-edit" @click="openSchedule(r)">
+              เปลี่ยนวัน
             </v-btn>
           </div>
           <div v-else-if="r.status === 'IN_PROGRESS'" class="d-flex ga-2">
             <v-btn size="small" color="teal-darken-2" variant="flat" prepend-icon="mdi-check-all" @click="setStatus(r.repair_id, 'COMPLETED')">
               ซ่อมเสร็จ
+            </v-btn>
+          </div>
+          <div v-else-if="r.status === 'COMPLETED'" class="d-flex ga-2 align-center">
+            <v-btn size="small" color="grey-darken-1" variant="flat" prepend-icon="mdi-check-all" @click="setStatus(r.repair_id, 'CLOSED')">
+              ปิดงาน
             </v-btn>
           </div>
           <div v-else-if="r.status === 'COMPLETED'" class="text-caption text-medium-emphasis">
@@ -346,6 +387,40 @@ function fmtDate(d: string) {
         <v-card-actions class="pa-3">
           <v-spacer />
           <v-btn variant="outlined" @click="selectDlg = false">ปิด</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Schedule Dialog (Flow 2) -->
+    <v-dialog v-model="scheduleDlg" max-width="440" persistent>
+      <v-card>
+        <v-card-title class="pa-4 pb-2 font-display font-weight-bold">
+          กำหนดวันนัดซ่อมบำรุง
+        </v-card-title>
+        <v-card-subtitle v-if="scheduleTarget" class="px-4 pb-2">
+          คำร้องของ: {{ scheduleTarget.customer_name }} · {{ scheduleTarget.well_name || "" }}
+        </v-card-subtitle>
+        <v-divider />
+        <v-card-text class="pa-4">
+          <p class="text-caption text-medium-emphasis mb-3">
+            ระบบจะส่งข้อความแจ้งวันนัดซ่อมไปยัง LINE ของลูกค้าโดยอัตโนมัติ
+          </p>
+          <v-text-field
+            v-model="scheduleDate"
+            type="date"
+            label="วันนัดซ่อม *"
+            variant="outlined"
+            density="comfortable"
+            hide-details
+          />
+        </v-card-text>
+        <v-divider />
+        <v-card-actions class="pa-4 ga-2">
+          <v-spacer />
+          <v-btn variant="outlined" @click="scheduleDlg = false">ยกเลิก</v-btn>
+          <v-btn color="primary" variant="flat" prepend-icon="mdi-calendar-check" :disabled="!scheduleDate" @click="submitSchedule">
+            ยืนยันวันนัด & ส่ง LINE
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

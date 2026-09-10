@@ -119,7 +119,46 @@ router.put(
 
     if (line_channel_id !== undefined) { updates.push(`line_channel_id = $${idx++}`); params.push(line_channel_id || null); }
     if (line_channel_secret !== undefined && line_channel_secret !== "••••••••") { updates.push(`line_channel_secret = $${idx++}`); params.push(line_channel_secret || null); }
-    if (line_channel_access_token !== undefined && line_channel_access_token !== "••••••••") { updates.push(`line_channel_access_token = $${idx++}`); params.push(line_channel_access_token || null); }
+
+    // ถ้ามีการส่ง Access Token ใหม่ หรือใน DB มี Access Token อยู่แล้วแต่ยังไม่มี line_bot_user_id
+    let newBotUserId: string | null = null;
+    const isNewToken = line_channel_access_token !== undefined && line_channel_access_token !== "••••••••" && line_channel_access_token;
+    let tokenToFetch = isNewToken ? line_channel_access_token : null;
+
+    if (isNewToken) {
+      updates.push(`line_channel_access_token = $${idx++}`);
+      params.push(line_channel_access_token);
+    } else {
+      const orgRow = await pool.query(
+        "SELECT line_channel_access_token, line_bot_user_id FROM organizations WHERE org_id = $1",
+        [orgId]
+      );
+      if (orgRow.rows.length && orgRow.rows[0].line_channel_access_token && !orgRow.rows[0].line_bot_user_id) {
+        tokenToFetch = orgRow.rows[0].line_channel_access_token;
+      }
+    }
+
+    if (tokenToFetch) {
+      try {
+        const botInfoRes = await fetch("https://api.line.me/v2/bot/info", {
+          headers: { Authorization: `Bearer ${tokenToFetch}` },
+        });
+        if (botInfoRes.ok) {
+          const botInfo: any = await botInfoRes.json();
+          newBotUserId = botInfo.userId || null;
+          if (newBotUserId) {
+            updates.push(`line_bot_user_id = $${idx++}`);
+            params.push(newBotUserId);
+            console.log(`[lineSettings] Auto-fetched bot user ID: ${newBotUserId}`);
+          }
+        } else {
+          console.warn(`[lineSettings] Could not fetch bot info: ${botInfoRes.status}`);
+        }
+      } catch (err) {
+        console.warn(`[lineSettings] Error fetching bot info:`, err);
+      }
+    }
+
     if (line_liff_id_drilling !== undefined) { updates.push(`line_liff_id_drilling = $${idx++}`); params.push(line_liff_id_drilling || null); }
     if (line_liff_id_repair !== undefined) { updates.push(`line_liff_id_repair = $${idx++}`); params.push(line_liff_id_repair || null); }
 
@@ -133,7 +172,7 @@ router.put(
       params
     );
 
-    res.json({ ok: true, message: "บันทึกสำเร็จ" });
+    res.json({ ok: true, message: "บันทึกสำเร็จ", bot_user_id: newBotUserId || undefined });
   })
 );
 

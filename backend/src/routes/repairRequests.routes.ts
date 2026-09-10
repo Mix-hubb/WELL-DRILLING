@@ -10,5 +10,8 @@ router.put("/:id", asyncHandler(c.update));
 router.patch("/:id/status", asyncHandler(c.updateStatus));
 router.post("/:id/magic-link", asyncHandler(c.generateMagicLink));
 router.delete("/:id", asyncHandler(c.remove));
+// Payment slips — ดูและยืนยันสลิปโอนเงินของลูกค้า
+router.get("/:id/payment-slips", asyncHandler(c.listPaymentSlips));
+router.patch("/:id/payment-slips/:slipId", asyncHandler(c.verifyPaymentSlip));
 
 export default router;

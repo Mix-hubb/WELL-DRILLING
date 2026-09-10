@@ -44,11 +44,11 @@ function buildDrillingQuoteFlex(price: number, notes: string | null, requestId: 
       contents: [
         {
           type: "button", style: "secondary", color: "#DD2C00", height: "sm",
-          action: { type: "postback", label: "ปฏิเสธ", data: `reject_drill_${requestId}` },
+          action: { type: "postback", label: "ปฏิเสธ", data: `reject_drill_${requestId}`, displayText: "ปฏิเสธใบเสนอราคา" },
         },
         {
           type: "button", style: "primary", color: "#1B5E20", height: "sm",
-          action: { type: "postback", label: "ยอมรับ", data: `accept_drill_${requestId}` },
+          action: { type: "postback", label: "ยอมรับ", data: `accept_drill_${requestId}`, displayText: "ยอมรับใบเสนอราคา" },
         },
       ],
     },
@@ -83,11 +83,11 @@ function buildRepairQuoteFlex(price: number, notes: string | null, repairId: num
       contents: [
         {
           type: "button", style: "secondary", color: "#DD2C00", height: "sm",
-          action: { type: "postback", label: "ปฏิเสธ", data: `reject_repair_${repairId}` },
+          action: { type: "postback", label: "ปฏิเสธ", data: `reject_repair_${repairId}`, displayText: "ปฏิเสธใบเสนอราคา" },
         },
         {
           type: "button", style: "primary", color: "#0D47A1", height: "sm",
-          action: { type: "postback", label: "ยอมรับ", data: `accept_repair_${repairId}` },
+          action: { type: "postback", label: "ยอมรับ", data: `accept_repair_${repairId}`, displayText: "ยอมรับใบเสนอราคา" },
         },
       ],
     },

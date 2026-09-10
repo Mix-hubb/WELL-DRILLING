@@ -268,7 +268,7 @@ export async function update(req: Request, res: Response) {
 
 export async function updateStatus(req: Request, res: Response) {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, scheduled_date } = req.body;
 
   const valid = ["NEW", "QUOTED", "ACCEPTED", "REJECTED", "SCHEDULED", "IN_PROGRESS", "COMPLETED", "CLOSED", "CANCELLED"];
   if (!valid.includes(status)) {
@@ -282,29 +282,37 @@ export async function updateStatus(req: Request, res: Response) {
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้องซ่อม" });
 
-  await pool.query("UPDATE repair_requests SET status = $1 WHERE repair_id = $2", [status, id]);
+  if (scheduled_date !== undefined) {
+    await pool.query("UPDATE repair_requests SET status = $1, scheduled_date = $2 WHERE repair_id = $3", [status, scheduled_date, id]);
+  } else {
+    await pool.query("UPDATE repair_requests SET status = $1 WHERE repair_id = $2", [status, id]);
+  }
 
   const { rows } = await pool.query(
     `${REQUEST_SELECT} WHERE r.repair_id = $1`, [id]
   );
 
   const customerId = rows[0].customer_id;
+  if (customerId && status === "SCHEDULED") {
+    const scheduledDate = rows[0].scheduled_date;
+    const dateText = scheduledDate
+      ? new Date(scheduledDate).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })
+      : null;
+    const msg = dateText
+      ? `ทีมงานยืนยันวันนัดซ่อมบำรุงแล้วครับ\n\nวันนัด: ${dateText}\nกรุณาเตรียมตัวให้พร้อมครับ หากมีปัญหาสามารถติดต่อทีมงานได้เลยครับ`
+      : "ทีมงานยืนยันการนัดซ่อมบำรุงแล้วครับ กรุณาเตรียมตัวให้พร้อมครับ";
+    sendTextToCustomer(customerId, msg, "REMINDER", req.user?.orgId).catch(() => {});
+  }
   if (customerId && status === "IN_PROGRESS") {
     sendTextToCustomer(customerId, "ขณะนี้ช่างกำลังดำเนินการซ่อมบำรุงให้ครับ กรุณารอสักครู่", "STATUS", req.user?.orgId).catch(() => {});
   }
   if (customerId && status === "CLOSED") {
-    const { rows: custOrgRows } = await pool.query(
-      `SELECT o.line_liff_id_repair
-       FROM customers c
-       JOIN organizations o ON c.org_id = o.org_id
-       WHERE c.customer_id = $1`,
-      [customerId]
-    );
-    const liffId = custOrgRows[0]?.line_liff_id_repair;
-    const liffUrl = liffId
-      ? `https://liff.line.me/${liffId}/repair-form?liffId=${liffId}`
-      : `${process.env.APP_URL || "http://localhost:5173"}/repair-form`;
-    sendTextToCustomer(customerId, `การซ่อมบำรุงเสร็จเรียบร้อยแล้วครับ กรุณาอัปโหลดสลิปโอนเงินผ่านลิงก์นี้:\n${liffUrl}`, "STATUS", req.user?.orgId).catch(() => {});
+    sendTextToCustomer(
+      customerId,
+      "การซ่อมบำรุงเสร็จเรียบร้อยแล้วครับ\n\nกรุณาส่งรูปสลิปโอนเงินมาในแชทนี้เลยครับ (กดรูป ได้เลย) หลังจากตรวจสอบแล้วจะแจ้งยืนยันการชำระเงินให้ครับ ขอบคุณครับ",
+      "STATUS",
+      req.user?.orgId
+    ).catch(() => {});
   }
 
   broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(id), status }, orgId: req.user?.orgId });
@@ -412,3 +420,78 @@ export async function generateMagicLink(req: Request, res: Response) {
   );
   res.json({ token });
 }
+
+export async function listPaymentSlips(req: Request, res: Response) {
+  const { id } = req.params;
+  const { sql, params } = userFilter(req, "c", 1);
+  const existing = await pool.query(
+    `SELECT r.repair_id FROM repair_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.repair_id = $1${sql}`,
+    [id, ...params]
+  );
+  if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้อง" });
+
+  const { rows } = await pool.query(
+    `SELECT * FROM payment_slips WHERE repair_id = $1 ORDER BY submitted_at DESC`,
+    [id]
+  );
+  res.json(rows);
+}
+
+export async function verifyPaymentSlip(req: Request, res: Response) {
+  const { id, slipId } = req.params;
+  const { status, notes } = req.body;
+  if (!["VERIFIED", "REJECTED"].includes(status)) {
+    return res.status(400).json({ error: "สถานะต้องเป็น VERIFIED หรือ REJECTED" });
+  }
+
+  const { sql, params } = userFilter(req, "c", 1);
+  const existing = await pool.query(
+    `SELECT r.repair_id, r.customer_id, c.org_id
+     FROM repair_requests r
+     JOIN customers c ON c.customer_id = r.customer_id
+     WHERE r.repair_id = $1${sql}`,
+    [id, ...params]
+  );
+  if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้อง" });
+
+  const customerId = existing.rows[0].customer_id;
+  const orgId = existing.rows[0].org_id;
+
+  const result = await pool.query(
+    `UPDATE payment_slips
+     SET status = $1, notes = $2, verified_at = NOW()
+     WHERE slip_id = $3 AND repair_id = $4
+     RETURNING *`,
+    [status, notes || null, slipId, id]
+  );
+  if (!result.rows.length) return res.status(404).json({ error: "ไม่พบสลิป" });
+
+  // ส่งแจ้งเตือน LINE หาตามผลการตรวจสอบ
+  if (customerId) {
+    if (status === "VERIFIED") {
+      sendTextToCustomer(
+        customerId,
+        "ได้รับการยืนยันการชำระเงินเรียบร้อยแล้วครับ ขอบคุณที่ไว้วางใจใช้บริการครับ",
+        "STATUS",
+        orgId
+      ).catch(() => {});
+    } else if (status === "REJECTED") {
+      const reason = notes ? `\nเหตุผล: ${notes}` : "";
+      sendTextToCustomer(
+        customerId,
+        `การตรวจสอบสลิปไม่ผ่าน${reason}\nกรุณาส่งรูปสลิปใหม่อีกครั้งในแชทนี้ครับ`,
+        "STATUS",
+        orgId
+      ).catch(() => {});
+    }
+  }
+
+  broadcast({
+    type: "PAYMENT_SLIP_VERIFIED",
+    data: { repair_id: id, slip_id: slipId, status },
+    orgId: req.user?.orgId,
+  });
+
+  res.json(result.rows[0]);
+}
+

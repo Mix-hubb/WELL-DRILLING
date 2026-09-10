@@ -306,3 +306,16 @@ export interface StatsOverview {
     scheduled_date?: string | null;
   }[];
 }
+
+export interface PaymentSlip {
+  slip_id: string;
+  repair_id: string;
+  customer_id?: string | null;
+  image_url?: string | null;
+  line_message_id?: string | null;
+  status: "PENDING" | "VERIFIED" | "REJECTED";
+  notes?: string | null;
+  submitted_at: string;
+  verified_at?: string | null;
+  created_at: string;
+}

@@ -15,14 +15,33 @@ interface OrgLineConfig {
   line_liff_id_repair: string | null;
 }
 
-async function getOrgByChannelId(channelId: string): Promise<OrgLineConfig | null> {
+async function getOrgByBotUserId(destination: string, rawBody: Buffer, signature: string): Promise<OrgLineConfig | null> {
+  // วิธีที่ 1: หาองค์กรด้วย line_bot_user_id (ตรงกับ body.destination)
   const { rows } = await pool.query(
     `SELECT org_id, line_channel_secret, line_channel_access_token,
             line_liff_id_drilling, line_liff_id_repair
-     FROM organizations WHERE line_channel_id = $1`,
-    [channelId]
+     FROM organizations WHERE line_bot_user_id = $1`,
+    [destination]
   );
-  return rows[0] || null;
+  if (rows[0]) return rows[0];
+
+  // วิธีที่ 2 (fallback): สแกนทุก org แล้วตรวจลายเซ็น ใช้สำหรับองค์กรที่ยังไม่ได้ตั้งค่า bot_user_id
+  if (rawBody && signature) {
+    const { rows: allOrgs } = await pool.query(
+      `SELECT org_id, line_channel_secret, line_channel_access_token,
+              line_liff_id_drilling, line_liff_id_repair
+       FROM organizations WHERE line_channel_access_token IS NOT NULL AND line_bot_user_id IS NULL`
+    );
+    for (const org of allOrgs) {
+      if (org.line_channel_secret && verifySignature(rawBody, signature, org.line_channel_secret)) {
+        // พบองค์กร บันทึก bot_user_id ไว้เพื่อใช้ครั้งต่อไป
+        pool.query("UPDATE organizations SET line_bot_user_id = $1 WHERE org_id = $2", [destination, org.org_id]).catch(() => {});
+        console.log(`[webhook] Mapped destination ${destination} -> org ${org.org_id} via signature scan`);
+        return org;
+      }
+    }
+  }
+  return null;
 }
 
 function verifySignature(rawBody: Buffer, signature: string, channelSecret: string): boolean {
@@ -211,6 +230,60 @@ async function handleText(userId: string, text: string, replyToken: string, org:
   return reply(org.line_channel_access_token, replyToken, lines.join("\n"));
 }
 
+async function handleImage(userId: string, messageId: string, org: OrgLineConfig, replyToken?: string) {
+  const custResult = await pool.query(
+    "SELECT customer_id FROM customers WHERE line_user_id = $1",
+    [userId]
+  );
+  if (!custResult.rows.length) {
+    if (replyToken) reply(org.line_channel_access_token, replyToken, "ไม่พบข้อมูลลูกค้าในระบบ กรุณาแจ้งเจาะก่อนครับ").catch(() => {});
+    return;
+  }
+  const customerId = custResult.rows[0].customer_id;
+
+  // หา repair_request ล่าสุดที่สถานะเป็น CLOSED (รอชำระเงิน)
+  const repairResult = await pool.query(
+    `SELECT repair_id FROM repair_requests
+     WHERE customer_id = $1 AND status = 'CLOSED'
+     ORDER BY updated_at DESC LIMIT 1`,
+    [customerId]
+  );
+
+  if (!repairResult.rows.length) {
+    // ไม่มีงานที่รอชำระ อาจเป็นรูปทั่วไป ไม่ต้องตอบกลับ
+    return;
+  }
+  const repairId = repairResult.rows[0].repair_id;
+
+  // ดึงรูปจาก LINE Content API
+  let imageUrl: string | null = null;
+  try {
+    const contentRes = await fetch(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
+      headers: { Authorization: `Bearer ${org.line_channel_access_token}` },
+    });
+    if (contentRes.ok) {
+      const buffer = Buffer.from(await contentRes.arrayBuffer());
+      imageUrl = `data:image/jpeg;base64,${buffer.toString("base64")}`;
+    }
+  } catch (err) {
+    console.error("[webhook] Failed to fetch image content:", err);
+  }
+
+  await pool.query(
+    `INSERT INTO payment_slips (repair_id, customer_id, image_url, line_message_id, status)
+     VALUES ($1, $2, $3, $4, 'PENDING')`,
+    [repairId, customerId, imageUrl, messageId]
+  );
+
+  broadcast({ type: "PAYMENT_SLIP_RECEIVED", data: { repair_id: repairId }, orgId: org.org_id });
+
+  if (replyToken) {
+    reply(org.line_channel_access_token, replyToken,
+      "รับสลิปโอนเงินเรียบร้อยครับ ทีมงานจะตรวจสอบและยืนยันการชำระเงินในไม่ช้านี้ครับ ขอบคุณครับ"
+    ).catch(() => {});
+  }
+}
+
 async function handlePostback(userId: string, data: string, org: OrgLineConfig, replyToken?: string) {
   console.log(`[postback] Processing: userId=${userId} data="${data}" org=${org.org_id}`);
 
@@ -355,14 +428,14 @@ router.post(
       return res.status(400).json({ error: "No destination" });
     }
 
-    const org = await getOrgByChannelId(destination);
+    const org = await getOrgByBotUserId(destination, raw, signature);
     if (!org) {
-      console.warn(`[LINE webhook] No org found for channel: ${destination}`);
+      console.warn(`[LINE webhook] No org found for destination (bot_user_id): ${destination}`);
       return res.json({ ok: true });
     }
 
     if (raw && signature && !verifySignature(raw, signature, org.line_channel_secret)) {
-      console.warn(`[LINE webhook] Invalid signature for channel: ${destination}`);
+      console.warn(`[LINE webhook] Invalid signature for org: ${org.org_id}`);
       return res.status(400).json({ error: "Invalid signature" });
     }
 
@@ -377,6 +450,8 @@ router.post(
       try {
         if (event.type === "message" && event.message?.type === "text") {
           await handleText(userId, event.message.text, event.replyToken, org);
+        } else if (event.type === "message" && event.message?.type === "image") {
+          await handleImage(userId, event.message.id, org, event.replyToken);
         } else if (event.type === "postback") {
           console.log(`[LINE webhook] postback data=${event.postback?.data}`);
           await handlePostback(userId, event.postback?.data || "", org, event.replyToken);
