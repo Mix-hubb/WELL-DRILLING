@@ -207,7 +207,7 @@ function copyToClipboard(text: string, label: string) {
                 variant="outlined"
                 density="compact"
                 prepend-inner-icon="mdi-file-document-outline"
-                hint="เช่น 2011186152-tM5o2rXR"
+                hint="คัดลอกจาก LIFF App ที่ตั้ง Endpoint = /request-drill"
                 class="mb-2"
               />
               <v-text-field
@@ -216,20 +216,40 @@ function copyToClipboard(text: string, label: string) {
                 variant="outlined"
                 density="compact"
                 prepend-inner-icon="mdi-wrench-outline"
-                hint="เช่น 2011186152-nmGN0upm"
+                hint="คัดลอกจาก LIFF App ที่ตั้ง Endpoint = /repair-form"
                 class="mb-2"
               />
 
               <v-alert type="info" variant="tonal" density="compact" class="mt-2">
                 <div class="text-body-2">
-                  <strong>ขั้นตอนการตั้งค่า:</strong>
+                  <strong>ขั้นตอนการตั้งค่า LIFF App (ทำ 2 ครั้ง สำหรับแต่ละฟอร์ม):</strong>
                   <ol class="mt-1">
-                    <li>สร้าง LINE Official Account ใน LINE OA Manager</li>
-                    <li>เปิดใช้ Messaging API</li>
-                    <li>สร้าง LIFF App ใน LINE Developers Console</li>
-                    <li>กรอกค่าด้านบนในระบบ</li>
-                    <li>ตั้ง Webhook URL เป็น: <code>{{ webhookUrl }}</code></li>
+                    <li>ไปที่ <strong>LINE Developers Console</strong> (developers.line.me)</li>
+                    <li>สร้าง <strong>Provider</strong> ใหม่ → สร้าง <strong>Channel</strong> ประเภท <strong>Messaging API</strong></li>
+                    <li>ไป tab <strong>LIFF</strong> → กด <strong>Add</strong></li>
+                    <li>ตั้ง <strong>App name</strong> เช่น "ฟอร์มแจ้งเจาะ" หรือ "ฟอร์มแจ้งซ่อม"</li>
+                    <li>ตั้ง <strong>Endpoint URL</strong> ตามตารางด้านล่าง</li>
+                    <li>เลือก Scope = <strong>profile</strong> + <strong>openid</strong></li>
+                    <li>กด <strong>Submit</strong> → คัดลอก <strong>LIFF ID</strong> มาใส่ในช่องด้านบน</li>
                   </ol>
+                </div>
+              </v-alert>
+
+              <v-alert type="warning" variant="tonal" density="compact" class="mt-2">
+                <div class="text-body-2">
+                  <strong>Endpoint URL ที่ต้องตั้งค่าใน LIFF App:</strong>
+                  <div class="mt-2">
+                    <div class="d-flex align-center mb-1">
+                      <v-icon icon="mdi-water-well" size="14" color="primary" class="mr-1" />
+                      <strong>ฟอร์มแจ้งเจาะ:</strong>&nbsp;
+                      <code>https://well-drilling.vercel.app/request-drill</code>
+                    </div>
+                    <div class="d-flex align-center">
+                      <v-icon icon="mdi-wrench-outline" size="14" color="warning" class="mr-1" />
+                      <strong>ฟอร์มแจ้งซ่อม:</strong>&nbsp;
+                      <code>https://well-drilling.vercel.app/repair-form</code>
+                    </div>
+                  </div>
                 </div>
               </v-alert>
             </div>
@@ -292,6 +312,17 @@ function copyToClipboard(text: string, label: string) {
                     <li>สร้าง/แก้ไขปุ่ม → เลือก <strong>Open URL</strong></li>
                     <li>คัดลอก URL ด้านบนไปใส่ในแต่ละปุ่ม</li>
                   </ol>
+                </div>
+              </v-alert>
+
+              <v-alert type="error" variant="tonal" density="compact" class="mt-2">
+                <div class="text-body-2">
+                  <strong>Webhook URL (ตั้งค่าใน LINE Developers Console):</strong>
+                  <div class="mt-1 d-flex align-center">
+                    <code class="flex-grow-1">{{ webhookUrl }}</code>
+                    <v-btn icon="mdi-content-copy" variant="text" size="x-small" @click="copyToClipboard(webhookUrl, 'Webhook URL')" />
+                  </div>
+                  <div class="mt-1 text-caption">ไปตั้งค่าที่ Channel → Messaging API → Webhook URL</div>
                 </div>
               </v-alert>
             </div>
