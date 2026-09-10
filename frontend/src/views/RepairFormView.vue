@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 
-const LIFF_BASE = import.meta.env.VITE_LIFF_ID_REPAIR
-  ? `https://liff.line.me/${import.meta.env.VITE_LIFF_ID_REPAIR}`
-  : "";
-
 const form = ref({
   name: "",
   phone: "",
@@ -142,7 +138,7 @@ async function submit() {
         line_user_id: lineUserId.value || null,
         line_display_name: profileName.value || null,
         line_picture_url: profilePicture.value || null,
-        liff_id: actualLiffId.value || import.meta.env.VITE_LIFF_ID_REPAIR || null,
+        liff_id: actualLiffId.value || null,
       }),
     });
     if (!res.ok) {
@@ -158,7 +154,8 @@ async function submit() {
 }
 
 onMounted(async () => {
-  const liffId = import.meta.env.VITE_LIFF_ID_REPAIR || "";
+  const pathMatch = window.location.pathname.match(/^\/([^/]+)/);
+  const liffId = pathMatch ? pathMatch[1] : "";
   if (!liffId) {
     liffReady.value = true;
     return;
@@ -169,8 +166,7 @@ onMounted(async () => {
     await liff.init({ liffId });
     isLiffEnv.value = true;
     if (liff.isLoggedIn()) {
-      const pathMatch = window.location.pathname.match(/^\/([^/]+)/);
-      actualLiffId.value = pathMatch ? pathMatch[1] : null;
+      actualLiffId.value = liffId;
       const profile = await liff.getProfile();
       lineUserId.value = profile?.userId || null;
       profileName.value = profile?.displayName || "";
@@ -213,7 +209,11 @@ function loginWithLine() {
 }
 
 function openLiff() {
-  window.location.href = `${LIFF_BASE}/repair-form`;
+  const pathMatch = window.location.pathname.match(/^\/([^/]+)/);
+  const liffId = pathMatch ? pathMatch[1] : "";
+  if (liffId) {
+    window.location.href = `https://liff.line.me/${liffId}/repair-form`;
+  }
 }
 </script>
 

@@ -23,7 +23,8 @@ const existingCustomer = ref(false);
 const checkingExisting = ref(false);
 
 onMounted(async () => {
-  const liffId = import.meta.env.VITE_LIFF_ID_DRILLING || "";
+  const pathMatch = window.location.pathname.match(/^\/([^/]+)/);
+  const liffId = pathMatch ? pathMatch[1] : "";
   if (!liffId) {
     liffReady.value = true;
     return;
@@ -33,8 +34,7 @@ onMounted(async () => {
     await liff.init({ liffId });
     if (liff.isLoggedIn()) {
       isLiffEnv.value = true;
-      const pathMatch = window.location.pathname.match(/^\/([^/]+)/);
-      actualLiffId.value = pathMatch ? pathMatch[1] : null;
+      actualLiffId.value = liffId;
       const profile = await liff.getProfile();
       lineUserId.value = profile?.userId || null;
       profileName.value = profile?.displayName || "";
@@ -97,7 +97,7 @@ async function submit() {
         line_user_id: lineUserId.value || null,
         line_display_name: profileName.value || null,
         line_picture_url: profilePicture.value || null,
-        liff_id: actualLiffId.value || import.meta.env.VITE_LIFF_ID_DRILLING || null,
+        liff_id: actualLiffId.value || null,
       }),
     });
     if (!res.ok) {
