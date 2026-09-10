@@ -40,8 +40,8 @@ const filtered = computed(() => {
   );
 });
 
-function wellCount(customerId: number) {
-  return wellsStore.wells.filter((w) => w.customer_id === customerId).length;
+function wellCount(customerId: number | string) {
+  return wellsStore.wells.filter((w) => String(w.customer_id) === String(customerId)).length;
 }
 </script>
 

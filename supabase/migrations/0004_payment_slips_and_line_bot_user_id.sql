@@ -14,7 +14,7 @@ create index if not exists idx_organizations_line_bot_user_id
 create table if not exists public.payment_slips (
   slip_id        uuid primary key default gen_random_uuid(),
   repair_id      uuid not null references public.repair_requests (repair_id) on delete cascade,
-  customer_id    integer references public.customers (customer_id) on delete set null,
+  customer_id    uuid references public.customers (customer_id) on delete set null,
   image_url      text,
   line_message_id text,
   status         text not null default 'PENDING'
