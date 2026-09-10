@@ -185,7 +185,7 @@ describe("create", () => {
       createReq({ body: { customer_id: 2, source: "LINE", name: "test", phone: "081", address: "addr" } }),
       res
     );
-    expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(2, expect.any(String), "STATUS");
+    expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(2, expect.any(String), "STATUS", expect.any(String));
   });
 
   it("does not send LINE message when source is not LINE", async () => {
@@ -321,7 +321,7 @@ describe("createFromPublicForm", () => {
       data: { request_id: 5 },
       orgId: null,
     });
-    expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(10, expect.any(String), "STATUS");
+    expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(10, expect.any(String), "STATUS", null);
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({ request_id: 5, customer_id: 10 });
   });

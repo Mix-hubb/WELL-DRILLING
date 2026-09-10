@@ -160,14 +160,15 @@ export async function create(req: Request, res: Response) {
     [kind === "DRILLING" ? drilling_request_id : repair_request_id]
   );
   if (custResult.rows.length) {
+    const orgId = req.user?.orgId || null;
     if (kind === "DRILLING") {
       const flex = buildDrillingQuoteFlex(price, notes, drilling_request_id, requested_depth_m, requested_diameter_m);
       const label = `ใบเสนอราคาขุดเจาะ ราคา ${Number(price).toLocaleString("th-TH")} บาท`;
-      sendFlexToCustomer(custResult.rows[0].customer_id, label, flex, "QUOTE").catch(() => {});
+      sendFlexToCustomer(custResult.rows[0].customer_id, label, flex, "QUOTE", orgId).catch(() => {});
     } else {
       const flex = buildRepairQuoteFlex(price, notes, repair_request_id);
       const label = `ใบเสนอราคางานซ่อม ราคา ${Number(price).toLocaleString("th-TH")} บาท`;
-      sendFlexToCustomer(custResult.rows[0].customer_id, label, flex, "QUOTE").catch(() => {});
+      sendFlexToCustomer(custResult.rows[0].customer_id, label, flex, "QUOTE", orgId).catch(() => {});
     }
   }
 

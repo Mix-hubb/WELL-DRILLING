@@ -2,7 +2,7 @@ import { pool } from "../config/db";
 
 const MESSAGING_API = "https://api.line.me/v2/bot/message/push";
 
-async function getAccessTokenForCustomer(customerId: number): Promise<string | null> {
+async function getAccessTokenForCustomer(customerId: number, fallbackOrgId?: string | null): Promise<string | null> {
   const { rows } = await pool.query(
     `SELECT o.line_channel_access_token
      FROM customers c
@@ -10,13 +10,26 @@ async function getAccessTokenForCustomer(customerId: number): Promise<string | n
      WHERE c.customer_id = $1`,
     [customerId]
   );
-  return rows[0]?.line_channel_access_token || null;
+  if (rows[0]?.line_channel_access_token) return rows[0].line_channel_access_token;
+
+  if (fallbackOrgId) {
+    const { rows: orgRows } = await pool.query(
+      "SELECT line_channel_access_token FROM organizations WHERE org_id = $1",
+      [fallbackOrgId]
+    );
+    if (orgRows[0]?.line_channel_access_token) {
+      await pool.query("UPDATE customers SET org_id = $1 WHERE customer_id = $2 AND org_id IS NULL", [fallbackOrgId, customerId]);
+      return orgRows[0].line_channel_access_token;
+    }
+  }
+  return null;
 }
 
 export async function sendTextToCustomerById(
   customerId: number,
   text: string,
-  kind: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" = "OTHER"
+  kind: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" = "OTHER",
+  fallbackOrgId?: string | null
 ): Promise<boolean> {
   try {
     const { rows } = await pool.query(
@@ -30,7 +43,7 @@ export async function sendTextToCustomerById(
       return false;
     }
 
-    const accessToken = await getAccessTokenForCustomer(customerId);
+    const accessToken = await getAccessTokenForCustomer(customerId, fallbackOrgId);
     if (!accessToken) {
       await logNotification(customerId, kind, text, "", "FAILED");
       return false;
@@ -69,7 +82,8 @@ export async function sendFlexToCustomerById(
   customerId: number,
   altText: string,
   flexContent: any,
-  kind: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" = "OTHER"
+  kind: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" = "OTHER",
+  fallbackOrgId?: string | null
 ): Promise<boolean> {
   try {
     const { rows } = await pool.query(
@@ -83,7 +97,7 @@ export async function sendFlexToCustomerById(
       return false;
     }
 
-    const accessToken = await getAccessTokenForCustomer(customerId);
+    const accessToken = await getAccessTokenForCustomer(customerId, fallbackOrgId);
     if (!accessToken) {
       console.log(`[LINE] would send flex (no token for org): ${altText}`);
       await logNotification(customerId, kind, altText, "", "FAILED");
@@ -126,18 +140,20 @@ export async function sendFlexToCustomerById(
 export async function sendTextToCustomer(
   customerId: number,
   text: string,
-  kind: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" = "OTHER"
+  kind: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" = "OTHER",
+  fallbackOrgId?: string | null
 ): Promise<boolean> {
-  return sendTextToCustomerById(customerId, text, kind);
+  return sendTextToCustomerById(customerId, text, kind, fallbackOrgId);
 }
 
 export async function sendFlexToCustomer(
   customerId: number,
   altText: string,
   flexContent: any,
-  kind: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" = "OTHER"
+  kind: "QUOTE" | "STATUS" | "REMINDER" | "OTHER" = "OTHER",
+  fallbackOrgId?: string | null
 ): Promise<boolean> {
-  return sendFlexToCustomerById(customerId, altText, flexContent, kind);
+  return sendFlexToCustomerById(customerId, altText, flexContent, kind, fallbackOrgId);
 }
 
 async function logNotification(

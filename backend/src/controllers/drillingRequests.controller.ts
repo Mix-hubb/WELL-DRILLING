@@ -100,7 +100,7 @@ export async function create(req: Request, res: Response) {
   const newId = rows[0].request_id;
 
   if (source === "LINE") {
-    sendTextToCustomer(customer_id, "เราได้รับคำร้องของคุณแล้ว กรุณารอการตอบกลับจากทีมงานครับ", "STATUS").catch(() => {});
+    sendTextToCustomer(customer_id, "เราได้รับคำร้องของคุณแล้ว กรุณารอการตอบกลับจากทีมงานครับ", "STATUS", req.user?.orgId).catch(() => {});
   }
 
   const result = await pool.query(`${REQUEST_SELECT} WHERE r.request_id = $1`, [newId]);
@@ -265,7 +265,7 @@ export async function createFromPublicForm(req: Request, res: Response) {
     await client.query("COMMIT");
 
     broadcast({ type: "DRILLING_REQUEST_CREATED", data: { request_id: r.rows[0].request_id }, orgId: resolvedOrgId });
-    sendTextToCustomer(customerId, "เตรียมพร้อมสำหรับวันนัดหมายครับ ทีมงานจะตรวจสอบและติดต่อกลับโดยเร็ว", "STATUS").catch(() => {});
+    sendTextToCustomer(customerId, "เตรียมพร้อมสำหรับวันนัดหมายครับ ทีมงานจะตรวจสอบและติดต่อกลับโดยเร็ว", "STATUS", resolvedOrgId).catch(() => {});
 
     res.status(201).json({ request_id: r.rows[0].request_id, customer_id: customerId });
   } catch (err) {

@@ -272,7 +272,7 @@ describe("updateStatus", () => {
       createReq({ params: { id: "1" }, body: { status: "IN_PROGRESS" } }),
       res
     );
-    expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(2, expect.any(String), "STATUS");
+    expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(2, expect.any(String), "STATUS", "org-1");
   });
 
   it("sends LINE message with liff URL when status is CLOSED", async () => {
@@ -292,7 +292,8 @@ describe("updateStatus", () => {
     expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(
       2,
       expect.stringContaining("การซ่อมบำรุงเสร็จเรียบร้อยแล้ว"),
-      "STATUS"
+      "STATUS",
+      "org-1"
     );
   });
 });
@@ -368,7 +369,7 @@ describe("addRecord", () => {
       "UPDATE repair_requests SET status = 'COMPLETED' WHERE repair_id = $1",
       ["1"]
     );
-    expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(2, expect.any(String), "STATUS");
+    expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(2, expect.any(String), "STATUS", "org-1");
     expect(res.status).toHaveBeenCalledWith(201);
   });
 });
@@ -453,7 +454,7 @@ describe("createFromPublicForm", () => {
       data: { repair_id: 100 },
       orgId: null,
     });
-    expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(10, expect.any(String), "STATUS");
+    expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(10, expect.any(String), "STATUS", null);
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({ repair_id: 100, customer_id: 10 });
   });

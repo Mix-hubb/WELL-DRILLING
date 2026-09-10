@@ -275,7 +275,7 @@ describe("completeWell", () => {
     const insertWell = client.query.mock.calls.find((c) => String(c[0]).includes("INSERT INTO wells"));
     expect(insertWell![1][0]).toBe(2);
     expect(client.query).toHaveBeenCalledWith("COMMIT");
-    expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(2, expect.any(String), "STATUS");
+    expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(2, expect.any(String), "STATUS", undefined);
     expect(mocks.broadcast).toHaveBeenCalled();
     expect(mocks.broadcast).toHaveBeenCalledWith(
       expect.objectContaining({ type: "WELL_CREATED" })

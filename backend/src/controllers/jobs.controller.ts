@@ -357,11 +357,11 @@ export async function completeWell(req: Request, res: Response) {
   const msg = wellResult === "SUCCESS"
     ? `แจ้งผลการเจาะ: เจาะสำเร็จแล้ว บ่อ ${row?.well_name || ""}\nข้อมูลอยู่ในระบบแล้วครับ`
     : "แจ้งผลการเจาะ: การเจาะไม่สำเร็จ กรุณาติดต่อช่างเพื่อหารือแนวทางต่อไปครับ";
-  sendTextToCustomer(job.customer_id, msg, "STATUS").catch(() => {});
 
   const { rows: orgRows } = await pool.query(
     "SELECT org_id FROM customers WHERE customer_id = $1", [job.customer_id]
   );
+  sendTextToCustomer(job.customer_id, msg, "STATUS", orgRows[0]?.org_id).catch(() => {});
   const orgId = orgRows[0]?.org_id;
   broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: Number(id), status: "SUCCESS" }, orgId });
   broadcast({ type: "WELL_CREATED", data: { well_id: wellId, customer_id: job.customer_id }, orgId });

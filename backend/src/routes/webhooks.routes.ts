@@ -55,7 +55,7 @@ async function findOrCreateCustomerByLine(userId: string, profile: any, orgId: s
         [profile.displayName, profile.pictureUrl || null, rows[0].customer_id]
       );
     }
-    if (!rows[0].org_id && orgId) {
+    if (orgId && (!rows[0].org_id || rows[0].org_id !== orgId)) {
       await pool.query(
         "UPDATE customers SET org_id = $1 WHERE customer_id = $2",
         [orgId, rows[0].customer_id]
@@ -213,11 +213,21 @@ async function handleText(userId: string, text: string, replyToken: string, org:
 
 async function handlePostback(userId: string, data: string, org: OrgLineConfig, replyToken?: string) {
   const custResult = await pool.query(
-    "SELECT customer_id, customer_name FROM customers WHERE line_user_id = $1 AND org_id = $2",
-    [userId, org.org_id]
+    "SELECT customer_id, customer_name, org_id FROM customers WHERE line_user_id = $1",
+    [userId]
   );
-  if (!custResult.rows.length) return;
+  if (!custResult.rows.length) {
+    console.warn(`[postback] No customer found for line_user_id=${userId}`);
+    if (replyToken) reply(org.line_channel_access_token, replyToken, "ไม่พบข้อมูลลูกค้าในระบบครับ").catch(() => {});
+    return;
+  }
   const customerId = custResult.rows[0].customer_id;
+
+  if (!custResult.rows[0].org_id) {
+    await pool.query("UPDATE customers SET org_id = $1 WHERE customer_id = $2", [org.org_id, customerId]);
+  } else if (custResult.rows[0].org_id !== org.org_id) {
+    console.warn(`[postback] Customer ${customerId} org_id=${custResult.rows[0].org_id} but webhook org=${org.org_id}, processing anyway`);
+  }
 
   const acceptDrillMatch = data.match(/^accept_drill_(.+)$/);
   const rejectDrillMatch = data.match(/^reject_drill_(.+)$/);
@@ -255,7 +265,7 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     broadcast({ type: "JOB_CREATED", data: { request_id: Number(requestId) }, orgId: org.org_id });
 
     const { sendTextToCustomerById } = await import("../services/line");
-    sendTextToCustomerById(customerId, "ยอมรับเรียบร้อยครับ จะดำเนินการเข้าคิวเจาะให้ต่อไป", "STATUS").catch(() => {});
+    sendTextToCustomerById(customerId, "ยอมรับเรียบร้อยครับ จะดำเนินการเข้าคิวเจาะให้ต่อไป", "STATUS", org.org_id).catch(() => {});
   } else if (rejectDrillMatch) {
     const requestId = rejectDrillMatch[1];
     const existing = await pool.query(
@@ -275,7 +285,7 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     broadcast({ type: "QUOTATION_CHANGED", data: { drilling_request_id: Number(requestId) }, orgId: org.org_id });
 
     const { sendTextToCustomerById } = await import("../services/line");
-    sendTextToCustomerById(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งเจาะใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
+    sendTextToCustomerById(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งเจาะใหม่ได้ตลอดเวลา", "STATUS", org.org_id).catch(() => {});
   } else if (acceptRepairMatch) {
     const repairId = acceptRepairMatch[1];
     const existing = await pool.query(
@@ -301,7 +311,7 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     broadcast({ type: "QUOTATION_CHANGED", data: { repair_request_id: Number(repairId) }, orgId: org.org_id });
 
     const { sendTextToCustomerById } = await import("../services/line");
-    sendTextToCustomerById(customerId, `ยอมรับเรียบร้อยครับ กรุณาเตรียมตัวสำหรับการซ่อมบำรุง${dateText} ทีมงานจะติดต่อกลับเพื่อยืนยันอีกครั้ง`, "STATUS").catch(() => {});
+    sendTextToCustomerById(customerId, `ยอมรับเรียบร้อยครับ กรุณาเตรียมตัวสำหรับการซ่อมบำรุง${dateText} ทีมงานจะติดต่อกลับเพื่อยืนยันอีกครั้ง`, "STATUS", org.org_id).catch(() => {});
   } else if (rejectRepairMatch) {
     const repairId = rejectRepairMatch[1];
     const existing = await pool.query(
@@ -321,7 +331,7 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     broadcast({ type: "QUOTATION_CHANGED", data: { repair_request_id: Number(repairId) }, orgId: org.org_id });
 
     const { sendTextToCustomerById } = await import("../services/line");
-    sendTextToCustomerById(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งซ่อมใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
+    sendTextToCustomerById(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งซ่อมใหม่ได้ตลอดเวลา", "STATUS", org.org_id).catch(() => {});
   }
 }
 

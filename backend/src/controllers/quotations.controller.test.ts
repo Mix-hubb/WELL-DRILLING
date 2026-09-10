@@ -137,7 +137,7 @@ describe("create", () => {
       data: { quotation_id: 1, kind: "DRILLING" },
       orgId: "org-1",
     });
-    expect(mocks.sendFlexToCustomer).toHaveBeenCalledWith(2, expect.any(String), expect.any(Object), "QUOTE");
+    expect(mocks.sendFlexToCustomer).toHaveBeenCalledWith(2, expect.any(String), expect.any(Object), "QUOTE", "org-1");
     expect(res.status).toHaveBeenCalledWith(201);
   });
 

@@ -224,7 +224,7 @@ export async function createFromPublicForm(req: Request, res: Response) {
     await client.query("COMMIT");
 
     broadcast({ type: "REPAIR_REQUEST_CREATED", data: { repair_id: r.rows[0].repair_id }, orgId: resolvedOrgId });
-    sendTextToCustomer(customerId, "เราได้รับคำร้องซ่อมของคุณแล้ว กรุณารอการตอบกลับจากทีมงานครับ", "STATUS").catch(() => {});
+    sendTextToCustomer(customerId, "เราได้รับคำร้องซ่อมของคุณแล้ว กรุณารอการตอบกลับจากทีมงานครับ", "STATUS", resolvedOrgId).catch(() => {});
 
     res.status(201).json({ repair_id: r.rows[0].repair_id, customer_id: customerId });
   } catch (err) {
@@ -290,7 +290,7 @@ export async function updateStatus(req: Request, res: Response) {
 
   const customerId = rows[0].customer_id;
   if (customerId && status === "IN_PROGRESS") {
-    sendTextToCustomer(customerId, "ขณะนี้ช่างกำลังดำเนินการซ่อมบำรุงให้ครับ กรุณารอสักครู่", "STATUS").catch(() => {});
+    sendTextToCustomer(customerId, "ขณะนี้ช่างกำลังดำเนินการซ่อมบำรุงให้ครับ กรุณารอสักครู่", "STATUS", req.user?.orgId).catch(() => {});
   }
   if (customerId && status === "CLOSED") {
     const { rows: custOrgRows } = await pool.query(
@@ -304,7 +304,7 @@ export async function updateStatus(req: Request, res: Response) {
     const liffUrl = liffId
       ? `https://liff.line.me/${liffId}/repair-form?liffId=${liffId}`
       : `${process.env.APP_URL || "http://localhost:5173"}/repair-form`;
-    sendTextToCustomer(customerId, `การซ่อมบำรุงเสร็จเรียบร้อยแล้วครับ กรุณาอัปโหลดสลิปโอนเงินผ่านลิงก์นี้:\n${liffUrl}`, "STATUS").catch(() => {});
+    sendTextToCustomer(customerId, `การซ่อมบำรุงเสร็จเรียบร้อยแล้วครับ กรุณาอัปโหลดสลิปโอนเงินผ่านลิงก์นี้:\n${liffUrl}`, "STATUS", req.user?.orgId).catch(() => {});
   }
 
   broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(id), status }, orgId: req.user?.orgId });
@@ -379,7 +379,7 @@ export async function addRecord(req: Request, res: Response) {
     const msg = final_price != null
       ? `แจ้งผลการซ่อมเสร็จเรียบร้อยแล้วครับ\n\nรายละเอียดงาน:\n${work_details || "-"}${partsList}\n\nราคาจบงาน ${Number(final_price).toLocaleString("th-TH")} บาท\n\nกรุณาอัปโหลดสลิปโอนเงินผ่านลิงก์ในแชทครับ`
       : `แจ้งผลการซ่อมเสร็จเรียบร้อยแล้วครับ\n\nรายละเอียดงาน:\n${work_details || "-"}${partsList}\n\nกรุณาอัปโหลดสลิปโอนเงินผ่านลิงก์ในแชทครับ`;
-    sendTextToCustomer(reqRow.rows[0].customer_id, msg, "STATUS").catch(() => {});
+    sendTextToCustomer(reqRow.rows[0].customer_id, msg, "STATUS", orgId).catch(() => {});
   }
 
   res.status(201).json(recs.rows[0]);
