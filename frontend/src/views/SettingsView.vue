@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { api } from "@/api/client";
@@ -30,6 +30,10 @@ const channelSecret = ref("");
 const channelAccessToken = ref("");
 const liffIdDrilling = ref("");
 const liffIdRepair = ref("");
+
+const webhookUrl = "https://well-drilling-api.onrender.com/api/webhooks/line";
+const drillUrl = computed(() => liffIdDrilling.value ? `https://liff.line.me/${liffIdDrilling.value}/request-drill` : "");
+const repairUrl = computed(() => liffIdRepair.value ? `https://liff.line.me/${liffIdRepair.value}/repair-form` : "");
 
 async function loadSettings() {
   try {
@@ -77,6 +81,11 @@ function copyInviteCode() {
     navigator.clipboard.writeText(settings.value.invite_code);
     ui.notify("คัดลอก Invite Code แล้ว", "success");
   }
+}
+
+function copyToClipboard(text: string, label: string) {
+  navigator.clipboard.writeText(text);
+  ui.notify(`คัดลอก ${label} แล้ว`, "success");
 }
 </script>
 
@@ -219,13 +228,75 @@ function copyInviteCode() {
                     <li>เปิดใช้ Messaging API</li>
                     <li>สร้าง LIFF App ใน LINE Developers Console</li>
                     <li>กรอกค่าด้านบนในระบบ</li>
-                    <li>ตั้ง Webhook URL เป็น: <code>https://well-drilling-api.onrender.com/api/webhooks/line</code></li>
+                    <li>ตั้ง Webhook URL เป็น: <code>{{ webhookUrl }}</code></li>
                   </ol>
                 </div>
               </v-alert>
             </div>
 
             <v-divider />
+
+            <!-- Rich Menu URLs -->
+            <div class="pa-4" v-if="drillUrl || repairUrl">
+              <div class="text-subtitle-1 font-weight-bold mb-3">
+                <v-icon start icon="mdi-link" size="18" />
+                URL สำหรับ Rich Menu
+              </div>
+              <div class="text-body-2 text-medium-emphasis mb-3">
+                คัดลอก URL ด้านล่างไปใส่ในปุ่ม Rich Menu บน LINE Official Account Manager
+              </div>
+
+              <div v-if="drillUrl" class="mb-3">
+                <div class="text-caption font-weight-bold mb-1">ปุ่มแจ้งเจาะบ่อ</div>
+                <v-text-field
+                  :model-value="drillUrl"
+                  variant="outlined"
+                  density="compact"
+                  readonly
+                  prepend-inner-icon="mdi-water-well"
+                >
+                  <template #append-inner>
+                    <v-icon
+                      icon="mdi-content-copy"
+                      style="cursor: pointer"
+                      @click="copyToClipboard(drillUrl, 'URL แจ้งเจาะ')"
+                    />
+                  </template>
+                </v-text-field>
+              </div>
+
+              <div v-if="repairUrl" class="mb-3">
+                <div class="text-caption font-weight-bold mb-1">ปุ่มแจ้งซ่อม</div>
+                <v-text-field
+                  :model-value="repairUrl"
+                  variant="outlined"
+                  density="compact"
+                  readonly
+                  prepend-inner-icon="mdi-wrench-outline"
+                >
+                  <template #append-inner>
+                    <v-icon
+                      icon="mdi-content-copy"
+                      style="cursor: pointer"
+                      @click="copyToClipboard(repairUrl, 'URL แจ้งซ่อม')"
+                    />
+                  </template>
+                </v-text-field>
+              </div>
+
+              <v-alert type="warning" variant="tonal" density="compact" class="mt-2">
+                <div class="text-body-2">
+                  <strong>วิธีตั้งค่า Rich Menu:</strong>
+                  <ol class="mt-1">
+                    <li>ไปที่ LINE Official Account Manager → Rich Menu</li>
+                    <li>สร้าง/แก้ไขปุ่ม → เลือก <strong>Open URL</strong></li>
+                    <li>คัดลอก URL ด้านบนไปใส่ในแต่ละปุ่ม</li>
+                  </ol>
+                </div>
+              </v-alert>
+            </div>
+
+            <v-divider v-if="drillUrl || repairUrl" />
 
             <div class="pa-4">
               <v-btn
