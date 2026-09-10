@@ -40,7 +40,7 @@ onMounted(async () => {
   }
 
   if (!liff.isLoggedIn()) {
-    window.location.href = `/liff-login?liffId=${urlLiffId}&redirect=/request-drill`;
+    liff.login();
     return;
   }
 

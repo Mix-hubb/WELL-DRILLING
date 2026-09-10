@@ -62,12 +62,6 @@ const routes = [
     component: () => import("@/views/SettingsView.vue"),
     meta: { label: "ตั้งค่าระบบ", icon: "mdi-cog-outline" },
   },
-  // ===== ลูกค้า (LIFF) =====
-  {
-    path: "/liff-login", name: "liff-login",
-    component: () => import("@/views/LiffAuthView.vue"),
-    meta: { public: true, hidden: true },
-  },
   // ===== ลูกค้า (public) =====
   {
     path: "/request-drill",
