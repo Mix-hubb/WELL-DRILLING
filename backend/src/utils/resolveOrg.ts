@@ -2,7 +2,7 @@ export async function resolveOrgId(client: any, liffId?: string, explicitOrgId?:
   if (explicitOrgId) return explicitOrgId;
   if (!liffId) return null;
   const { rows } = await client.query(
-    "SELECT org_id FROM organizations WHERE line_liff_id_drilling = $1 OR line_liff_id_repair = $1",
+    "SELECT org_id FROM organizations WHERE line_liff_id_drilling = $1 OR line_liff_id_repair = $1 ORDER BY created_at ASC LIMIT 1",
     [liffId]
   );
   return rows[0]?.org_id || null;

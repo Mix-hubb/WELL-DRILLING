@@ -62,8 +62,8 @@ app.get("/api/public/liff-info", publicLimiter, asyncHandler(async (req: any, re
   if (!liff_id) return res.status(400).json({ error: "ต้องระบุ liff_id" });
   const { pool } = await import("./config/db");
   const result = await pool.query(
-    `SELECT line_liff_id_drilling, line_liff_id_repair FROM organizations
-     WHERE line_liff_id_drilling = $1 OR line_liff_id_repair = $1 LIMIT 1`,
+    `SELECT org_id, line_liff_id_drilling, line_liff_id_repair FROM organizations
+     WHERE line_liff_id_drilling = $1 OR line_liff_id_repair = $1 ORDER BY created_at ASC LIMIT 1`,
     [liff_id]
   );
   if (!result.rows.length) return res.json({ found: false });
@@ -71,7 +71,7 @@ app.get("/api/public/liff-info", publicLimiter, asyncHandler(async (req: any, re
   let formType = "";
   if (org.line_liff_id_drilling === liff_id) formType = "request-drill";
   else if (org.line_liff_id_repair === liff_id) formType = "repair-form";
-  res.json({ found: true, formType });
+  res.json({ found: true, formType, org_id: org.org_id });
 }));
 app.get("/api/public/customer-by-line", publicLimiter, asyncHandler(async (req: any, res: any) => {
   const { line_user_id } = req.query;
