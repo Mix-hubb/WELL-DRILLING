@@ -4,6 +4,7 @@ import { userFilter } from "../utils/userFilter";
 import { DrillingRequest } from "../types";
 import { sendTextToCustomer } from "../services/line";
 import { broadcast } from "../services/sse";
+import { resolveOrgId } from "../utils/resolveOrg";
 
 const REQUEST_SELECT = `
   SELECT
@@ -171,16 +172,6 @@ export async function remove(req: Request, res: Response) {
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้อง" });
   await pool.query("DELETE FROM drilling_requests WHERE request_id = $1", [req.params.id]);
   res.status(204).end();
-}
-
-async function resolveOrgId(client: any, liffId?: string, explicitOrgId?: string): Promise<string | null> {
-  if (explicitOrgId) return explicitOrgId;
-  if (!liffId) return null;
-  const { rows } = await client.query(
-    "SELECT org_id FROM organizations WHERE line_liff_id_drilling = $1 OR line_liff_id_repair = $1",
-    [liffId]
-  );
-  return rows[0]?.org_id || null;
 }
 
 export async function createFromPublicForm(req: Request, res: Response) {

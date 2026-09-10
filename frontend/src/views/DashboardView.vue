@@ -38,6 +38,9 @@ onMounted(async () => {
   on("JOB_STATUS_CHANGED", refreshStats);
   on("DRILLING_REQUEST_CHANGED", refreshStats);
   on("REPAIR_REQUEST_CHANGED", refreshStats);
+  on("CUSTOMER_CREATED", refreshStats);
+  on("QUOTATION_CREATED", refreshStats);
+  on("QUOTATION_CHANGED", refreshStats);
 
   if (!localStorage.getItem("onboarding-done")) {
     try {

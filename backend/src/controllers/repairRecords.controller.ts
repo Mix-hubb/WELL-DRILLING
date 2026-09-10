@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { pool } from "../config/db";
 import { userFilter } from "../utils/userFilter";
 import { RepairRecord } from "../types";
+import { broadcast } from "../services/sse";
 
 function mapRow(row: any): RepairRecord {
   return {
@@ -57,5 +58,6 @@ export async function remove(req: Request, res: Response) {
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบบันทึก" });
   await pool.query("DELETE FROM repair_records WHERE record_id = $1", [req.params.id]);
+  broadcast({ type: "REPAIR_RECORD_DELETED", data: { record_id: Number(req.params.id) }, orgId: req.user?.orgId });
   res.status(204).end();
 }

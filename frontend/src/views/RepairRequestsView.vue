@@ -44,6 +44,10 @@ onMounted(async () => {
   connect();
   on("REPAIR_REQUEST_CREATED", refreshData);
   on("REPAIR_REQUEST_CHANGED", refreshData);
+  on("QUOTATION_CREATED", refreshData);
+  on("QUOTATION_CHANGED", refreshData);
+  on("QUOTATION_DELETED", refreshData);
+  on("REPAIR_RECORD_DELETED", refreshData);
 });
 
 const STATUS_PRIORITY: Record<string, number> = {

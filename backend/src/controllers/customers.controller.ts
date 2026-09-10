@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
 import { userFilter, userWhere } from "../utils/userFilter";
+import { broadcast } from "../services/sse";
 
 export async function list(req: Request, res: Response) {
   const { sql, params } = userWhere(req, "customers");
@@ -78,6 +79,7 @@ export async function create(req: Request, res: Response) {
     [req.user!.userId, req.user!.orgId || null, customer_name, phone, phone_alt || null, address || null]
   );
   res.status(201).json(rows[0]);
+  broadcast({ type: "CUSTOMER_CREATED", data: { customer_id: rows[0].customer_id }, orgId: req.user?.orgId });
 }
 
 export async function update(req: Request, res: Response) {
@@ -94,6 +96,7 @@ export async function update(req: Request, res: Response) {
   );
   if (!rows.length) return res.status(404).json({ error: "ไม่พบลูกค้า" });
   res.json(rows[0]);
+  broadcast({ type: "CUSTOMER_UPDATED", data: { customer_id: rows[0].customer_id }, orgId: req.user?.orgId });
 }
 
 export async function remove(req: Request, res: Response) {
@@ -102,5 +105,6 @@ export async function remove(req: Request, res: Response) {
     `DELETE FROM customers WHERE customer_id = $1${sql}`,
     [req.params.id, ...params]
   );
+  broadcast({ type: "CUSTOMER_DELETED", data: { customer_id: Number(req.params.id) }, orgId: req.user?.orgId });
   res.status(204).end();
 }

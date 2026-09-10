@@ -5,6 +5,7 @@ import { userFilter } from "../utils/userFilter";
 import { RepairRequest } from "../types";
 import { sendTextToCustomer } from "../services/line";
 import { broadcast } from "../services/sse";
+import { resolveOrgId } from "../utils/resolveOrg";
 
 function generateMagicToken(): string {
   return "repair-" + crypto.randomBytes(16).toString("hex");
@@ -121,16 +122,6 @@ export async function create(req: Request, res: Response) {
   const result = await pool.query(`${REQUEST_SELECT} WHERE r.repair_id = $1`, [newId]);
   broadcast({ type: "REPAIR_REQUEST_CREATED", data: { repair_id: newId }, orgId: req.user?.orgId });
   res.status(201).json(mapRow(result.rows[0]));
-}
-
-async function resolveOrgId(client: any, liffId?: string, explicitOrgId?: string): Promise<string | null> {
-  if (explicitOrgId) return explicitOrgId;
-  if (!liffId) return null;
-  const { rows } = await client.query(
-    "SELECT org_id FROM organizations WHERE line_liff_id_drilling = $1 OR line_liff_id_repair = $1",
-    [liffId]
-  );
-  return rows[0]?.org_id || null;
 }
 
 export async function createFromPublicForm(req: Request, res: Response) {

@@ -120,6 +120,9 @@ onMounted(async () => {
   on("DRILLING_REQUEST_CREATED", refreshData);
   on("DRILLING_REQUEST_CHANGED", refreshData);
   on("JOB_CREATED", refreshData);
+  on("QUOTATION_CREATED", refreshData);
+  on("QUOTATION_CHANGED", refreshData);
+  on("QUOTATION_DELETED", refreshData);
 });
 
 const filtered = computed(() => {

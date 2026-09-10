@@ -27,6 +27,9 @@ onMounted(async () => {
   on("WELL_UPDATED", refresh);
   on("DRILLING_REQUEST_CHANGED", refresh);
   on("REPAIR_REQUEST_CHANGED", refresh);
+  on("CUSTOMER_CREATED", refresh);
+  on("CUSTOMER_UPDATED", refresh);
+  on("CUSTOMER_DELETED", refresh);
 });
 
 const filtered = computed(() => {

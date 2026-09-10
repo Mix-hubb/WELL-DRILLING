@@ -37,6 +37,13 @@ export function useSSE() {
       "REPAIR_REQUEST_CHANGED",
       "WELL_CREATED",
       "WELL_UPDATED",
+      "CUSTOMER_CREATED",
+      "CUSTOMER_UPDATED",
+      "CUSTOMER_DELETED",
+      "QUOTATION_CREATED",
+      "QUOTATION_CHANGED",
+      "QUOTATION_DELETED",
+      "REPAIR_RECORD_DELETED",
     ];
     for (const eventType of customEvents) {
       eventSource.addEventListener(eventType, ((e: MessageEvent) => {
