@@ -13,7 +13,7 @@ export interface Organization {
   updated_at?: string;
 }
 
-export type DrillingRequestSource = "GOOGLE_FORM" | "MANUAL" | "LINE";
+export type DrillingRequestSource = "MANUAL" | "LINE";
 export type DrillingRequestStatus = "NEW" | "QUOTED" | "ACCEPTED" | "REJECTED" | "CANCELLED";
 export type DrillingJobStatus = "QUEUED" | "DRILLING" | "SUCCESS" | "FAILED" | "CLOSED";
 export type RepairRequestStatus = "NEW" | "QUOTED" | "ACCEPTED" | "REJECTED" | "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CLOSED" | "CANCELLED";

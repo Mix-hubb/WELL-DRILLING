@@ -217,7 +217,7 @@ create index idx_pump_catalog_brand on public.pump_catalog_models(brand, is_acti
 create table public.drilling_requests (
   request_id         uuid primary key default gen_random_uuid(),
   customer_id        uuid not null references public.customers(customer_id) on delete cascade,
-  source             text not null default 'GOOGLE_FORM' check (source in ('GOOGLE_FORM','MANUAL','LINE')),
+  source             text not null default 'LINE' check (source in ('MANUAL','LINE')),
   name               text not null,
   phone              text not null,
   address            text not null,

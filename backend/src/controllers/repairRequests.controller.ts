@@ -173,9 +173,39 @@ export async function createFromPublicForm(req: Request, res: Response) {
 
     if (existing?.rows.length) {
       customerId = existing.rows[0].customer_id;
+      const updateFields: string[] = [];
+      const updateParams: any[] = [];
+      let idx = 1;
+
+      updateFields.push(`customer_name = COALESCE($${idx++}, customer_name)`);
+      updateParams.push(name);
+      updateFields.push(`phone = COALESCE($${idx++}, phone)`);
+      updateParams.push(phone);
+      if (address) {
+        updateFields.push(`address = COALESCE($${idx++}, address)`);
+        updateParams.push(address);
+      }
+      if (line_user_id) {
+        updateFields.push(`line_user_id = COALESCE($${idx++}, line_user_id)`);
+        updateParams.push(line_user_id);
+      }
+      if (line_display_name) {
+        updateFields.push(`line_display_name = COALESCE($${idx++}, line_display_name)`);
+        updateParams.push(line_display_name);
+      }
+      if (line_picture_url) {
+        updateFields.push(`line_picture_url = COALESCE($${idx++}, line_picture_url)`);
+        updateParams.push(line_picture_url);
+      }
+      if (resolvedOrgId) {
+        updateFields.push(`org_id = COALESCE($${idx++}, org_id)`);
+        updateParams.push(resolvedOrgId);
+      }
+
+      updateParams.push(customerId);
       await client.query(
-        "UPDATE customers SET customer_name = COALESCE($1, customer_name), phone = COALESCE($2, phone), address = COALESCE($3, address), line_user_id = COALESCE($4, line_user_id), line_display_name = COALESCE($5, line_display_name), line_picture_url = COALESCE($6, line_picture_url), org_id = COALESCE($7, org_id) WHERE customer_id = $8",
-        [name, phone, address || null, line_user_id || null, line_display_name || null, line_picture_url || null, resolvedOrgId, customerId]
+        `UPDATE customers SET ${updateFields.join(", ")} WHERE customer_id = $${idx}`,
+        updateParams
       );
     } else {
       const c = await client.query(
@@ -202,11 +232,7 @@ export async function createFromPublicForm(req: Request, res: Response) {
 
     await client.query("COMMIT");
 
-    const { rows: orgRows } = await pool.query(
-      "SELECT org_id FROM customers WHERE customer_id = $1", [customerId]
-    );
-    const orgId = orgRows[0]?.org_id;
-    broadcast({ type: "REPAIR_REQUEST_CREATED", data: { repair_id: r.rows[0].repair_id }, orgId });
+    broadcast({ type: "REPAIR_REQUEST_CREATED", data: { repair_id: r.rows[0].repair_id }, orgId: resolvedOrgId });
     sendTextToCustomer(customerId, "เราได้รับคำร้องซ่อมของคุณแล้ว กรุณารอการตอบกลับจากทีมงานครับ", "STATUS").catch(() => {});
 
     res.status(201).json({ repair_id: r.rows[0].repair_id, customer_id: customerId });
@@ -275,8 +301,16 @@ export async function updateStatus(req: Request, res: Response) {
     sendTextToCustomer(customerId, "ขณะนี้ช่างกำลังดำเนินการซ่อมบำรุงให้ครับ กรุณารอสักครู่", "STATUS").catch(() => {});
   }
   if (customerId && status === "CLOSED") {
-    const liffUrl = process.env.LINE_LIFF_ID_REPAIR
-      ? `https://liff.line.me/${process.env.LINE_LIFF_ID_REPAIR}/repair-form`
+    const { rows: custOrgRows } = await pool.query(
+      `SELECT o.line_liff_id_repair
+       FROM customers c
+       JOIN organizations o ON c.org_id = o.org_id
+       WHERE c.customer_id = $1`,
+      [customerId]
+    );
+    const liffId = custOrgRows[0]?.line_liff_id_repair || process.env.LINE_LIFF_ID_REPAIR;
+    const liffUrl = liffId
+      ? `https://liff.line.me/${liffId}/repair-form`
       : `${process.env.APP_URL || "http://localhost:5173"}/repair-form`;
     sendTextToCustomer(customerId, `การซ่อมบำรุงเสร็จเรียบร้อยแล้วครับ กรุณาอัปโหลดสลิปโอนเงินผ่านลิงก์นี้:\n${liffUrl}`, "STATUS").catch(() => {});
   }

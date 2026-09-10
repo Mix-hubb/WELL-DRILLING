@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 
-const LIFF_BASE = "https://liff.line.me/2011186152-nmGNOupm";
+const LIFF_BASE = import.meta.env.VITE_LIFF_ID_REPAIR
+  ? `https://liff.line.me/${import.meta.env.VITE_LIFF_ID_REPAIR}`
+  : "";
 
 const form = ref({
   name: "",

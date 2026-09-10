@@ -223,9 +223,37 @@ export async function createFromPublicForm(req: Request, res: Response) {
 
     if (existing?.rows.length) {
       customerId = existing.rows[0].customer_id;
+      const updateFields: string[] = [];
+      const updateParams: any[] = [];
+      let idx = 1;
+
+      updateFields.push(`customer_name = COALESCE($${idx++}, customer_name)`);
+      updateParams.push(name);
+      updateFields.push(`phone = COALESCE($${idx++}, phone)`);
+      updateParams.push(phone);
+      updateFields.push(`address = COALESCE($${idx++}, address)`);
+      updateParams.push(address || null);
+      if (line_user_id) {
+        updateFields.push(`line_user_id = COALESCE($${idx++}, line_user_id)`);
+        updateParams.push(line_user_id);
+      }
+      if (line_display_name) {
+        updateFields.push(`line_display_name = COALESCE($${idx++}, line_display_name)`);
+        updateParams.push(line_display_name);
+      }
+      if (line_picture_url) {
+        updateFields.push(`line_picture_url = COALESCE($${idx++}, line_picture_url)`);
+        updateParams.push(line_picture_url);
+      }
+      if (resolvedOrgId) {
+        updateFields.push(`org_id = COALESCE($${idx++}, org_id)`);
+        updateParams.push(resolvedOrgId);
+      }
+
+      updateParams.push(customerId);
       await client.query(
-        "UPDATE customers SET customer_name = COALESCE($1, customer_name), phone = COALESCE($2, phone), address = COALESCE($3, address), line_user_id = COALESCE($4, line_user_id), line_display_name = COALESCE($5, line_display_name), line_picture_url = COALESCE($6, line_picture_url), org_id = COALESCE($7, org_id) WHERE customer_id = $8",
-        [name, phone, address || null, line_user_id || null, line_display_name || null, line_picture_url || null, resolvedOrgId, customerId]
+        `UPDATE customers SET ${updateFields.join(", ")} WHERE customer_id = $${idx}`,
+        updateParams
       );
     } else {
       const c = await client.query(
@@ -243,11 +271,7 @@ export async function createFromPublicForm(req: Request, res: Response) {
 
     await client.query("COMMIT");
 
-    const { rows: orgRows } = await pool.query(
-      "SELECT org_id FROM customers WHERE customer_id = $1", [customerId]
-    );
-    const orgId = orgRows[0]?.org_id;
-    broadcast({ type: "DRILLING_REQUEST_CREATED", data: { request_id: r.rows[0].request_id }, orgId });
+    broadcast({ type: "DRILLING_REQUEST_CREATED", data: { request_id: r.rows[0].request_id }, orgId: resolvedOrgId });
     sendTextToCustomer(customerId, "เตรียมพร้อมสำหรับวันนัดหมายครับ ทีมงานจะตรวจสอบและติดต่อกลับโดยเร็ว", "STATUS").catch(() => {});
 
     res.status(201).json({ request_id: r.rows[0].request_id, customer_id: customerId });

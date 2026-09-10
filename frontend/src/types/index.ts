@@ -6,7 +6,7 @@
 export type UserRole    = "ADMIN" | "DRILLER";
 
 export type DrillingRequestStatus = "NEW" | "QUOTED" | "ACCEPTED" | "REJECTED" | "CANCELLED";
-export type RequestSource = "GOOGLE_FORM" | "MANUAL" | "LINE";
+export type RequestSource = "MANUAL" | "LINE";
 
 export type DrillingJobStatus = "QUEUED" | "DRILLING" | "SUCCESS" | "FAILED" | "CLOSED";
 export type DrillingResult = "SUCCESS" | "FAILED";

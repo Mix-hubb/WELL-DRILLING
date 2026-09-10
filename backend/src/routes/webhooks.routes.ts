@@ -43,7 +43,7 @@ async function reply(accessToken: string, replyToken: string, text: string) {
 
 async function findOrCreateCustomerByLine(userId: string, profile: any, orgId: string | null): Promise<number> {
   const { rows } = await pool.query(
-    "SELECT customer_id FROM customers WHERE line_user_id = $1",
+    "SELECT customer_id, org_id FROM customers WHERE line_user_id = $1",
     [userId]
   );
   if (rows.length) {
@@ -51,6 +51,12 @@ async function findOrCreateCustomerByLine(userId: string, profile: any, orgId: s
       await pool.query(
         "UPDATE customers SET line_display_name = COALESCE($1, line_display_name), line_picture_url = COALESCE($2, line_picture_url) WHERE customer_id = $3",
         [profile.displayName, profile.pictureUrl || null, rows[0].customer_id]
+      );
+    }
+    if (!rows[0].org_id && orgId) {
+      await pool.query(
+        "UPDATE customers SET org_id = $1 WHERE customer_id = $2",
+        [orgId, rows[0].customer_id]
       );
     }
     return rows[0].customer_id;
@@ -287,48 +293,6 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     sendTextToCustomerById(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งซ่อมใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
   }
 }
-
-router.post(
-  "/google-form",
-  asyncHandler(async (req: Request, res: Response) => {
-    const body: any = req.body || {};
-    const name = body.name || body.NAME || body.customer_name;
-    const phone = String(body.phone || body.PHONE || body.phone_number || "").replace(/\D/g, "");
-    const address = body.address || body.ADDRESS || body.site_address || null;
-    const depth = body.requested_depth_m || body.depth || null;
-
-    if (!name || !phone) {
-      return res.status(400).json({ error: "ต้องระบุชื่อและเบอร์โทร" });
-    }
-
-    const existing = await pool.query(
-      "SELECT customer_id FROM customers WHERE phone = $1 LIMIT 1",
-      [phone]
-    );
-    let customerId: number;
-    if (existing.rows.length) {
-      customerId = existing.rows[0].customer_id;
-      await pool.query(
-        "UPDATE customers SET customer_name = COALESCE($1, customer_name), address = COALESCE($2, address) WHERE customer_id = $3",
-        [name, address, customerId]
-      );
-    } else {
-      const c = await pool.query(
-        "INSERT INTO customers (customer_name, phone, address) VALUES ($1, $2, $3) RETURNING customer_id",
-        [name, phone, address]
-      );
-      customerId = c.rows[0].customer_id;
-    }
-
-    const r = await pool.query(
-      `INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m)
-       VALUES ($1, 'GOOGLE_FORM', $2, $3, $4, $5) RETURNING request_id`,
-      [customerId, name, phone, address, depth ?? null]
-    );
-
-    res.status(201).json({ request_id: r.rows[0].request_id, customer_id: customerId });
-  })
-);
 
 router.post(
   "/line",
