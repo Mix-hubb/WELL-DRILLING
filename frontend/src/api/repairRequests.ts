@@ -7,7 +7,10 @@ export const repairRequestsApi = {
   create: (data: Partial<RepairRequest>) => api.post<RepairRequest>("/repair-requests", data),
   update: (id: number | string, data: Partial<RepairRequest>) => api.put<RepairRequest>(`/repair-requests/${id}`, data),
   updateStatus: (id: number | string, status: RepairRequest["status"], scheduled_date?: string) =>
-    api.patch<RepairRequest>(`/repair-requests/${id}/status`, { status, scheduled_date }),
+    api.patch<RepairRequest>(
+      `/repair-requests/${id}/status`,
+      scheduled_date !== undefined ? { status, scheduled_date } : { status }
+    ),
   generateMagicLink: (id: number | string) => api.post<{ token: string }>(`/repair-requests/${id}/magic-link`, {}),
   remove: (id: number | string) => api.del<void>(`/repair-requests/${id}`),
 

@@ -21,7 +21,9 @@ export const useRepairRequestsStore = defineStore("repairRequests", {
       }
     },
     async setStatus(id: number, status: RepairRequestStatus, scheduled_date?: string) {
-      const updated = await repairRequestsApi.updateStatus(id, status, scheduled_date);
+      const updated = scheduled_date !== undefined
+        ? await repairRequestsApi.updateStatus(id, status, scheduled_date)
+        : await repairRequestsApi.updateStatus(id, status);
       const idx = this.requests.findIndex((r) => r.repair_id === id);
       if (idx !== -1) this.requests[idx] = updated;
       return updated;
