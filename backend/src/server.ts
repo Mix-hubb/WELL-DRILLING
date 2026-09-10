@@ -57,6 +57,22 @@ app.use("/api/auth", authLimiter, authRoutes);
 // Public routes — ฟอร์มลูกค้า (rate limit: 20 req/min)
 app.post("/api/public/repair-requests", publicLimiter, asyncHandler(repairCtrl.createFromPublicForm));
 app.post("/api/public/drilling-requests", publicLimiter, asyncHandler(drillingReqCtrl.createFromPublicForm));
+app.get("/api/public/liff-info", publicLimiter, asyncHandler(async (req: any, res: any) => {
+  const { liff_id } = req.query;
+  if (!liff_id) return res.status(400).json({ error: "ต้องระบุ liff_id" });
+  const { pool } = await import("./config/db");
+  const result = await pool.query(
+    `SELECT line_liff_id_drilling, line_liff_id_repair FROM organizations
+     WHERE line_liff_id_drilling = $1 OR line_liff_id_repair = $1 LIMIT 1`,
+    [liff_id]
+  );
+  if (!result.rows.length) return res.json({ found: false });
+  const org = result.rows[0];
+  let formType = "";
+  if (org.line_liff_id_drilling === liff_id) formType = "request-drill";
+  else if (org.line_liff_id_repair === liff_id) formType = "repair-form";
+  res.json({ found: true, formType });
+}));
 app.get("/api/public/customer-by-line", publicLimiter, asyncHandler(async (req: any, res: any) => {
   const { line_user_id } = req.query;
   if (!line_user_id) return res.status(400).json({ error: "ต้องระบุ line_user_id" });

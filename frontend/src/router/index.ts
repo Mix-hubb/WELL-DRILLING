@@ -96,8 +96,23 @@ export const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const token = localStorage.getItem("welldrill-token");
+
+  const urlLiffId = to.query.liffId as string | undefined;
+  if (urlLiffId && (to.path === "/" || to.path === "/login")) {
+    try {
+      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4001/api";
+      const res = await fetch(`${BASE_URL}/public/liff-info?liff_id=${encodeURIComponent(urlLiffId)}`);
+      const data = await res.json();
+      if (data.found && data.formType) {
+        return next({ path: `/${data.formType}`, query: { liffId: urlLiffId } });
+      }
+    } catch {
+      // fallback: show login
+    }
+  }
+
   if (!to.meta.public && !token) {
     return next("/login");
   }
