@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { api } from "@/api/client";
@@ -31,11 +31,62 @@ const channelAccessToken = ref("");
 const liffIdDrilling = ref("");
 const liffIdRepair = ref("");
 
-const webhookUrl = "https://well-drilling-api.onrender.com/api/webhooks/line";
+const liffDrillChecking = ref(false);
+const liffRepairChecking = ref(false);
+const liffDrillStatus = ref<"ok" | "duplicate" | null>(null);
+const liffRepairStatus = ref<"ok" | "duplicate" | null>(null);
+const liffDrillUsedBy = ref("");
+const liffRepairUsedBy = ref("");
+
+const webhookUrl = computed(() => `${window.location.origin}/api/webhooks/line`);
 const drillUrl = computed(() => liffIdDrilling.value ? `https://liff.line.me/${liffIdDrilling.value}/request-drill` : "");
 const repairUrl = computed(() => liffIdRepair.value ? `https://liff.line.me/${liffIdRepair.value}/repair-form` : "");
 const drillEndpoint = computed(() => liffIdDrilling.value ? `https://well-drilling.vercel.app/request-drill?liffId=${liffIdDrilling.value}` : "");
 const repairEndpoint = computed(() => liffIdRepair.value ? `https://well-drilling.vercel.app/repair-form?liffId=${liffIdRepair.value}` : "");
+
+const hasLineConfig = computed(() => !!channelId.value);
+
+let checkDrillTimer: ReturnType<typeof setTimeout> | null = null;
+let checkRepairTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function checkLiffId(liffId: string, type: "drill" | "repair") {
+  if (!liffId || liffId.length < 5) {
+    if (type === "drill") { liffDrillStatus.value = null; liffDrillUsedBy.value = ""; }
+    else { liffRepairStatus.value = null; liffRepairUsedBy.value = ""; }
+    return;
+  }
+  if (type === "drill") liffDrillChecking.value = true;
+  else liffRepairChecking.value = true;
+
+  try {
+    const res = await api.get<{ available: boolean; used_by?: { org_id: string; org_name: string } }>(
+      `/line-settings/check-liff?liff_id=${encodeURIComponent(liffId)}`
+    );
+    if (type === "drill") {
+      liffDrillStatus.value = res.available ? "ok" : "duplicate";
+      liffDrillUsedBy.value = res.used_by?.org_name || "";
+    } else {
+      liffRepairStatus.value = res.available ? "ok" : "duplicate";
+      liffRepairUsedBy.value = res.used_by?.org_name || "";
+    }
+  } catch {
+    if (type === "drill") { liffDrillStatus.value = null; }
+    else { liffRepairStatus.value = null; }
+  } finally {
+    if (type === "drill") liffDrillChecking.value = false;
+    else liffRepairChecking.value = false;
+  }
+}
+
+watch(liffIdDrilling, (val) => {
+  if (checkDrillTimer) clearTimeout(checkDrillTimer);
+  checkDrillTimer = setTimeout(() => checkLiffId(val, "drill"), 400);
+});
+
+watch(liffIdRepair, (val) => {
+  if (checkRepairTimer) clearTimeout(checkRepairTimer);
+  checkRepairTimer = setTimeout(() => checkLiffId(val, "repair"), 400);
+});
 
 async function loadSettings() {
   try {
@@ -46,6 +97,9 @@ async function loadSettings() {
     channelAccessToken.value = data.line_channel_access_token || "";
     liffIdDrilling.value = data.line_liff_id_drilling || "";
     liffIdRepair.value = data.line_liff_id_repair || "";
+
+    if (data.line_liff_id_drilling) checkLiffId(data.line_liff_id_drilling, "drill");
+    if (data.line_liff_id_repair) checkLiffId(data.line_liff_id_repair, "repair");
   } catch (err) {
     ui.notifyError(err);
   } finally {
@@ -54,6 +108,32 @@ async function loadSettings() {
 }
 
 onMounted(loadSettings);
+
+const canSave = computed(() => {
+  if (liffDrillStatus.value === "duplicate" || liffRepairStatus.value === "duplicate") return false;
+  if (liffDrillChecking.value || liffRepairChecking.value) return false;
+  return true;
+});
+
+const liffDrillHint = computed(() =>
+  liffDrillStatus.value === "duplicate"
+    ? "ถูกใช้โดย \"" + liffDrillUsedBy.value + "\" แล้ว!"
+    : "LIFF App ที่ตั้ง Endpoint = /request-drill"
+);
+
+const liffRepairHint = computed(() =>
+  liffRepairStatus.value === "duplicate"
+    ? "ถูกใช้โดย \"" + liffRepairUsedBy.value + "\" แล้ว!"
+    : "LIFF App ที่ตั้ง Endpoint = /repair-form"
+);
+
+const liffDrillColor = computed(() =>
+  liffDrillStatus.value === "duplicate" ? "error" : liffDrillStatus.value === "ok" ? "success" : undefined
+);
+
+const liffRepairColor = computed(() =>
+  liffRepairStatus.value === "duplicate" ? "error" : liffRepairStatus.value === "ok" ? "success" : undefined
+);
 
 async function handleSave() {
   saving.value = true;
@@ -94,7 +174,7 @@ function copyToClipboard(text: string, label: string) {
 <template>
   <v-container fluid>
     <v-row>
-      <v-col cols="12" md="8" lg="6">
+      <v-col cols="12" md="8" lg="7">
         <v-card rounded="xl" elevation="1">
           <v-card-title class="text-h6 font-weight-bold pa-4 pb-2">
             <v-icon start icon="mdi-cog-outline" color="primary" />
@@ -145,20 +225,42 @@ function copyToClipboard(text: string, label: string) {
 
             <!-- LINE OA Config -->
             <div class="pa-4">
-              <div class="text-subtitle-1 font-weight-bold mb-3">
+              <div class="text-subtitle-1 font-weight-bold mb-1">
                 <v-icon start icon="mdi-message-text-outline" size="18" />
                 LINE Official Account
               </div>
+              <div class="text-caption text-medium-emphasis mb-3">
+                เชื่อมต่อ LINE OA ของคุณเข้ากับระบบ — <strong>1 LINE OA ต่อ 1 องค์กร</strong>
+              </div>
 
+              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+                <div class="text-body-2">
+                  <strong>ขั้นตอนการตั้งค่า (ทำครั้งเดียว):</strong>
+                  <ol class="mt-1 mb-0 pl-4">
+                    <li>ไปที่ <a href="https://developers.line.me" target="_blank" class="text-primary">LINE Developers Console</a></li>
+                    <li>สร้าง <strong>Provider</strong> ใหม่ → สร้าง <strong>Channel</strong> ประเภท <strong>Messaging API</strong></li>
+                    <li>คัดลอก <strong>Channel ID</strong>, <strong>Channel Secret</strong>, <strong>Channel Access Token</strong> มาใส่ด้านล่าง</li>
+                    <li>ไป tab <strong>LIFF</strong> → กด <strong>Add</strong> → สร้าง 2 LIFF Apps (แจ้งเจาะ + แจ้งซ่อม)</li>
+                    <li>คัดลอก <strong>LIFF ID</strong> แต่ละตัวมาใส่ด้านล่าง</li>
+                    <li>ตั้งค่า <strong>Endpoint URL</strong> ที่ระบบแสดงให้ (ตาม LIFF ID ที่กรอก)</li>
+                    <li>Scope = <strong>profile</strong> + <strong>openid</strong>, Bot Prompt = <strong>Aggressive</strong></li>
+                    <li>ไปตั้ง <strong>Webhook URL</strong> ที่ระบบแสดงให้</li>
+                  </ol>
+                </div>
+              </v-alert>
+
+              <!-- Channel ID -->
               <v-text-field
                 v-model="channelId"
                 label="Channel ID"
                 variant="outlined"
                 density="compact"
                 prepend-inner-icon="mdi-identifier"
-                hint="จาก LINE Developers Console"
+                hint="จาก LINE Developers Console → Basic settings"
                 class="mb-2"
               />
+
+              <!-- Channel Secret -->
               <v-text-field
                 v-model="channelSecret"
                 label="Channel Secret"
@@ -166,7 +268,7 @@ function copyToClipboard(text: string, label: string) {
                 variant="outlined"
                 density="compact"
                 prepend-inner-icon="mdi-key-outline"
-                :hint="settings.line_channel_secret ? 'ใส่ใหม่เฉพาะเมื่อต้องการเปลี่ยน' : 'จาก LINE Developers Console'"
+                :hint="settings.line_channel_secret ? 'ใส่ใหม่เฉพาะเมื่อต้องการเปลี่ยน' : 'จาก LINE Developers Console → Basic settings'"
                 class="mb-2"
               >
                 <template #append-inner>
@@ -177,6 +279,8 @@ function copyToClipboard(text: string, label: string) {
                   />
                 </template>
               </v-text-field>
+
+              <!-- Channel Access Token -->
               <v-text-field
                 v-model="channelAccessToken"
                 label="Channel Access Token"
@@ -184,7 +288,7 @@ function copyToClipboard(text: string, label: string) {
                 variant="outlined"
                 density="compact"
                 prepend-inner-icon="mdi-key-variant"
-                :hint="settings.line_channel_access_token ? 'ใส่ใหม่เฉพาะเมื่อต้องการเปลี่ยน' : 'จาก LINE Developers Console'"
+                :hint="settings.line_channel_access_token ? 'ใส่ใหม่เฉพาะเมื่อต้องการเปลี่ยน' : 'จาก LINE Developers Console → Messaging API'"
                 class="mb-2"
               >
                 <template #append-inner>
@@ -198,182 +302,213 @@ function copyToClipboard(text: string, label: string) {
 
               <v-divider class="my-3" />
 
-              <div class="text-subtitle-2 font-weight-bold mb-2">
+              <!-- LIFF IDs -->
+              <div class="text-subtitle-2 font-weight-bold mb-1">
                 <v-icon start icon="mdi-link-variant" size="16" />
                 LIFF App IDs
               </div>
+              <div class="text-caption text-medium-emphasis mb-3">
+                สร้าง LIFF App 2 ตัวใน LINE Developers Console → LIFF tab → Add
+              </div>
 
+              <!-- LIFF Drilling -->
               <v-text-field
                 v-model="liffIdDrilling"
                 label="LIFF ID (ฟอร์มแจ้งเจาะ)"
                 variant="outlined"
                 density="compact"
                 prepend-inner-icon="mdi-file-document-outline"
-                hint="คัดลอกจาก LIFF App ที่ตั้ง Endpoint = /request-drill"
-                class="mb-2"
-              />
+                :hint="liffDrillHint"
+                :color="liffDrillColor"
+                :error="liffDrillStatus === 'duplicate'"
+                :success="liffDrillStatus === 'ok' && !!liffIdDrilling"
+                class="mb-1"
+              >
+                <template #append-inner>
+                  <v-progress-circular v-if="liffDrillChecking" indeterminate size="18" width="2" color="primary" />
+                  <v-icon v-else-if="liffDrillStatus === 'ok'" icon="mdi-check-circle" color="success" />
+                  <v-icon v-else-if="liffDrillStatus === 'duplicate'" icon="mdi-alert-circle" color="error" />
+                </template>
+              </v-text-field>
+              <v-alert v-if="liffDrillStatus === 'duplicate'" type="error" variant="tonal" density="compact" class="mb-3">
+                LIFF ID นี้ถูกใช้โดย "<strong>{{ liffDrillUsedBy }}</strong>" แล้ว — 1 LIFF ID ใช้ได้กับ 1 องค์กรเท่านั้น
+              </v-alert>
+
+              <!-- LIFF Repair -->
               <v-text-field
                 v-model="liffIdRepair"
                 label="LIFF ID (ฟอร์มแจ้งซ่อม)"
                 variant="outlined"
                 density="compact"
                 prepend-inner-icon="mdi-wrench-outline"
-                hint="คัดลอกจาก LIFF App ที่ตั้ง Endpoint = /repair-form"
-                class="mb-2"
-              />
-
-              <v-alert type="info" variant="tonal" density="compact" class="mt-2">
-                <div class="text-body-2">
-                  <strong>ขั้นตอนการตั้งค่า LIFF App (ทำ 2 ครั้ง สำหรับแต่ละฟอร์ม):</strong>
-                  <ol class="mt-1">
-                    <li>ไปที่ <strong>LINE Developers Console</strong> (developers.line.me)</li>
-                    <li>สร้าง <strong>Provider</strong> ใหม่ → สร้าง <strong>Channel</strong> ประเภท <strong>Messaging API</strong></li>
-                    <li>ไป tab <strong>LIFF</strong> → กด <strong>Add</strong></li>
-                    <li>ตั้ง <strong>App name</strong> เช่น "ฟอร์มแจ้งเจาะ" หรือ "ฟอร์มแจ้งซ่อม"</li>
-                    <li>คัดลอก <strong>Endpoint URL</strong> ด้านล่างไปใส่ (ตาม LIFF ID ที่กรอกไว้)</li>
-                    <li>เลือก Scope = <strong>profile</strong> + <strong>openid</strong></li>
-                    <li>กด <strong>Submit</strong> → คัดลอก <strong>LIFF ID</strong> มาใส่ในช่องด้านบน</li>
-                  </ol>
-                </div>
-              </v-alert>
-
-              <v-alert v-if="drillEndpoint || repairEndpoint" type="warning" variant="tonal" density="compact" class="mt-2">
-                <div class="text-body-2">
-                  <strong>Endpoint URL ที่ต้องตั้งค่าใน LIFF App:</strong>
-                  <div class="mt-2">
-                    <div v-if="drillEndpoint" class="mb-2">
-                      <div class="d-flex align-center mb-1">
-                        <v-icon icon="mdi-water-well" size="14" color="primary" class="mr-1" />
-                        <strong>ฟอร์มแจ้งเจาะ:</strong>
-                      </div>
-                      <v-text-field
-                        :model-value="drillEndpoint"
-                        variant="outlined"
-                        density="compact"
-                        readonly
-                        hide-details
-                      >
-                        <template #append-inner>
-                          <v-icon
-                            icon="mdi-content-copy"
-                            style="cursor: pointer"
-                            @click="copyToClipboard(drillEndpoint, 'Endpoint URL แจ้งเจาะ')"
-                          />
-                        </template>
-                      </v-text-field>
-                    </div>
-                    <div v-if="repairEndpoint">
-                      <div class="d-flex align-center mb-1">
-                        <v-icon icon="mdi-wrench-outline" size="14" color="warning" class="mr-1" />
-                        <strong>ฟอร์มแจ้งซ่อม:</strong>
-                      </div>
-                      <v-text-field
-                        :model-value="repairEndpoint"
-                        variant="outlined"
-                        density="compact"
-                        readonly
-                        hide-details
-                      >
-                        <template #append-inner>
-                          <v-icon
-                            icon="mdi-content-copy"
-                            style="cursor: pointer"
-                            @click="copyToClipboard(repairEndpoint, 'Endpoint URL แจ้งซ่อม')"
-                          />
-                        </template>
-                      </v-text-field>
-                    </div>
-                  </div>
-                </div>
+                :hint="liffRepairHint"
+                :color="liffRepairColor"
+                :error="liffRepairStatus === 'duplicate'"
+                :success="liffRepairStatus === 'ok' && !!liffIdRepair"
+                class="mb-1"
+              >
+                <template #append-inner>
+                  <v-progress-circular v-if="liffRepairChecking" indeterminate size="18" width="2" color="primary" />
+                  <v-icon v-else-if="liffRepairStatus === 'ok'" icon="mdi-check-circle" color="success" />
+                  <v-icon v-else-if="liffRepairStatus === 'duplicate'" icon="mdi-alert-circle" color="error" />
+                </template>
+              </v-text-field>
+              <v-alert v-if="liffRepairStatus === 'duplicate'" type="error" variant="tonal" density="compact" class="mb-3">
+                LIFF ID นี้ถูกใช้โดย "<strong>{{ liffRepairUsedBy }}</strong>" แล้ว — 1 LIFF ID ใช้ได้กับ 1 องค์กรเท่านั้น
               </v-alert>
             </div>
 
-            <v-divider />
+            <v-divider v-if="hasLineConfig" />
 
-            <!-- Rich Menu URLs -->
-            <div class="pa-4" v-if="drillUrl || repairUrl">
-              <div class="text-subtitle-1 font-weight-bold mb-3">
-                <v-icon start icon="mdi-link" size="18" />
-                URL สำหรับ Rich Menu
-              </div>
-              <div class="text-body-2 text-medium-emphasis mb-3">
-                คัดลอก URL ด้านล่างไปใส่ในปุ่ม Rich Menu บน LINE Official Account Manager
-              </div>
-
-              <div v-if="drillUrl" class="mb-3">
-                <div class="text-caption font-weight-bold mb-1">ปุ่มแจ้งเจาะบ่อ</div>
-                <v-text-field
-                  :model-value="drillUrl"
-                  variant="outlined"
-                  density="compact"
-                  readonly
-                  prepend-inner-icon="mdi-water-well"
-                >
-                  <template #append-inner>
-                    <v-icon
-                      icon="mdi-content-copy"
-                      style="cursor: pointer"
-                      @click="copyToClipboard(drillUrl, 'URL แจ้งเจาะ')"
-                    />
-                  </template>
-                </v-text-field>
-              </div>
-
-              <div v-if="repairUrl" class="mb-3">
-                <div class="text-caption font-weight-bold mb-1">ปุ่มแจ้งซ่อม</div>
-                <v-text-field
-                  :model-value="repairUrl"
-                  variant="outlined"
-                  density="compact"
-                  readonly
-                  prepend-inner-icon="mdi-wrench-outline"
-                >
-                  <template #append-inner>
-                    <v-icon
-                      icon="mdi-content-copy"
-                      style="cursor: pointer"
-                      @click="copyToClipboard(repairUrl, 'URL แจ้งซ่อม')"
-                    />
-                  </template>
-                </v-text-field>
-              </div>
-
-              <v-alert type="warning" variant="tonal" density="compact" class="mt-2">
-                <div class="text-body-2">
-                  <strong>วิธีตั้งค่า Rich Menu:</strong>
-                  <ol class="mt-1">
-                    <li>ไปที่ LINE Official Account Manager → Rich Menu</li>
-                    <li>สร้าง/แก้ไขปุ่ม → เลือก <strong>Open URL</strong></li>
-                    <li>คัดลอก URL ด้านบนไปใส่ในแต่ละปุ่ม</li>
-                  </ol>
+            <!-- Generated URLs -->
+            <template v-if="hasLineConfig">
+              <div class="pa-4">
+                <div class="text-subtitle-1 font-weight-bold mb-3">
+                  <v-icon start icon="mdi-link" size="18" />
+                  URLs ที่ต้องตั้งค่าใน LINE
                 </div>
-              </v-alert>
 
-              <v-alert type="error" variant="tonal" density="compact" class="mt-2">
-                <div class="text-body-2">
-                  <strong>Webhook URL (ตั้งค่าใน LINE Developers Console):</strong>
-                  <div class="mt-1 d-flex align-center">
-                    <code class="flex-grow-1">{{ webhookUrl }}</code>
-                    <v-btn icon="mdi-content-copy" variant="text" size="x-small" @click="copyToClipboard(webhookUrl, 'Webhook URL')" />
+                <!-- Webhook URL -->
+                <div class="mb-4">
+                  <div class="d-flex align-center mb-1">
+                    <v-icon icon="mdi-webhook" size="16" color="error" class="mr-1" />
+                    <strong class="text-body-2">Webhook URL</strong>
                   </div>
-                  <div class="mt-1 text-caption">ไปตั้งค่าที่ Channel → Messaging API → Webhook URL</div>
+                  <div class="text-caption text-medium-emphasis mb-1">ตั้งค่าที่ LINE Developers Console → Channel → Messaging API → Webhook URL</div>
+                  <v-text-field
+                    :model-value="webhookUrl"
+                    variant="outlined"
+                    density="compact"
+                    readonly
+                    hide-details
+                  >
+                    <template #append-inner>
+                      <v-icon icon="mdi-content-copy" style="cursor: pointer" @click="copyToClipboard(webhookUrl, 'Webhook URL')" />
+                    </template>
+                  </v-text-field>
                 </div>
-              </v-alert>
-            </div>
 
-            <v-divider v-if="drillUrl || repairUrl" />
+                <!-- LIFF Endpoint URLs -->
+                <div v-if="drillEndpoint || repairEndpoint" class="mb-4">
+                  <div class="d-flex align-center mb-1">
+                    <v-icon icon="mdi-cellphone-link" size="16" color="primary" class="mr-1" />
+                    <strong class="text-body-2">Endpoint URLs (ตั้งค่าใน LIFF App)</strong>
+                  </div>
+                  <div class="text-caption text-medium-emphasis mb-2">ตั้งค่าที่ LINE Developers Console → LIFF tab → แก้ไข LIFF App → Endpoint URL</div>
 
+                  <div v-if="drillEndpoint" class="mb-2">
+                    <div class="text-caption font-weight-bold mb-1">
+                      <v-icon icon="mdi-water-well" size="12" color="primary" class="mr-1" />
+                      ฟอร์มแจ้งเจาะ
+                    </div>
+                    <v-text-field
+                      :model-value="drillEndpoint"
+                      variant="outlined"
+                      density="compact"
+                      readonly
+                      hide-details
+                    >
+                      <template #append-inner>
+                        <v-icon icon="mdi-content-copy" style="cursor: pointer" @click="copyToClipboard(drillEndpoint, 'Endpoint URL แจ้งเจาะ')" />
+                      </template>
+                    </v-text-field>
+                  </div>
+
+                  <div v-if="repairEndpoint">
+                    <div class="text-caption font-weight-bold mb-1">
+                      <v-icon icon="mdi-wrench-outline" size="12" color="warning" class="mr-1" />
+                      ฟอร์มแจ้งซ่อม
+                    </div>
+                    <v-text-field
+                      :model-value="repairEndpoint"
+                      variant="outlined"
+                      density="compact"
+                      readonly
+                      hide-details
+                    >
+                      <template #append-inner>
+                        <v-icon icon="mdi-content-copy" style="cursor: pointer" @click="copyToClipboard(repairEndpoint, 'Endpoint URL แจ้งซ่อม')" />
+                      </template>
+                    </v-text-field>
+                  </div>
+                </div>
+
+                <!-- Rich Menu URLs -->
+                <div v-if="drillUrl || repairUrl" class="mb-4">
+                  <div class="d-flex align-center mb-1">
+                    <v-icon icon="mdi-menu" size="16" color="teal" class="mr-1" />
+                    <strong class="text-body-2">Rich Menu URLs</strong>
+                  </div>
+                  <div class="text-caption text-medium-emphasis mb-2">คัดลอก URL ไปใส่ในปุ่ม Rich Menu บน LINE Official Account Manager</div>
+
+                  <div v-if="drillUrl" class="mb-2">
+                    <div class="text-caption font-weight-bold mb-1">
+                      <v-icon icon="mdi-water-well" size="12" color="primary" class="mr-1" />
+                      ปุ่มแจ้งเจาะบ่อ
+                    </div>
+                    <v-text-field
+                      :model-value="drillUrl"
+                      variant="outlined"
+                      density="compact"
+                      readonly
+                      hide-details
+                    >
+                      <template #append-inner>
+                        <v-icon icon="mdi-content-copy" style="cursor: pointer" @click="copyToClipboard(drillUrl, 'URL แจ้งเจาะ')" />
+                      </template>
+                    </v-text-field>
+                  </div>
+
+                  <div v-if="repairUrl">
+                    <div class="text-caption font-weight-bold mb-1">
+                      <v-icon icon="mdi-wrench-outline" size="12" color="warning" class="mr-1" />
+                      ปุ่มแจ้งซ่อม
+                    </div>
+                    <v-text-field
+                      :model-value="repairUrl"
+                      variant="outlined"
+                      density="compact"
+                      readonly
+                      hide-details
+                    >
+                      <template #append-inner>
+                        <v-icon icon="mdi-content-copy" style="cursor: pointer" @click="copyToClipboard(repairUrl, 'URL แจ้งซ่อม')" />
+                      </template>
+                    </v-text-field>
+                  </div>
+                </div>
+
+                <v-alert type="warning" variant="tonal" density="compact">
+                  <div class="text-body-2">
+                    <strong>วิธีตั้งค่า Rich Menu:</strong>
+                    <ol class="mt-1 mb-0 pl-4">
+                      <li>ไปที่ LINE Official Account Manager → Rich Menu</li>
+                      <li>สร้าง/แก้ไขปุ่ม → เลือก <strong>Open URL</strong></li>
+                      <li>คัดลอก URL ด้านบนไปใส่ในแต่ละปุ่ม</li>
+                    </ol>
+                  </div>
+                </v-alert>
+              </div>
+
+              <v-divider />
+            </template>
+
+            <!-- Save Button -->
             <div class="pa-4">
               <v-btn
                 color="primary"
                 size="large"
                 :loading="saving"
+                :disabled="!canSave"
                 @click="handleSave"
                 rounded="lg"
               >
                 <v-icon start icon="mdi-content-save" />
                 บันทึกการตั้งค่า
               </v-btn>
+              <div v-if="!canSave && (liffDrillStatus === 'duplicate' || liffRepairStatus === 'duplicate')" class="text-caption text-error mt-1">
+                ไม่สามารถบันทึกได้ — มี LIFF ID ที่ซ้ำกับองค์กรอื่น
+              </div>
             </div>
           </template>
         </v-card>

@@ -30,6 +30,33 @@ router.get(
   })
 );
 
+router.get(
+  "/check-liff",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { liff_id } = req.query;
+    if (!liff_id || typeof liff_id !== "string") {
+      return res.status(400).json({ error: "ต้องระบุ liff_id" });
+    }
+
+    const { rows } = await pool.query(
+      `SELECT org_id, name FROM organizations
+       WHERE line_liff_id_drilling = $1 OR line_liff_id_repair = $1
+       ORDER BY created_at ASC LIMIT 1`,
+      [liff_id]
+    );
+
+    if (!rows.length) {
+      return res.json({ available: true });
+    }
+
+    const org = rows[0];
+    res.json({
+      available: false,
+      used_by: { org_id: org.org_id, org_name: org.name },
+    });
+  })
+);
+
 router.put(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
@@ -48,6 +75,34 @@ router.put(
       return res.status(404).json({ error: "ไม่พบองค์กร" });
     }
     const orgId = orgRows[0].org_id;
+
+    if (line_liff_id_drilling) {
+      const { rows: dup } = await pool.query(
+        `SELECT org_id, name FROM organizations
+         WHERE (line_liff_id_drilling = $1 OR line_liff_id_repair = $1)
+         AND org_id != $2 LIMIT 1`,
+        [line_liff_id_drilling, orgId]
+      );
+      if (dup.length) {
+        return res.status(409).json({
+          error: `LIFF ID นี้ถูกใช้โดย "${dup[0].name}" แล้ว กรุณาใช้ LIFF ID อื่น`,
+        });
+      }
+    }
+
+    if (line_liff_id_repair) {
+      const { rows: dup } = await pool.query(
+        `SELECT org_id, name FROM organizations
+         WHERE (line_liff_id_drilling = $1 OR line_liff_id_repair = $1)
+         AND org_id != $2 LIMIT 1`,
+        [line_liff_id_repair, orgId]
+      );
+      if (dup.length) {
+        return res.status(409).json({
+          error: `LIFF ID นี้ถูกใช้โดย "${dup[0].name}" แล้ว กรุณาใช้ LIFF ID อื่น`,
+        });
+      }
+    }
 
     const updates: string[] = [];
     const params: any[] = [];
