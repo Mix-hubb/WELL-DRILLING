@@ -85,6 +85,23 @@ describe("getOverview", () => {
       repairRequests: [{ repair_id: 4 }],
     });
   });
+
+  it("filters customer by org_id when present", async () => {
+    poolQuery
+      .mockResolvedValueOnce({ rows: [customerRow] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = createRes();
+    await customers.getOverview(createReq({ params: { id: "1" }, user: { orgId: "org-1" } }), res);
+    expect(poolQuery).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("customer_id = $1 AND customers.org_id = $2"),
+      ["1", "org-1"]
+    );
+  });
 });
 
 describe("create", () => {

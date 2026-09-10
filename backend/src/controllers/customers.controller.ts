@@ -13,22 +13,21 @@ export async function list(req: Request, res: Response) {
 
 export async function getOne(req: Request, res: Response) {
   const { id } = req.params;
-  const { sql, params } = userFilter(req, "customers");
+  const { sql, params } = userFilter(req, "customers", 1);
   const { rows } = await pool.query(
     `SELECT * FROM customers WHERE customer_id = $1${sql}`, [id, ...params]
   );
   if (!rows.length) return res.status(404).json({ error: "ไม่พบลูกค้า" });
 
-  const { sql: wf, params: wp } = userFilter(req, "w", params.length);
   const agg = await pool.query(
-    `SELECT COUNT(*) AS total_wells FROM wells w WHERE w.customer_id = $1${wf}`, [id, ...wp]
+    `SELECT COUNT(*) AS total_wells FROM wells w WHERE w.customer_id = $1`, [id]
   );
   res.json({ ...rows[0], total_wells: Number(agg.rows[0].total_wells) || 0 });
 }
 
 export async function getOverview(req: Request, res: Response) {
   const { id } = req.params;
-  const { sql, params } = userFilter(req, "customers");
+  const { sql, params } = userFilter(req, "customers", 1);
   const { rows } = await pool.query(
     `SELECT * FROM customers WHERE customer_id = $1${sql}`, [id, ...params]
   );
@@ -85,12 +84,12 @@ export async function create(req: Request, res: Response) {
 export async function update(req: Request, res: Response) {
   const { id } = req.params;
   const { customer_name, phone, phone_alt, address } = req.body;
-  const { sql, params } = userFilter(req, "customers");
+  const { sql, params } = userFilter(req, "customers", 5);
   await pool.query(
     `UPDATE customers SET customer_name = $1, phone = $2, phone_alt = $3, address = $4 WHERE customer_id = $5${sql}`,
     [customer_name, phone, phone_alt || null, address || null, id, ...params]
   );
-  const { sql: sf, params: sp } = userFilter(req, "customers");
+  const { sql: sf, params: sp } = userFilter(req, "customers", 1);
   const { rows } = await pool.query(
     `SELECT * FROM customers WHERE customer_id = $1${sf}`, [id, ...sp]
   );
@@ -100,7 +99,7 @@ export async function update(req: Request, res: Response) {
 }
 
 export async function remove(req: Request, res: Response) {
-  const { sql, params } = userFilter(req, "customers");
+  const { sql, params } = userFilter(req, "customers", 1);
   await pool.query(
     `DELETE FROM customers WHERE customer_id = $1${sql}`,
     [req.params.id, ...params]
