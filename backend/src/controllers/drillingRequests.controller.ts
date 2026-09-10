@@ -135,6 +135,7 @@ export async function update(req: Request, res: Response) {
   const result = await pool.query(
     `${REQUEST_SELECT} WHERE r.request_id = $1`, [id]
   );
+  broadcast({ type: "DRILLING_REQUEST_UPDATED", data: { request_id: Number(id) }, orgId: req.user?.orgId });
   res.json(mapRow(result.rows[0]));
 }
 
@@ -171,6 +172,7 @@ export async function remove(req: Request, res: Response) {
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้อง" });
   await pool.query("DELETE FROM drilling_requests WHERE request_id = $1", [req.params.id]);
+  broadcast({ type: "DRILLING_REQUEST_DELETED", data: { request_id: Number(req.params.id) }, orgId: req.user?.orgId });
   res.status(204).end();
 }
 

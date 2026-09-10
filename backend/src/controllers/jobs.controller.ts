@@ -66,9 +66,8 @@ export async function getOne(req: Request, res: Response) {
 
   let request = null;
   if (row.request_id) {
-    const { sql, params } = userFilter(req, "r");
     const reqResult = await pool.query(
-      `SELECT r.* FROM drilling_requests r WHERE r.request_id = $1${sql}`, [row.request_id, ...params]
+      `SELECT r.* FROM drilling_requests r WHERE r.request_id = $1`, [row.request_id]
     );
     if (reqResult.rows.length) {
       request = reqResult.rows[0];
@@ -171,9 +170,9 @@ export async function update(req: Request, res: Response) {
   );
 
   const row = await getJobRow(id, req.user?.orgId);
+  broadcast({ type: "JOB_UPDATED", data: { job_id: Number(id) }, orgId: req.user?.orgId });
   res.json(row);
 }
-
 export async function updateStatus(req: Request, res: Response) {
   const { id } = req.params;
   const { status } = req.body;
@@ -259,8 +258,8 @@ export async function completeWell(req: Request, res: Response) {
       wellId = w.rows[0].well_id;
 
       await client.query(
-        "UPDATE drilling_jobs SET well_id = $1, status = 'SUCCESS', result = $2 WHERE job_id = $3",
-        [wellId, wellResult, id]
+        "UPDATE drilling_jobs SET well_id = $1, status = $2, result = $3 WHERE job_id = $4",
+        [wellId, wellResult === "FAIL" ? "FAILED" : "SUCCESS", wellResult, id]
       );
     } else {
       const wellResult = (result === "FAIL" || result === "FAILED") ? "FAIL" : "SUCCESS";
@@ -279,8 +278,8 @@ export async function completeWell(req: Request, res: Response) {
         ]
       );
       await client.query(
-        "UPDATE drilling_jobs SET status = 'SUCCESS', result = $1 WHERE job_id = $2",
-        [wellResult, id]
+        "UPDATE drilling_jobs SET status = $1, result = $2 WHERE job_id = $3",
+        [wellResult === "FAIL" ? "FAILED" : "SUCCESS", wellResult, id]
       );
     }
 
@@ -379,6 +378,7 @@ export async function remove(req: Request, res: Response) {
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบงาน" });
   await pool.query("DELETE FROM drilling_jobs WHERE job_id = $1", [req.params.id]);
+  broadcast({ type: "JOB_DELETED", data: { job_id: Number(req.params.id) }, orgId });
   res.status(204).end();
 }
 

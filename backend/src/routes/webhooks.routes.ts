@@ -3,6 +3,8 @@ import crypto from "crypto";
 import { pool } from "../config/db";
 import { asyncHandler } from "../utils/asyncHandler";
 
+import { broadcast } from "../services/sse";
+
 const router = Router();
 
 interface OrgLineConfig {
@@ -211,8 +213,8 @@ async function handleText(userId: string, text: string, replyToken: string, org:
 
 async function handlePostback(userId: string, data: string, org: OrgLineConfig, replyToken?: string) {
   const custResult = await pool.query(
-    "SELECT customer_id, customer_name FROM customers WHERE line_user_id = $1",
-    [userId]
+    "SELECT customer_id, customer_name FROM customers WHERE line_user_id = $1 AND org_id = $2",
+    [userId, org.org_id]
   );
   if (!custResult.rows.length) return;
   const customerId = custResult.rows[0].customer_id;
@@ -224,8 +226,11 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
 
   if (acceptDrillMatch) {
     const requestId = acceptDrillMatch[1];
-    const existing = await pool.query("SELECT status FROM drilling_requests WHERE request_id = $1", [requestId]);
+    const existing = await pool.query(
+      "SELECT status, customer_id FROM drilling_requests WHERE request_id = $1", [requestId]
+    );
     if (!existing.rows.length) return;
+    if (existing.rows[0].customer_id !== customerId) return;
     if (existing.rows[0].status !== "QUOTED") {
       if (replyToken) reply(org.line_channel_access_token, replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
       return;
@@ -246,12 +251,18 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
       [requestId, customerId, `เจาะบ่อ ${req?.name || ""}`, req?.address || null, req?.appointment_date || null]
     );
 
+    broadcast({ type: "DRILLING_REQUEST_CHANGED", data: { request_id: Number(requestId), status: "ACCEPTED" }, orgId: org.org_id });
+    broadcast({ type: "JOB_CREATED", data: { request_id: Number(requestId) }, orgId: org.org_id });
+
     const { sendTextToCustomerById } = await import("../services/line");
     sendTextToCustomerById(customerId, "ยอมรับเรียบร้อยครับ จะดำเนินการเข้าคิวเจาะให้ต่อไป", "STATUS").catch(() => {});
   } else if (rejectDrillMatch) {
     const requestId = rejectDrillMatch[1];
-    const existing = await pool.query("SELECT status FROM drilling_requests WHERE request_id = $1", [requestId]);
+    const existing = await pool.query(
+      "SELECT status, customer_id FROM drilling_requests WHERE request_id = $1", [requestId]
+    );
     if (!existing.rows.length) return;
+    if (existing.rows[0].customer_id !== customerId) return;
     if (existing.rows[0].status !== "QUOTED") {
       if (replyToken) reply(org.line_channel_access_token, replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
       return;
@@ -259,12 +270,19 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
 
     await pool.query("UPDATE drilling_requests SET status = 'REJECTED' WHERE request_id = $1", [requestId]);
     await pool.query("UPDATE quotations SET status = 'REJECTED' WHERE kind = 'DRILLING' AND drilling_request_id = $1", [requestId]);
+
+    broadcast({ type: "DRILLING_REQUEST_CHANGED", data: { request_id: Number(requestId), status: "REJECTED" }, orgId: org.org_id });
+    broadcast({ type: "QUOTATION_CHANGED", data: { drilling_request_id: Number(requestId) }, orgId: org.org_id });
+
     const { sendTextToCustomerById } = await import("../services/line");
     sendTextToCustomerById(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งเจาะใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
   } else if (acceptRepairMatch) {
     const repairId = acceptRepairMatch[1];
-    const existing = await pool.query("SELECT status FROM repair_requests WHERE repair_id = $1", [repairId]);
+    const existing = await pool.query(
+      "SELECT status, customer_id FROM repair_requests WHERE repair_id = $1", [repairId]
+    );
     if (!existing.rows.length) return;
+    if (existing.rows[0].customer_id !== customerId) return;
     if (existing.rows[0].status !== "QUOTED") {
       if (replyToken) reply(org.line_channel_access_token, replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
       return;
@@ -278,12 +296,19 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     );
     const scheduledDate = reqResult.rows[0]?.scheduled_date;
     const dateText = scheduledDate ? `วันที่ ${scheduledDate}` : "กำหนดนัดหมาย";
+
+    broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(repairId), status: "ACCEPTED" }, orgId: org.org_id });
+    broadcast({ type: "QUOTATION_CHANGED", data: { repair_request_id: Number(repairId) }, orgId: org.org_id });
+
     const { sendTextToCustomerById } = await import("../services/line");
     sendTextToCustomerById(customerId, `ยอมรับเรียบร้อยครับ กรุณาเตรียมตัวสำหรับการซ่อมบำรุง${dateText} ทีมงานจะติดต่อกลับเพื่อยืนยันอีกครั้ง`, "STATUS").catch(() => {});
   } else if (rejectRepairMatch) {
     const repairId = rejectRepairMatch[1];
-    const existing = await pool.query("SELECT status FROM repair_requests WHERE repair_id = $1", [repairId]);
+    const existing = await pool.query(
+      "SELECT status, customer_id FROM repair_requests WHERE repair_id = $1", [repairId]
+    );
     if (!existing.rows.length) return;
+    if (existing.rows[0].customer_id !== customerId) return;
     if (existing.rows[0].status !== "QUOTED") {
       if (replyToken) reply(org.line_channel_access_token, replyToken, "คำร้องนี้ได้รับการดำเนินการแล้วครับ").catch(() => {});
       return;
@@ -291,6 +316,10 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
 
     await pool.query("UPDATE repair_requests SET status = 'REJECTED' WHERE repair_id = $1", [repairId]);
     await pool.query("UPDATE quotations SET status = 'REJECTED' WHERE kind = 'REPAIR' AND repair_request_id = $1", [repairId]);
+
+    broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(repairId), status: "REJECTED" }, orgId: org.org_id });
+    broadcast({ type: "QUOTATION_CHANGED", data: { repair_request_id: Number(repairId) }, orgId: org.org_id });
+
     const { sendTextToCustomerById } = await import("../services/line");
     sendTextToCustomerById(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งซ่อมใหม่ได้ตลอดเวลา", "STATUS").catch(() => {});
   }

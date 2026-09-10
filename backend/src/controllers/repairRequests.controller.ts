@@ -262,6 +262,7 @@ export async function update(req: Request, res: Response) {
   const result = await pool.query(
     `${REQUEST_SELECT} WHERE r.repair_id = $1`, [id]
   );
+  broadcast({ type: "REPAIR_REQUEST_UPDATED", data: { repair_id: Number(id) }, orgId: req.user?.orgId });
   res.json(mapRow(result.rows[0]));
 }
 
@@ -366,9 +367,12 @@ export async function addRecord(req: Request, res: Response) {
   );
 
   const reqRow = await pool.query(
-    "SELECT customer_id FROM repair_requests WHERE repair_id = $1", [id]
+    "SELECT r.customer_id, c.org_id FROM repair_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.repair_id = $1", [id]
   );
   if (reqRow.rows.length) {
+    const orgId = reqRow.rows[0].org_id;
+    broadcast({ type: "REPAIR_RECORD_ADDED", data: { repair_id: Number(id) }, orgId });
+    broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(id), status: "COMPLETED" }, orgId });
     const partsList = parts?.length
       ? "\nรายการอะไหล่: " + parts.map((p: any) => `${p.name} x${p.qty}`).join(", ")
       : "";
@@ -389,6 +393,7 @@ export async function remove(req: Request, res: Response) {
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้อง" });
   await pool.query("DELETE FROM repair_requests WHERE repair_id = $1", [req.params.id]);
+  broadcast({ type: "REPAIR_REQUEST_DELETED", data: { repair_id: Number(req.params.id) }, orgId: req.user?.orgId });
   res.status(204).end();
 }
 

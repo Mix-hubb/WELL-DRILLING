@@ -349,7 +349,7 @@ describe("addRecord", () => {
       if (sql.includes("INSERT INTO repair_records")) return { rows: [{ record_id: "rec-1" }] };
       if (sql.includes("UPDATE repair_requests SET status")) return { rows: [] };
       if (sql.includes("SELECT * FROM repair_records")) return { rows: [{ record_id: "rec-1", repair_id: 1, final_price: 500, work_details: "เปลี่ยนปั๊ม" }] };
-      if (sql.includes("SELECT customer_id FROM repair_requests")) return { rows: [{ customer_id: 2 }] };
+      if (sql.includes("repair_requests r JOIN customers")) return { rows: [{ customer_id: 2, org_id: "org-1" }] };
       return { rows: [] };
     });
     const res = createRes();
