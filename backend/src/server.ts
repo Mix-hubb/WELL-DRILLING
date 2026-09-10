@@ -105,7 +105,7 @@ app.get("/api/debug/overview", async (_req, res) => {
       "SELECT job_id, request_id, customer_id, status FROM drilling_jobs ORDER BY created_at DESC LIMIT 10"
     );
     const orgs = await pool.query(
-      "SELECT org_id, org_name, line_channel_id, line_liff_id_drilling, line_liff_id_repair, CASE WHEN line_channel_access_token IS NOT NULL AND length(line_channel_access_token) > 0 THEN true ELSE false END as has_token FROM organizations"
+      "SELECT org_id, name, line_channel_id, line_channel_secret, line_liff_id_drilling, line_liff_id_repair, CASE WHEN line_channel_access_token IS NOT NULL AND length(line_channel_access_token) > 0 THEN true ELSE false END as has_token FROM organizations"
     );
     res.json({
       customers: customers.rows,
