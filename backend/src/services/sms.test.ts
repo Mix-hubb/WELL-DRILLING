@@ -16,7 +16,7 @@ describe("sendResetCodeSms", () => {
     twilioFactory.mockReturnValue(client);
     client.messages.create.mockClear();
     client.messages.create.mockResolvedValue({ sid: "SM1" });
-    sms = await import("./sms");
+    sms = await import("./sms.js");
   });
 
   afterEach(() => {
@@ -41,7 +41,7 @@ describe("sendResetCodeSms", () => {
     delete process.env.TWILIO_ACCOUNT_SID;
     delete process.env.TWILIO_AUTH_TOKEN;
     delete process.env.TWILIO_PHONE_NUMBER;
-    const unconfigured = await import("./sms");
+    const unconfigured = await import("./sms.js");
     await expect(unconfigured.sendResetCodeSms("0812345678", "111111")).rejects.toThrow(
       "SMS service not configured"
     );
@@ -50,7 +50,7 @@ describe("sendResetCodeSms", () => {
   it("throws when the phone from-number is missing", async () => {
     vi.resetModules();
     delete process.env.TWILIO_PHONE_NUMBER;
-    const noFrom = await import("./sms");
+    const noFrom = await import("./sms.js");
     await expect(noFrom.sendResetCodeSms("0812345678", "111111")).rejects.toThrow(
       "SMS service not configured"
     );

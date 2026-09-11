@@ -43,7 +43,7 @@ app.use((_req, res, next) => {
 
 app.get("/api/health", async (_req, res) => {
   try {
-    const { pool } = await import("./config/db");
+    const { pool } = await import("./config/db.js");
     await pool.query("SELECT 1 as ok");
     res.json({ ok: true, db: "connected", time: new Date().toISOString() });
   } catch (err: any) {
@@ -53,7 +53,7 @@ app.get("/api/health", async (_req, res) => {
 
 app.get("/api/debug/postback-test/:customerId/:requestId", async (req, res) => {
   try {
-    const { pool } = await import("./config/db");
+    const { pool } = await import("./config/db.js");
     const { customerId, requestId } = req.params;
 
     const cust = await pool.query(
@@ -88,7 +88,7 @@ app.get("/api/debug/postback-test/:customerId/:requestId", async (req, res) => {
 
 app.get("/api/debug/overview", async (_req, res) => {
   try {
-    const { pool } = await import("./config/db");
+    const { pool } = await import("./config/db.js");
     const customers = await pool.query(
       "SELECT customer_id, customer_name, phone, line_user_id, org_id FROM customers ORDER BY created_at DESC LIMIT 20"
     );
@@ -129,7 +129,7 @@ app.post("/api/public/drilling-requests", publicLimiter, asyncHandler(drillingRe
 app.get("/api/public/liff-info", publicLimiter, asyncHandler(async (req: any, res: any) => {
   const { liff_id } = req.query;
   if (!liff_id) return res.status(400).json({ error: "ต้องระบุ liff_id" });
-  const { pool } = await import("./config/db");
+  const { pool } = await import("./config/db.js");
   const result = await pool.query(
     `SELECT org_id, line_liff_id_drilling, line_liff_id_repair FROM organizations
      WHERE line_liff_id_drilling = $1 OR line_liff_id_repair = $1 ORDER BY created_at ASC LIMIT 1`,
@@ -145,7 +145,7 @@ app.get("/api/public/liff-info", publicLimiter, asyncHandler(async (req: any, re
 app.get("/api/public/customer-by-line", publicLimiter, asyncHandler(async (req: any, res: any) => {
   const { line_user_id } = req.query;
   if (!line_user_id) return res.status(400).json({ error: "ต้องระบุ line_user_id" });
-  const { pool } = await import("./config/db");
+  const { pool } = await import("./config/db.js");
   const result = await pool.query(
     "SELECT customer_id, customer_name, phone, address FROM customers WHERE line_user_id = $1 LIMIT 1",
     [line_user_id]
@@ -210,7 +210,7 @@ process.on("unhandledRejection", (reason) => console.error("Unhandled rejection:
 // Graceful shutdown
 async function shutdown(signal: string) {
   console.log(`\n${signal} received. Shutting down gracefully...`);
-  const { pool } = await import("./config/db");
+  const { pool } = await import("./config/db.js");
   server.close(() => {
     console.log("HTTP server closed.");
     pool.end().then(() => {

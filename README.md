@@ -1,204 +1,165 @@
-# ระบบจัดการบ่อบาดาล — Well-Drilling
+# Well-Drilling
 
-เวอร์ชัน TypeScript เต็มระบบ (frontend + backend) สำหรับจัดการคิวเจาะ ซ่อม ประวัติบ่อ และลูกค้า
+ระบบจัดการงานเจาะบ่อบาดาล งานซ่อม ลูกค้า บ่อ ปั๊ม ใบเสนอราคา และการแจ้งเตือนผ่าน LINE
 
-```
-well-drilling/
-├── backend/                          Node.js + Express + TypeScript REST API
-│   └── src/
-│       ├── config/db.ts              PostgreSQL connection pool
-│       ├── controllers/              auth / drillers / customers / jobs / wells / stats
-│       ├── routes/                   endpoint แยกไฟล์ตาม resource
-│       ├── services/                 email (nodemailer) + sms (twilio) + resetCode
-│       ├── middleware/auth.ts        JWT sign / verify / authMiddleware
-│       ├── utils/pdfReport.ts        สร้างรายงาน PDF ด้วย pdfkit
-│       ├── types/index.ts            interface ร่วมของข้อมูล
-│       └── db/local_schema.sql       schema สำหรับ local dev
-├── frontend/                         Vue 3 + TypeScript + Vuetify 3 + Pinia
-│   └── src/
-│       ├── api/                      fetch client แยกตาม resource
-│       ├── stores/                   Pinia store (auth, jobs, wells, customers, ui)
-│       ├── components/               StrataColumn, DonutChart, BarChart, JobMap, ...
-│       ├── components/forms/         v-dialog ฟอร์มแต่ละประเภท
-│       ├── views/                    Dashboard, Jobs, Wells, Login, Register, ForgotPassword, ...
-│       └── router/                   Vue Router + auth guard
-├── supabase/                         PostgreSQL migrations
-└── README.md
-```
+โปรเจกต์แบ่งเป็น Vue frontend, Express backend และ PostgreSQL database โดยรองรับการใช้งานหลายองค์กรผ่าน `org_id`
 
 ## ฟีเจอร์หลัก
 
-| ฟีเจอร์ | รายละเอียด |
-|---------|-----------|
-| **เข้าสู่ระบบ / ลงทะเบียน** | JWT auth, email validation, เบอร์โทรบังคับกรอก |
-| **กู้คืนรหัสผ่าน** | เลือกรหัสผ่านทาง Email หรือ SMS OTP — 6 หลัก หมดอายุ 10 นาที |
-| **แดชบอร์ด** | สรุปคิวงาน/บ่อ/รายได้ พร้อมกราฟโดนัท + กราฟแท่ง (SVG ล้วน) |
-| **แผนที่คิวงาน** | Leaflet + OpenStreetMap ปักหมุดตามสถานะ คลิกดูรายละเอียด |
-| **ออกรายงาน PDF** | pdfkit — ชั้นดิน/หิน, ท่อ, ปั๊ม ดาวน์โหลดทันที |
-| **สลับธีมสว่าง/มืด** | Earth-tone design system จำค่าไว้ใน localStorage |
-| **Stepper ความคืบหน้า** | PENDING → DRILLING → COMPLETED visual step |
-| **GPS + คัดลอกพิกัด** | ดึงตำแหน่งปัจจุบัน เปิด Google Maps |
-| **ค้นหาทันที** | Real-time filter ในหน้าคิวงาน/ลูกค้า/ทีมช่าง |
-| **Responsive** | Navigation rail (desktop) + bottom navigation (mobile) |
-| **LINE Integration** | แจ้งเตือนผ่าน LINE LIFF สำหรับลูกค้า |
+- JWT authentication พร้อมสมัครสมาชิกและ reset password ผ่าน email/SMS
+- Dashboard สำหรับงานเจาะ งานซ่อม ลูกค้า บ่อ และสถิติ
+- จัดการคำร้องเจาะบ่อ ใบเสนอราคา คิวงาน และสถานะงาน
+- จัดการคำร้องซ่อม ใบเสนอราคา นัดหมาย ประวัติซ่อม และสลิปโอนเงิน
+- บันทึกรายละเอียดบ่อ: ชั้นดิน/หิน โปรแกรมท่อ ปั๊ม และตู้ควบคุม
+- สร้างรายงานบ่อเป็น PDF
+- หน้า Driller สำหรับกรอกผลเจาะและบันทึกงานซ่อมผ่าน magic link
+- LINE LIFF สำหรับแจ้งเจาะและแจ้งซ่อม
+- LINE webhook สำหรับตอบข้อมูลบ่อ สถานะประกัน และประวัติซ่อมเป็น Flex card
+- Server-Sent Events (SSE) สำหรับ refresh ข้อมูลแบบ realtime ในหน้าหลัก
+- รองรับ light/dark theme และ responsive layout
+
+## โครงสร้างโปรเจกต์
+
+```text
+backend/       Express + TypeScript API, controllers, routes, services
+frontend/      Vue 3 + TypeScript + Vuetify + Pinia + Vite
+supabase/      PostgreSQL migrations และ Supabase config
+loadtest/      สคริปต์ load test
+render.yaml    Render deployment configuration
+```
+
+## ความต้องการของระบบ
+
+- Node.js 20 ขึ้นไป
+- PostgreSQL หรือ Supabase PostgreSQL
+- npm
 
 ## เริ่มต้นใช้งาน
 
-### 1) ตั้งฐานข้อมูล Supabase
+### 1. ติดตั้งฐานข้อมูล
 
-รัน migration ใน Supabase SQL Editor ตามลำดับ:
+รัน migration ใน `supabase/migrations` ตามลำดับ:
 
-```sql
--- 1. ตารางหลัก
--- เปิดไฟล์ supabase/migrations/0001_init.sql แล้วรัน
-
--- 2. well detail + pump catalog
--- เปิดไฟล์ supabase/migrations/0002_well_detail_and_pump_catalog.sql แล้วรัน
-
--- 3. password reset columns
--- เปิดไฟล์ supabase/migrations/0003_password_reset.sql แล้วรัน
+```text
+0001_init.sql
+0002_well_detail_and_pump_catalog.sql
+0003_password_reset.sql
+0004_payment_slips_and_line_bot_user_id.sql
 ```
 
-### 2) Backend (TypeScript)
+สามารถใช้ Supabase SQL Editor หรือ PostgreSQL client ได้
 
-```bash
+### 2. ตั้งค่า Backend
+
+```powershell
 cd backend
-cp .env.example .env     # แก้ไขค่า env ตามต้องการ
+Copy-Item .env.example .env
 npm install
-npm run dev              # http://localhost:4001 (ts-node-dev, hot reload)
+npm run dev
 ```
 
-Build สำหรับ production: `npm run build && npm start`
+Backend จะทำงานที่ `http://localhost:4001` โดยค่าเริ่มต้น
 
-### 3) Frontend (Vue 3 + Vuetify)
+คำสั่งที่ใช้บ่อย:
 
-```bash
+```powershell
+npm run build
+npm test
+npm start
+```
+
+### 3. ตั้งค่า Frontend
+
+```powershell
 cd frontend
+Copy-Item .env.example .env
 npm install
-npm run dev              # http://localhost:5173
+npm run dev
 ```
 
-## Environment Variables
+Frontend จะทำงานที่ `http://localhost:5173` โดยค่าเริ่มต้น
 
-### Backend (`backend/.env`)
+คำสั่งที่ใช้บ่อย:
 
-| ตัวแปร | คำอธิบาย | ค่าเริ่มต้น |
-|--------|---------|------------|
-| `PORT` | พอร์ต backend | `4001` |
-| `DB_HOST` | PostgreSQL host | `localhost` |
-| `DB_PORT` | PostgreSQL port | `5432` |
-| `DB_USER` | PostgreSQL user | `postgres` |
-| `DB_PASSWORD` | PostgreSQL password | - |
-| `DB_NAME` | Database name | `well_drilling` |
-| `DB_SSL` | เปิด SSL | `false` |
-| `CORS_ORIGIN` | Frontend URL | `http://localhost:5173` |
-| `JWT_SECRET` | Secret key สำหรับ JWT | - |
-| `APP_URL` | Frontend URL | `http://localhost:5173` |
-| `LINE_CHANNEL_SECRET` | LINE Messaging secret | - |
-| `LINE_CHANNEL_ACCESS_TOKEN` | LINE Messaging token | - |
-| `SMTP_HOST` | SMTP host สำหรับส่งอีเมล | `smtp.gmail.com` |
-| `SMTP_PORT` | SMTP port | `587` |
-| `SMTP_USER` | อีเมลผู้ส่ง | - |
-| `SMTP_PASS` | รหัสผ่านอีเมล (App Password) | - |
-| `SMTP_FROM` | ชื่อผู้ส่ง | `noreply@well-drilling.com` |
-| `TWILIO_ACCOUNT_SID` | Twilio Account SID | - |
-| `TWILIO_AUTH_TOKEN` | Twilio Auth Token | - |
-| `TWILIO_PHONE_NUMBER` | เบอร์ Twilio | - |
+```powershell
+npm run build
+npm test
+npm run preview
+```
 
-### Frontend (`frontend/.env`)
+## Environment variables
 
-| ตัวแปร | คำอธิบาย |
-|--------|---------|
-| `VITE_API_URL` | Backend API URL |
-| `VITE_LIFF_ID_DRILLING` | LINE LIFF ID สำหรับแจ้งเจาะ |
-| `VITE_LIFF_ID_REPAIR` | LINE LIFF ID สำหรับแจ้งซ่อม |
+ดูตัวอย่างได้จาก `backend/.env.example` และ `frontend/.env.example`
 
-## สร้าง Gmail App Password (สำหรับส่งอีเมล Reset)
+### Backend ที่สำคัญ
 
-1. ไปที่ [myaccount.google.com/security](https://myaccount.google.com/security)
-2. เปิด 2-Step Verification (ถ้ายังไม่ได้เปิด)
-3. ไปที่ App passwords → สร้างใหม่
-4. คัดลอก password 16 ตัวอักษร ใส่ใน `SMTP_PASS`
+| ตัวแปร | ใช้สำหรับ |
+|---|---|
+| `PORT` | พอร์ต API |
+| `DATABASE_URL` | PostgreSQL connection string สำหรับ production |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | การเชื่อมต่อ PostgreSQL แบบแยกค่า |
+| `DB_SSL` | เปิด SSL ของฐานข้อมูล |
+| `CORS_ORIGIN` | URL ของ frontend |
+| `JWT_SECRET` | secret สำหรับ JWT |
+| `APP_URL` | URL ที่ใช้สร้างลิงก์กลับไป frontend |
+| `LINE_CHANNEL_SECRET` | LINE channel secret แบบ legacy/single-org |
+| `LINE_CHANNEL_ACCESS_TOKEN` | LINE access token แบบ legacy/single-org |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | ส่ง email reset password |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` | ส่ง SMS OTP |
 
-## สร้าง Twilio Account (สำหรับส่ง SMS OTP)
+การตั้งค่า LINE แบบหลายองค์กรเก็บในตาราง `organizations` และรองรับ `line_bot_user_id`, LIFF IDs และ access token แยกองค์กร
 
-1. ไปที่ [twilio.com](https://www.twilio.com) → สมัครบัญชี
-2. ได้รับ Trial Credit $15
-3. ไปที่ Console → Dashboard → คัดลอก `Account SID` และ `Auth Token`
-4. ซื้อเบอร์โทร → คัดลอกเบอร์ใส่ใน `TWILIO_PHONE_NUMBER`
+### Frontend ที่สำคัญ
 
-## API Endpoints
+| ตัวแปร | ใช้สำหรับ |
+|---|---|
+| `VITE_API_URL` | URL ของ backend API |
+| `VITE_LIFF_ID_DRILLING` | LIFF สำหรับแจ้งเจาะ ถ้าไม่ได้ใช้ค่าจากองค์กร |
+| `VITE_LIFF_ID_REPAIR` | LIFF สำหรับแจ้งซ่อม ถ้าไม่ได้ใช้ค่าจากองค์กร |
 
-### Auth
+## API และ realtime
 
-| Method | Path | คำอธิบาย | Auth |
-|--------|------|---------|------|
-| POST | `/api/auth/register` | ลงทะเบียน (email, password, full_name, phone) | ไม่ |
-| POST | `/api/auth/login` | เข้าสู่ระบบ | ไม่ |
-| GET | `/api/auth/me` | ข้อมูลผู้ใช้ปัจจุบัน | ใช่ |
-| POST | `/api/auth/forgot-password` | ส่งรหัส reset (email/sms) | ไม่ |
-| POST | `/api/auth/verify-code` | ตรวจสอบรหัส 6 หลัก | ไม่ |
-| POST | `/api/auth/reset-password` | เปลี่ยนรหัสผ่านใหม่ | ไม่ |
+Backend ใช้ prefix `/api` ตัวอย่าง endpoint หลัก:
 
-### Other
+| Method | Endpoint | รายละเอียด |
+|---|---|---|
+| `POST` | `/api/auth/login` | เข้าสู่ระบบ |
+| `GET` | `/api/jobs` | รายการงานเจาะ |
+| `GET` | `/api/wells` | รายการบ่อ |
+| `GET` | `/api/customers` | รายการลูกค้า |
+| `GET` | `/api/stats/overview` | สถิติ dashboard |
+| `GET` | `/api/events` | SSE realtime stream |
+| `POST` | `/api/webhooks/line` | LINE webhook |
 
-| Method | Path | คำอธิบาย | Auth |
-|--------|------|---------|------|
-| GET | `/api/jobs` | รายการคิวงาน | ใช่ |
-| GET | `/api/wells` | รายการบ่อ | ใช่ |
-| GET | `/api/customers` | รายการลูกค้า | ใช่ |
-| GET | `/api/drillers` | รายการช่าง | ใช่ |
-| GET | `/api/stats/dashboard` | สรุปแดชบอร์ด | ใช่ |
-| GET | `/api/wells/:id/report.pdf` | ดาวน์โหลด PDF | ใช่ |
+หน้า dashboard, jobs, requests, wells และรายละเอียดที่เกี่ยวข้องจะ refresh เมื่อได้รับ event จาก SSE เช่น job, request, quotation, well, customer และ repair record changes
 
-## สแตกเทคโนโลยี
+## LINE
 
-| ส่วน | เทคโนโลยี |
-|------|-----------|
-| Frontend | Vue 3 (`<script setup lang="ts">`) + Vuetify 3 + Pinia + Vue Router + Vite |
-| แผนที่ | Leaflet.js + OpenStreetMap tiles |
-| Backend | Node.js + Express + TypeScript |
-| Auth | JWT (7 days) + bcryptjs |
-| Email | Nodemailer (SMTP) |
-| SMS | Twilio |
-| PDF | pdfkit |
-| Database | PostgreSQL บน Supabase |
-| LINE | LINE LIFF SDK |
+LINE webhook รองรับ:
 
-## โครงสร้าง Database
+- ข้อความ `ข้อมูลบ่อ` แสดงข้อมูลเป็น Flex carousel
+- ข้อความ `ประกัน` แสดงสถานะประกันเป็น Flex card
+- ข้อความ `ประวัติซ่อม` แสดงประวัติเป็น Flex card
+- ข้อความ `แจ้งเจาะ` และ `แจ้งซ่อม` ส่งลิงก์ LIFF
+- รูปภาพจากลูกค้าใช้รับสลิปโอนเงินสำหรับงานซ่อม
 
-```sql
-users              -- ผู้ใช้ (email, password_hash, phone, role)
-customers          -- ลูกค้า
-wells              -- บ่อ (ผูกกับ customer)
-well_strata_logs   -- ชั้นดิน/หิน
-well_pipes         -- ท่อ
-well_pumps         -- ปั๊ม
-control_boxes      -- กล่องควบคุม
-drilling_requests  -- คำร้องแจ้งเจาะ
-drilling_jobs      -- คิวงานเจาะ
-repair_requests    -- คำร้องแจ้งซ่อม
-quotations         -- ใบเสนอราคา
-repair_records     -- บันทึกการซ่อม
-line_notifications -- แจ้งเตือน LINE
+ตั้ง webhook URL เป็น:
+
+```text
+https://<backend-domain>/api/webhooks/line
 ```
 
 ## Deploy
 
-| บริการ | ใช้สำหรับ |
-|--------|----------|
-| Vercel | Frontend (auto deploy จาก GitHub) |
-| Render | Backend (auto deploy จาก GitHub) |
-| Supabase | PostgreSQL database |
+- Frontend: Vercel โดยใช้ `frontend/vercel.json`
+- Backend: Render โดยใช้ `render.yaml` และ `backend/Dockerfile`
+- Database: Supabase PostgreSQL
 
-### Checklist ก่อน Deploy
+ก่อน deploy ให้ตรวจสอบว่า environment variables, CORS origin, LINE webhook URL และ migrations ครบถ้วน
 
-```
-□ รัน migration 0003_password_reset.sql บน Supabase
-□ ตั้ง SMTP env vars บน Render
-□ ตั้ง Twilio env vars บน Render
-□ Push code → auto deploy
-```
+## ความปลอดภัยของไฟล์
+
+ห้าม commit `.env`, token, password, database credentials, build output หรือไฟล์ upload จริง ไฟล์ตัวอย่างที่ commit ได้ควรใช้ชื่อ `.env.example`
 
 ## License
 

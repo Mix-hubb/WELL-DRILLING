@@ -450,7 +450,7 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     broadcast({ type: "DRILLING_REQUEST_CHANGED", data: { request_id: Number(requestId), status: "ACCEPTED" }, orgId: org.org_id });
     broadcast({ type: "JOB_CREATED", data: { request_id: Number(requestId) }, orgId: org.org_id });
 
-    const { sendTextToCustomerById } = await import("../services/line");
+    const { sendTextToCustomerById } = await import("../services/line.js");
     sendTextToCustomerById(customerId, "ยอมรับเรียบร้อยครับ จะดำเนินการเข้าคิวเจาะให้ต่อไป", "STATUS", org.org_id).catch(() => {});
   } else if (rejectDrillMatch) {
     const requestId = rejectDrillMatch[1];
@@ -470,7 +470,7 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     broadcast({ type: "DRILLING_REQUEST_CHANGED", data: { request_id: Number(requestId), status: "REJECTED" }, orgId: org.org_id });
     broadcast({ type: "QUOTATION_CHANGED", data: { drilling_request_id: Number(requestId) }, orgId: org.org_id });
 
-    const { sendTextToCustomerById } = await import("../services/line");
+    const { sendTextToCustomerById } = await import("../services/line.js");
     sendTextToCustomerById(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งเจาะใหม่ได้ตลอดเวลา", "STATUS", org.org_id).catch(() => {});
   } else if (acceptRepairMatch) {
     const repairId = acceptRepairMatch[1];
@@ -496,7 +496,7 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(repairId), status: "ACCEPTED" }, orgId: org.org_id });
     broadcast({ type: "QUOTATION_CHANGED", data: { repair_request_id: Number(repairId) }, orgId: org.org_id });
 
-    const { sendTextToCustomerById } = await import("../services/line");
+    const { sendTextToCustomerById } = await import("../services/line.js");
     sendTextToCustomerById(customerId, `ยอมรับเรียบร้อยครับ กรุณาเตรียมตัวสำหรับการซ่อมบำรุง${dateText} ทีมงานจะติดต่อกลับเพื่อยืนยันอีกครั้ง`, "STATUS", org.org_id).catch(() => {});
   } else if (rejectRepairMatch) {
     const repairId = rejectRepairMatch[1];
@@ -516,7 +516,7 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(repairId), status: "REJECTED" }, orgId: org.org_id });
     broadcast({ type: "QUOTATION_CHANGED", data: { repair_request_id: Number(repairId) }, orgId: org.org_id });
 
-    const { sendTextToCustomerById } = await import("../services/line");
+    const { sendTextToCustomerById } = await import("../services/line.js");
     sendTextToCustomerById(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งซ่อมใหม่ได้ตลอดเวลา", "STATUS", org.org_id).catch(() => {});
   }
 }
