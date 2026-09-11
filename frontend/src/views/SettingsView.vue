@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { api } from "@/api/client";
@@ -98,8 +98,6 @@ async function loadSettings() {
     liffIdDrilling.value = data.line_liff_id_drilling || "";
     liffIdRepair.value = data.line_liff_id_repair || "";
 
-    if (data.line_liff_id_drilling) checkLiffId(data.line_liff_id_drilling, "drill");
-    if (data.line_liff_id_repair) checkLiffId(data.line_liff_id_repair, "repair");
   } catch (err) {
     ui.notifyError(err);
   } finally {
@@ -108,6 +106,11 @@ async function loadSettings() {
 }
 
 onMounted(loadSettings);
+
+onUnmounted(() => {
+  if (checkDrillTimer) clearTimeout(checkDrillTimer);
+  if (checkRepairTimer) clearTimeout(checkRepairTimer);
+});
 
 const canSave = computed(() => {
   if (liffDrillStatus.value === "duplicate" || liffRepairStatus.value === "duplicate") return false;

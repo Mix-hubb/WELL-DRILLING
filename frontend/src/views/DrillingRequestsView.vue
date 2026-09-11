@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useDrillingRequestsStore } from "@/stores/drillingRequests";
 import { useJobsStore } from "@/stores/jobs";
 import { useUiStore } from "@/stores/ui";
-import { useSSE } from "@/composables/useSSE";
+import { useSSERefresh } from "@/composables/useSSERefresh";
 import { quotationsApi } from "@/api/quotations";
 import { money, REQUEST_STATUS } from "@/constants";
+import { fmtDate } from "@/utils/date";
 import type { DrillingRequest } from "@/types";
 import StatusChip from "@/components/StatusChip.vue";
 
@@ -14,11 +15,18 @@ const router     = useRouter();
 const requests   = useDrillingRequestsStore();
 const jobsStore  = useJobsStore();
 const ui         = useUiStore();
-const { connect, on } = useSSE();
-
 async function refreshData() {
   try { await requests.fetchAll(); } catch (e) { ui.notifyError(e); }
 }
+
+useSSERefresh(refreshData, [
+  "DRILLING_REQUEST_CREATED",
+  "DRILLING_REQUEST_CHANGED",
+  "JOB_CREATED",
+  "QUOTATION_CREATED",
+  "QUOTATION_CHANGED",
+  "QUOTATION_DELETED",
+]);
 
 const search   = ref("");
 const quoteDlg = ref(false);
@@ -113,18 +121,6 @@ async function doDelete() {
   } catch (e) { ui.notifyError(e); }
 }
 
-onMounted(async () => {
-  try { await requests.fetchAll(); } catch (e) { ui.notifyError(e); }
-
-  connect();
-  on("DRILLING_REQUEST_CREATED", refreshData);
-  on("DRILLING_REQUEST_CHANGED", refreshData);
-  on("JOB_CREATED", refreshData);
-  on("QUOTATION_CREATED", refreshData);
-  on("QUOTATION_CHANGED", refreshData);
-  on("QUOTATION_DELETED", refreshData);
-});
-
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase();
   if (!q) return requests.requests;
@@ -179,11 +175,6 @@ async function reject(r: any) {
     await requests.setStatus(r.request_id, "REJECTED");
     ui.notify("ปฏิเสธคำร้องแล้ว", "info");
   } catch (e) { ui.notifyError(e); }
-}
-
-function fmtDate(d: string) {
-  if (!d) return "-";
-  return new Date(d).toLocaleDateString("th-TH", { month: "short", day: "numeric" });
 }
 </script>
 

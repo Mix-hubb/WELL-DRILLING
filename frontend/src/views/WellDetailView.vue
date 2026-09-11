@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useWellsStore } from "@/stores/wells";
 import { useUiStore } from "@/stores/ui";
 import { api } from "@/api/client";
-import { useSSE } from "@/composables/useSSE";
+import { useSSERefresh } from "@/composables/useSSERefresh";
+import { fmtDate } from "@/utils/date";
 import { PIPE_MATERIAL, PIPE_TYPE, PUMP_TYPE, LITHOLOGY_TYPE, PROTECTION_TYPE } from "@/constants";
 import StrataColumn from "@/components/StrataColumn.vue";
 import SectionHeader from "@/components/SectionHeader.vue";
@@ -18,8 +19,6 @@ const route  = useRoute();
 const router = useRouter();
 const store  = useWellsStore();
 const ui     = useUiStore();
-const { connect, on } = useSSE();
-
 /* ---- dialogs ---- */
 const showStrata    = ref(false);
 const showPipe      = ref(false);
@@ -34,13 +33,9 @@ async function refresh() {
   } catch (e) { ui.notifyError(e); }
 }
 
-onMounted(async () => {
-  await refresh();
-  connect();
-  on("WELL_UPDATED", (data) => {
-    if (data.well_id === wellId()) refresh();
-  });
-});
+useSSERefresh(refresh, [
+  { event: "WELL_UPDATED", filter: (data) => data.well_id === wellId() },
+]);
 
 async function addStrata(form: any) {
   try { await store.addStrata(wellId(), form); showStrata.value = false; ui.notify("เพิ่มชั้นดิน/หินแล้ว", "success"); }
@@ -64,11 +59,6 @@ async function removePump(id: number)   { try { await store.removePump(wellId(),
 async function removeControlBox(id: number) { try { await store.removeControlBox(wellId(), id); } catch (e) { ui.notifyError(e); } }
 
 function downloadReport() { api.download(`/wells/${wellId()}/report.pdf`, `report-${wellId()}.pdf`).catch(e => ui.notifyError(e)); }
-
-function fmtDate(d: string) {
-  if (!d) return "-";
-  return new Date(d).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
-}
 
 function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
   const days = Number(w.days_left);

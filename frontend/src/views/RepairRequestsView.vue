@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useRepairRequestsStore } from "@/stores/repairRequests";
 import { useUiStore } from "@/stores/ui";
-import { useSSE } from "@/composables/useSSE";
+import { useSSERefresh } from "@/composables/useSSERefresh";
 import { quotationsApi } from "@/api/quotations";
 import { repairRequestsApi } from "@/api/repairRequests";
+import { fmtDate } from "@/utils/date";
 import type { RepairRequest } from "@/types";
 import { money, REPAIR_STATUS } from "@/constants";
 import StatusChip from "@/components/StatusChip.vue";
@@ -14,11 +15,18 @@ import DrillerLinkChip from "@/components/DrillerLinkChip.vue";
 const router   = useRouter();
 const requests = useRepairRequestsStore();
 const ui       = useUiStore();
-const { connect, on } = useSSE();
-
 async function refreshData() {
   try { await requests.fetchAll(); } catch (e) { ui.notifyError(e); }
 }
+
+useSSERefresh(refreshData, [
+  "REPAIR_REQUEST_CREATED",
+  "REPAIR_REQUEST_CHANGED",
+  "QUOTATION_CREATED",
+  "QUOTATION_CHANGED",
+  "QUOTATION_DELETED",
+  "REPAIR_RECORD_DELETED",
+]);
 
 const search   = ref("");
 const quoteDlg = ref(false);
@@ -66,18 +74,6 @@ async function submitSchedule() {
   }
 }
 
-onMounted(async () => {
-  try { await requests.fetchAll(); } catch (e) { ui.notifyError(e); }
-
-  connect();
-  on("REPAIR_REQUEST_CREATED", refreshData);
-  on("REPAIR_REQUEST_CHANGED", refreshData);
-  on("QUOTATION_CREATED", refreshData);
-  on("QUOTATION_CHANGED", refreshData);
-  on("QUOTATION_DELETED", refreshData);
-  on("REPAIR_RECORD_DELETED", refreshData);
-});
-
 const STATUS_PRIORITY: Record<string, number> = {
   NEW: 0, QUOTED: 1, ACCEPTED: 2, SCHEDULED: 3, IN_PROGRESS: 4,
   COMPLETED: 5, CLOSED: 6, REJECTED: 7, CANCELLED: 8,
@@ -116,7 +112,6 @@ async function submitQuote() {
     });
     ui.notify("สร้างใบราคาซ่อมแล้ว", "success");
     quoteDlg.value = false;
-    await requests.fetchAll();
   } catch (e) { ui.notifyError(e); } finally { quoteLoading.value = false; }
 }
 
@@ -137,7 +132,12 @@ async function regenerateMagicLink(r: RepairRequest) {
 
 function openEdit(r: RepairRequest) {
   editTarget.value = r;
-  const probs = typeof r.problems === "string" ? JSON.parse(r.problems) : (r.problems || []);
+  let probs: string[] = [];
+  try {
+    probs = typeof r.problems === "string" ? JSON.parse(r.problems) : (r.problems || []);
+  } catch {
+    probs = [];
+  }
   editForm.value = {
     problems: probs,
     detail: r.detail || "",
@@ -178,11 +178,6 @@ async function doDelete() {
     ui.notify("ลบคำร้องแล้ว", "success");
     deleteDlg.value = false;
   } catch (e) { ui.notifyError(e); }
-}
-
-function fmtDate(d: string) {
-  if (!d) return "-";
-  return new Date(d).toLocaleDateString("th-TH", { month: "short", day: "numeric" });
 }
 </script>
 

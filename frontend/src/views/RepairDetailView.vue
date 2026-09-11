@@ -5,6 +5,7 @@ import { repairRequestsApi } from "@/api/repairRequests";
 import { quotationsApi } from "@/api/quotations";
 import { api } from "@/api/client";
 import { useUiStore } from "@/stores/ui";
+import { fmtDate } from "@/utils/date";
 import { useSSE } from "@/composables/useSSE";
 import type { RepairRequest, PaymentSlip } from "@/types";
 import { REPAIR_STATUS, QUOTATION_STATUS, money } from "@/constants";
@@ -15,7 +16,6 @@ const route = useRoute();
 const router = useRouter();
 const ui = useUiStore();
 const { connect, on } = useSSE();
-
 const request = ref<RepairRequest | null>(null);
 const loading = ref(true);
 
@@ -82,11 +82,6 @@ onMounted(async () => {
     }
   });
 });
-
-function fmtDate(d?: string | null) {
-  if (!d) return "-";
-  return new Date(d).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
-}
 
 function fmtDateTime(d?: string | null) {
   if (!d) return "-";

@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
+import { requiredField, validEmail, validPhone } from "@/utils/validation";
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -18,12 +19,6 @@ const orgName = ref("");
 const inviteCode = ref("");
 const loading = ref(false);
 const showPassword = ref(false);
-
-const requiredField = (msg: string) => (v: string) => !!v || msg;
-const validEmail = (msg: string) => (v: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || msg;
-const validPhone = (msg: string) => (v: string) =>
-  /^\d{9,10}$/.test(v.replace(/[-\s]/g, "")) || msg;
 
 async function handleRegister() {
   if (!fullName.value || !email.value || !phone.value || !password.value) {

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { jobsApi }       from "@/api/jobs";
 import { wellsApi }      from "@/api/wells";
 import { useUiStore }    from "@/stores/ui";
-import { useSSE }        from "@/composables/useSSE";
+import { useSSERefresh } from "@/composables/useSSERefresh";
+import { fmtDate }       from "@/utils/date";
 import type { DrillingJob, DrillingJobStatus } from "@/types";
 import { JOB_STATUS } from "@/constants";
 import StatusChip      from "@/components/StatusChip.vue";
@@ -14,8 +15,6 @@ import WellLogFormDialog from "@/components/forms/WellLogFormDialog.vue";
 const route  = useRoute();
 const router = useRouter();
 const ui     = useUiStore();
-const { connect, on } = useSSE();
-
 const job          = ref<DrillingJob | null>(null);
 const wellId       = ref<number | null>(null);
 const showWellForm = ref(false);
@@ -32,14 +31,10 @@ async function load() {
   }
 }
 
-onMounted(async () => {
-  await load();
-  connect();
-  on("JOB_STATUS_CHANGED", (data) => {
-    if (data.job_id === Number(route.params.id)) load();
-  });
-  on("WELL_CREATED", () => load());
-});
+useSSERefresh(load, [
+  { event: "JOB_STATUS_CHANGED", filter: (data) => data.job_id === Number(route.params.id) },
+  "WELL_CREATED",
+]);
 
 async function setStatus(status: DrillingJobStatus) {
   if (!job.value) return;
@@ -66,11 +61,6 @@ async function regenerateMagicLink() {
     job.value.magic_link_token = token;
     ui.notify("สร้างลิงก์ช่างใหม่แล้ว", "success");
   } catch (e) { ui.notifyError(e); }
-}
-
-function fmtDate(d: string) {
-  if (!d) return "-";
-  return new Date(d).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
 }
 </script>
 

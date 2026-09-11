@@ -1,16 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { customersApi, type CustomerOverview } from "@/api/customers";
 import { useUiStore } from "@/stores/ui";
-import { useSSE } from "@/composables/useSSE";
+import { useSSERefresh } from "@/composables/useSSERefresh";
+import { fmtDate } from "@/utils/date";
 import { DRILLING_METHOD } from "@/constants";
 
 const route = useRoute();
 const router = useRouter();
 const ui = useUiStore();
-const { connect, on } = useSSE();
-
 const loading = ref(true);
 const data = ref<CustomerOverview | null>(null);
 
@@ -26,18 +25,7 @@ async function refresh() {
   }
 }
 
-onMounted(async () => {
-  await refresh();
-  connect();
-  on("WELL_CREATED", refresh);
-  on("WELL_UPDATED", refresh);
-  on("JOB_STATUS_CHANGED", refresh);
-});
-
-function fmtDate(d?: string | null) {
-  if (!d) return "-";
-  return new Date(d).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
-}
+useSSERefresh(refresh, ["WELL_CREATED", "WELL_UPDATED", "JOB_STATUS_CHANGED"]);
 </script>
 
 <template>

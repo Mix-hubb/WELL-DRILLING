@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { defineComponent } from "vue";
 import { mount } from "@vue/test-utils";
-import { useSSE } from "./useSSE";
+import { useSSE, disconnectSSE } from "./useSSE";
 
 class MockEventSource {
   static instances: MockEventSource[] = [];
@@ -39,12 +39,14 @@ const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:4001/api").r
 const lastInstance = () => MockEventSource.instances[MockEventSource.instances.length - 1];
 
 beforeEach(() => {
+  disconnectSSE();
   localStorage.clear();
   MockEventSource.instances = [];
   vi.stubGlobal("EventSource", MockEventSource);
 });
 
 afterEach(() => {
+  disconnectSSE();
   vi.unstubAllGlobals();
 });
 
@@ -136,12 +138,36 @@ describe("useSSE", () => {
     expect(instance.close).toHaveBeenCalledTimes(1);
   });
 
-  it("closes the connection on unmount", () => {
+  it("closes the connection on unmount when no listeners remain", () => {
     localStorage.setItem("welldrill-token", "tok");
     const wrapper = mount(Host);
     wrapper.vm.connect();
     const instance = lastInstance();
     wrapper.unmount();
     expect(instance.close).toHaveBeenCalled();
+  });
+
+  it("shares one connection across multiple composable instances", () => {
+    localStorage.setItem("welldrill-token", "tok");
+    const wrapper1 = mount(Host);
+    const wrapper2 = mount(Host);
+    const cb1 = vi.fn();
+    const cb2 = vi.fn();
+
+    wrapper1.vm.connect();
+    wrapper1.vm.on("JOB_CREATED", cb1);
+    wrapper2.vm.on("JOB_CREATED", cb2);
+
+    expect(MockEventSource.instances).toHaveLength(1);
+
+    lastInstance().emit("JOB_CREATED", { job_id: 1 });
+    expect(cb1).toHaveBeenCalledWith({ job_id: 1 });
+    expect(cb2).toHaveBeenCalledWith({ job_id: 1 });
+
+    wrapper1.unmount();
+    expect(lastInstance().close).not.toHaveBeenCalled();
+
+    wrapper2.unmount();
+    expect(lastInstance().close).toHaveBeenCalled();
   });
 });

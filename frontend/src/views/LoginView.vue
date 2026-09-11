@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
+import { requiredField, validEmail } from "@/utils/validation";
 
 // ============================================================
 // Constants
@@ -35,9 +36,6 @@ const highlights = [
 // ============================================================
 // Helpers
 // ============================================================
-const requiredField = (message: string) => (value: string) => !!value || message;
-const validEmail = (msg: string) => (v: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || msg;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // ============================================================

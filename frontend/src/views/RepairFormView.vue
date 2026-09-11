@@ -165,9 +165,10 @@ onMounted(async () => {
   isLiffEnv.value = true;
   actualLiffId.value = liffId;
 
+  let liff: any = null;
   try {
     const liffModule = await import("@line/liff");
-    const liff = liffModule.default;
+    liff = liffModule.default;
     await liff.init({ liffId });
   } catch (e) {
     console.warn("LIFF init error:", e);
@@ -175,10 +176,7 @@ onMounted(async () => {
     return;
   }
 
-  const liffModule = await import("@line/liff");
-  const liff = liffModule.default;
-
-  if (!liff.isLoggedIn()) {
+  if (!liff || !liff.isLoggedIn()) {
     sessionStorage.setItem("liffId", liffId);
     const redirectUri = window.location.origin + "/repair-form?liffId=" + encodeURIComponent(liffId);
     liff.login({ redirectUri });

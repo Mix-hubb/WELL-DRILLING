@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { authApi } from "@/api/auth";
 import { useUiStore } from "@/stores/ui";
+import { requiredField, validEmail } from "@/utils/validation";
 
 const router = useRouter();
 const ui = useUiStore();
@@ -11,10 +12,6 @@ const email = ref("");
 const method = ref<"email" | "sms">("email");
 const loading = ref(false);
 const sent = ref(false);
-
-const requiredField = (msg: string) => (v: string) => !!v || msg;
-const validEmail = (msg: string) => (v: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || msg;
 
 async function handleSendCode() {
   if (!email.value) return;

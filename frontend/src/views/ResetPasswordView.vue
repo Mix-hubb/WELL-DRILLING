@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { authApi } from "@/api/auth";
 import { useUiStore } from "@/stores/ui";
+import { requiredField } from "@/utils/validation";
 
 const router = useRouter();
 const route = useRoute();
@@ -17,8 +18,6 @@ const confirmPassword = ref("");
 const loading = ref(false);
 const verified = ref(false);
 const showPassword = ref(false);
-
-const requiredField = (msg: string) => (v: string) => !!v || msg;
 
 async function handleVerifyCode() {
   if (!code.value) return;

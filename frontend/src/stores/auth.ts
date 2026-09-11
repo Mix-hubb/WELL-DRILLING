@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { authApi, type AuthUser } from "@/api/auth";
+import { disconnectSSE } from "@/composables/useSSE";
 import { useUiStore } from "./ui";
 
 const TOKEN_KEY = "welldrill-token";
@@ -44,6 +45,7 @@ export const useAuthStore = defineStore("auth", {
       }
     },
     logout() {
+      disconnectSSE();
       this.clearAuth();
       useUiStore().notify("ออกจากระบบแล้ว", "info");
     },

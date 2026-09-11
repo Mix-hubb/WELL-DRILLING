@@ -4,7 +4,8 @@ import { useRouter } from "vue-router";
 import { statsApi } from "@/api/stats";
 import { api } from "@/api/client";
 import { useUiStore } from "@/stores/ui";
-import { useSSE } from "@/composables/useSSE";
+import { useSSERefresh } from "@/composables/useSSERefresh";
+import { fmtShortDate as fmtDate } from "@/utils/date";
 import type { StatsOverview } from "@/types";
 import { JOB_STATUS_HEX } from "@/constants";
 import StatCard   from "@/components/StatCard.vue";
@@ -16,8 +17,6 @@ const ui     = useUiStore();
 const router = useRouter();
 const stats  = ref<StatsOverview | null>(null);
 const loading = ref(true);
-const { connect, on } = useSSE();
-
 const showOnboarding = ref(false);
 const orgChannelId = ref<string | null>(null);
 
@@ -29,18 +28,18 @@ async function refreshStats() {
   }
 }
 
-onMounted(async () => {
-  await refreshStats();
-  loading.value = false;
+useSSERefresh(refreshStats, [
+  "JOB_CREATED",
+  "JOB_STATUS_CHANGED",
+  "DRILLING_REQUEST_CHANGED",
+  "REPAIR_REQUEST_CHANGED",
+  "CUSTOMER_CREATED",
+  "QUOTATION_CREATED",
+  "QUOTATION_CHANGED",
+]);
 
-  connect();
-  on("JOB_CREATED", refreshStats);
-  on("JOB_STATUS_CHANGED", refreshStats);
-  on("DRILLING_REQUEST_CHANGED", refreshStats);
-  on("REPAIR_REQUEST_CHANGED", refreshStats);
-  on("CUSTOMER_CREATED", refreshStats);
-  on("QUOTATION_CREATED", refreshStats);
-  on("QUOTATION_CHANGED", refreshStats);
+onMounted(async () => {
+  loading.value = false;
 
   if (!localStorage.getItem("onboarding-done")) {
     try {
@@ -60,11 +59,6 @@ const statusSegments = computed(() => {
     { label: "เจาะไม่สำเร็จ", value: stats.value.jobs.failed,   color: JOB_STATUS_HEX.FAILED    },
   ];
 });
-
-function fmtDate(d: string) {
-  if (!d) return "";
-  return new Date(d).toLocaleDateString("th-TH", { month: "short", day: "numeric" });
-}
 
 const todayLabel = new Date().toLocaleDateString("th-TH", {
   weekday: "long", year: "numeric", month: "long", day: "numeric",

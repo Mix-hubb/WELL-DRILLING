@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, watch } from "vue";
+import { connectSSE, disconnectSSE } from "@/composables/useSSE";
 import { useDisplay, useTheme } from "vuetify";
 import { useRoute, useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
@@ -15,6 +16,15 @@ const route = useRoute();
 const router = useRouter();
 
 theme.global.name.value = ui.theme;
+
+watch(
+  () => auth.token,
+  (token) => {
+    if (token) connectSSE();
+    else disconnectSSE();
+  },
+  { immediate: true },
+);
 
 onMounted(async () => {
   if (auth.token && !auth.user && !route.meta.public) {

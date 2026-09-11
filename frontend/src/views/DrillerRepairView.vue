@@ -1,62 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
-import { repairRequestsApi } from "@/api/repairRequests";
-import { useUiStore } from "@/stores/ui";
-import type { RepairRequest, PumpCatalogModel } from "@/types";
+import { useDrillerRepairForm } from "@/composables/useDrillerRepairForm";
 import PumpCatalogPicker from "@/components/PumpCatalogPicker.vue";
 
 const route = useRoute();
-const ui    = useUiStore();
-
-const request  = ref<RepairRequest | null>(null);
-const loading  = ref(true);
-const submitting = ref(false);
 const token    = route.params.token as string;
-const saved = ref(false);
-
-const form = ref({
-  work_details:   "",
-  parts:          [{ name: "", qty: 1, unit_price: 0 }],
-  final_price:    "",
-  is_warranty_claim: false,
-  completed_at:   new Date().toISOString().slice(0, 10),
-  pump:           null as PumpCatalogModel | null,
-});
-
-onMounted(async () => {
-  try {
-    request.value = await repairRequestsApi.getByMagicToken(token);
-  } catch (e) {
-    ui.notifyError(e);
-  } finally {
-    loading.value = false;
-  }
-});
-
-function addPart() { form.value.parts.push({ name: "", qty: 1, unit_price: 0 }); }
-function removePart(i: number) { form.value.parts.splice(i, 1); }
-
-async function submit() {
-  if (!request.value || !form.value.work_details) return;
-  submitting.value = true;
-  try {
-    await repairRequestsApi.addRecord(request.value.repair_id, {
-      magic_token:       token,
-      work_details:   form.value.work_details,
-      parts:          form.value.parts.filter((p) => p.name).map((p) => ({ name: p.name, qty: Number(p.qty) || 0, unit_price: Number(p.unit_price) || 0 })),
-      pump:           form.value.pump,
-      final_price:    form.value.final_price ? Number(form.value.final_price) : null,
-      is_warranty_claim: form.value.is_warranty_claim ? 1 : 0,
-      completed_at:   form.value.completed_at,
-    });
-    saved.value = true;
-  } catch (e) {
-    ui.notifyError(e);
-  } finally {
-    submitting.value = false;
-  }
-}
+const { request, loading, submitting, saved, form, addPart, removePart, submit } = useDrillerRepairForm(token);
 </script>
 
 <template>

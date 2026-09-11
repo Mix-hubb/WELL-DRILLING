@@ -1,17 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useCustomersStore } from "@/stores/customers";
 import { useWellsStore } from "@/stores/wells";
 import { useUiStore } from "@/stores/ui";
-import { useSSE } from "@/composables/useSSE";
+import { useSSERefresh } from "@/composables/useSSERefresh";
 
 const router = useRouter();
 const customersStore = useCustomersStore();
 const wellsStore = useWellsStore();
 const ui = useUiStore();
-const { connect, on } = useSSE();
-
 const search = ref("");
 
 async function refresh() {
@@ -20,17 +18,15 @@ async function refresh() {
   } catch (e) { ui.notifyError(e); }
 }
 
-onMounted(async () => {
-  await refresh();
-  connect();
-  on("WELL_CREATED", refresh);
-  on("WELL_UPDATED", refresh);
-  on("DRILLING_REQUEST_CHANGED", refresh);
-  on("REPAIR_REQUEST_CHANGED", refresh);
-  on("CUSTOMER_CREATED", refresh);
-  on("CUSTOMER_UPDATED", refresh);
-  on("CUSTOMER_DELETED", refresh);
-});
+useSSERefresh(refresh, [
+  "WELL_CREATED",
+  "WELL_UPDATED",
+  "DRILLING_REQUEST_CHANGED",
+  "REPAIR_REQUEST_CHANGED",
+  "CUSTOMER_CREATED",
+  "CUSTOMER_UPDATED",
+  "CUSTOMER_DELETED",
+]);
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase();
@@ -40,8 +36,18 @@ const filtered = computed(() => {
   );
 });
 
-function wellCount(customerId: number | string) {
-  return wellsStore.wells.filter((w) => String(w.customer_id) === String(customerId)).length;
+const wellCountsByCustomerId = computed(() => {
+  const map = new Map<number, number>();
+  for (const w of wellsStore.wells) {
+    if (w.customer_id != null) {
+      map.set(w.customer_id, (map.get(w.customer_id) || 0) + 1);
+    }
+  }
+  return map;
+});
+
+function wellCount(customerId: number): number {
+  return wellCountsByCustomerId.value.get(customerId) || 0;
 }
 </script>
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import liff from "@line/liff";
+
+let liffInstance: any = null;
 
 const form = ref({
   name: "",
@@ -35,23 +36,25 @@ onMounted(async () => {
   actualLiffId.value = liffId;
 
   try {
-    await liff.init({ liffId });
+    const liffModule = await import("@line/liff");
+    liffInstance = liffModule.default;
+    await liffInstance.init({ liffId });
   } catch (e) {
     console.warn("LIFF init error:", e);
     liffReady.value = true;
     return;
   }
 
-  if (!liff.isLoggedIn()) {
+  if (!liffInstance.isLoggedIn()) {
     sessionStorage.setItem("liffId", liffId);
     const redirectUri = window.location.origin + "/request-drill?liffId=" + encodeURIComponent(liffId);
-    liff.login({ redirectUri });
+    liffInstance.login({ redirectUri });
     return;
   }
 
   sessionStorage.removeItem("liffId");
 
-  const profile = await liff.getProfile();
+  const profile = await liffInstance.getProfile();
   lineUserId.value = profile?.userId || null;
   profileName.value = profile?.displayName || "";
   profilePicture.value = profile?.pictureUrl || "";
@@ -113,8 +116,8 @@ async function submit() {
       throw new Error(body.error || `HTTP ${res.status}`);
     }
     success.value = true;
-    if (isLiffEnv.value) {
-      setTimeout(() => { liff.closeWindow(); }, 3000);
+    if (isLiffEnv.value && liffInstance) {
+      setTimeout(() => { liffInstance.closeWindow(); }, 3000);
     }
   } catch (e: any) {
     error.value = e.message || "เกิดข้อผิดพลาด";

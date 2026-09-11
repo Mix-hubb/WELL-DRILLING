@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useJobsStore }      from "@/stores/jobs";
 import { useCustomersStore } from "@/stores/customers";
 import { useUiStore }        from "@/stores/ui";
-import { useSSE }            from "@/composables/useSSE";
+import { useSSERefresh }     from "@/composables/useSSERefresh";
+import { fmtShortDate as fmtDate } from "@/utils/date";
 import { jobsApi }           from "@/api/jobs";
 import type { DrillingJob }  from "@/types";
 import { JOB_STATUS }        from "@/constants";
@@ -16,11 +17,11 @@ const router          = useRouter();
 const jobsStore       = useJobsStore();
 const customersStore  = useCustomersStore();
 const ui              = useUiStore();
-const { connect, on } = useSSE();
-
 async function refreshData() {
   try { await Promise.all([jobsStore.fetchAll(), customersStore.fetchAll()]); } catch (e) { ui.notifyError(e); }
 }
+
+useSSERefresh(refreshData, ["JOB_CREATED", "JOB_STATUS_CHANGED"]);
 
 const tab      = ref("ALL");
 const search   = ref("");
@@ -35,16 +36,6 @@ const deleteTarget = ref<DrillingJob | null>(null);
 const fabOpen = ref(false);
 const selectDlg = ref(false);
 const selectMode = ref<"edit" | "delete">("edit");
-
-onMounted(async () => {
-  try {
-    await Promise.all([jobsStore.fetchAll(), customersStore.fetchAll()]);
-  } catch (e) { ui.notifyError(e); }
-
-  connect();
-  on("JOB_CREATED", refreshData);
-  on("JOB_STATUS_CHANGED", refreshData);
-});
 
 const statusTabs = ["QUEUED", "DRILLING", "SUCCESS", "FAILED"] as const;
 
@@ -124,11 +115,6 @@ async function doDelete() {
     ui.notify("ลบคิวงานแล้ว", "success");
     deleteDlg.value = false;
   } catch (e) { ui.notifyError(e); }
-}
-
-function fmtDate(d: string) {
-  if (!d) return "";
-  return new Date(d).toLocaleDateString("th-TH", { month: "short", day: "numeric" });
 }
 </script>
 

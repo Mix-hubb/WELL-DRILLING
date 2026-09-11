@@ -1,7 +1,6 @@
 /* ============================================================
    Well-Drilling Global Styles — Earth Tone Design System
    ============================================================ */
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 
 :root {
   /* Typography */
@@ -188,10 +187,6 @@ html, body {
   to   { opacity: 1; transform: none; }
 }
 .fade-up { animation: fadeUp .55s cubic-bezier(.22, .61, .36, 1) both; }
-
-/* ---------- Leaflet ---------- */
-.leaflet-popup-content-wrapper { border-radius: 10px; }
-.leaflet-container { font-family: var(--font-primary); }
 
 /* ---------- Warranty alert tiers ---------- */
 .warranty-active   { border-left: 3px solid var(--color-active)   !important; }

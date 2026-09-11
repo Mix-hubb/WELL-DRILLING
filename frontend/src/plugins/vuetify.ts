@@ -1,8 +1,6 @@
 import "vuetify/styles";
 import "@mdi/font/css/materialdesignicons.css";
 import { createVuetify } from "vuetify";
-import * as components from "vuetify/components";
-import * as directives from "vuetify/directives";
 
 // ============================================================
 // Well-Drilling — Minimalist Earth Tone Design System
@@ -76,8 +74,6 @@ const darkTheme = {
 };
 
 export const vuetify = createVuetify({
-  components,
-  directives,
   theme: {
     defaultTheme: "lightTheme",
     themes: { lightTheme, darkTheme },
