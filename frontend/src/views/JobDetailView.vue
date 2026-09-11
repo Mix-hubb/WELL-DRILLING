@@ -32,6 +32,8 @@ async function load() {
 }
 
 useSSERefresh(load, [
+  { event: "JOB_UPDATED", filter: (data) => data.job_id === Number(route.params.id) },
+  { event: "JOB_DELETED", filter: (data) => data.job_id === Number(route.params.id) },
   { event: "JOB_STATUS_CHANGED", filter: (data) => data.job_id === Number(route.params.id) },
   "WELL_CREATED",
 ]);

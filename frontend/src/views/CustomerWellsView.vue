@@ -25,7 +25,14 @@ async function refresh() {
   }
 }
 
-useSSERefresh(refresh, ["WELL_CREATED", "WELL_UPDATED", "JOB_STATUS_CHANGED"]);
+useSSERefresh(refresh, [
+  "WELL_CREATED",
+  "WELL_UPDATED",
+  "JOB_STATUS_CHANGED",
+  "CUSTOMER_CREATED",
+  "CUSTOMER_UPDATED",
+  "CUSTOMER_DELETED",
+]);
 </script>
 
 <template>

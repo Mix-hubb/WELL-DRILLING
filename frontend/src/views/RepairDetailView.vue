@@ -70,6 +70,21 @@ onMounted(async () => {
   on("REPAIR_REQUEST_CHANGED", (data) => {
     if (data.repair_id === Number(route.params.id)) reload();
   });
+  on("REPAIR_REQUEST_UPDATED", (data) => {
+    if (data.repair_id === Number(route.params.id)) reload();
+  });
+  on("REPAIR_REQUEST_DELETED", (data) => {
+    if (data.repair_id === Number(route.params.id)) reload();
+  });
+  on("REPAIR_RECORD_ADDED", (data) => {
+    if (data.repair_id === Number(route.params.id)) reload();
+  });
+  on("REPAIR_RECORD_DELETED", () => reload());
+  on("QUOTATION_CREATED", (data) => {
+    if (data.kind === "REPAIR") reload();
+  });
+  on("QUOTATION_CHANGED", () => reload());
+  on("QUOTATION_DELETED", () => reload());
   on("PAYMENT_SLIP_RECEIVED", (data) => {
     if (String(data.repair_id) === String(route.params.id)) {
       ui.notify("มีสลิปโอนเงินใหม่ส่งมาจากลูกค้าทาง LINE!", "info");

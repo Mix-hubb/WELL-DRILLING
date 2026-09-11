@@ -21,6 +21,7 @@ async function refresh() {
 useSSERefresh(refresh, [
   "WELL_CREATED",
   "WELL_UPDATED",
+  "JOB_STATUS_CHANGED",
   "DRILLING_REQUEST_CHANGED",
   "REPAIR_REQUEST_CHANGED",
   "CUSTOMER_CREATED",

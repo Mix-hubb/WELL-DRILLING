@@ -21,7 +21,12 @@ async function refreshData() {
   try { await Promise.all([jobsStore.fetchAll(), customersStore.fetchAll()]); } catch (e) { ui.notifyError(e); }
 }
 
-useSSERefresh(refreshData, ["JOB_CREATED", "JOB_STATUS_CHANGED"]);
+useSSERefresh(refreshData, [
+  "JOB_CREATED",
+  "JOB_UPDATED",
+  "JOB_DELETED",
+  "JOB_STATUS_CHANGED",
+]);
 
 const tab      = ref("ALL");
 const search   = ref("");

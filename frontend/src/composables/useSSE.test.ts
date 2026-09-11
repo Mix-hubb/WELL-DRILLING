@@ -95,6 +95,18 @@ describe("useSSE", () => {
     expect(cb).toHaveBeenCalledTimes(1);
   });
 
+  it("delivers payment slip events", () => {
+    localStorage.setItem("welldrill-token", "tok");
+    const wrapper = mount(Host);
+    const cb = vi.fn();
+    wrapper.vm.on("PAYMENT_SLIP_RECEIVED", cb);
+    wrapper.vm.connect();
+
+    lastInstance().emit("PAYMENT_SLIP_RECEIVED", { repair_id: 12 });
+
+    expect(cb).toHaveBeenCalledWith({ repair_id: 12 });
+  });
+
   it("ignores malformed event payloads", () => {
     localStorage.setItem("welldrill-token", "tok");
     const wrapper = mount(Host);
