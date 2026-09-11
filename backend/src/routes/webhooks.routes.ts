@@ -62,6 +62,122 @@ async function reply(accessToken: string, replyToken: string, text: string) {
   });
 }
 
+async function replyFlex(accessToken: string, replyToken: string, altText: string, contents: any) {
+  if (!accessToken) return;
+  await fetch("https://api.line.me/v2/bot/message/reply", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      replyToken,
+      messages: [{ type: "flex", altText, contents }],
+    }),
+  });
+}
+
+function displayDate(value: unknown): string {
+  if (!value) return "-";
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
+}
+
+function flexText(text: string, options: Record<string, unknown> = {}) {
+  return { type: "text", text, size: "sm", wrap: true, ...options };
+}
+function parseProblems(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String);
+  if (typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+function buildWellInfoFlex(customerName: string, wells: any[]) {
+  const bubbles = wells.slice(0, 12).map((well) => ({
+    type: "bubble",
+    size: "giga",
+    header: {
+      type: "box", layout: "vertical", backgroundColor: "#315A49",
+      contents: [flexText(well.well_name || `บ่อ #${well.well_id}`, { color: "#FFFFFF", weight: "bold", size: "lg" })],
+    },
+    body: {
+      type: "box", layout: "vertical", spacing: "md",
+      contents: [
+        flexText(`คุณ${customerName}`, { color: "#6B7280", size: "xs" }),
+        flexText(`รหัสบ่อ: #${well.well_id}`),
+        flexText(`ความลึก: ${well.total_depth_m ?? "-"} เมตร`),
+        flexText(`ปริมาณน้ำ: ${well.water_quantity_m3hr ?? "-"} ลบ.ม./ชม.`),
+        flexText(`อัตราการไหล: ${well.yield_lpm ?? "-"} ลิตร/นาที`),
+        flexText(`เจาะเสร็จ: ${displayDate(well.completion_date)}`, { color: "#6B7280" }),
+      ],
+    },
+  }));
+  return { type: "carousel", contents: bubbles };
+}
+
+function buildWarrantyFlex(wells: any[]) {
+  const bubbles = wells.slice(0, 12).map((well) => {
+    const active = well.warranty_status === "ACTIVE";
+    const expired = well.warranty_status === "EXPIRED";
+    const status = active
+      ? `อยู่ในประกัน เหลือ ${well.days_left ?? 0} วัน`
+      : expired ? "หมดอายุแล้ว" : "ยังไม่มีวันที่เจาะเสร็จ";
+    const color = active ? "#2E7D32" : expired ? "#C62828" : "#757575";
+    return {
+      type: "bubble",
+      size: "giga",
+      header: {
+        type: "box", layout: "vertical", backgroundColor: color,
+        contents: [flexText(well.well_name || `บ่อ #${well.well_id}`, { color: "#FFFFFF", weight: "bold", size: "lg" })],
+      },
+      body: {
+        type: "box", layout: "vertical", spacing: "md",
+        contents: [
+          flexText(status, { weight: "bold", color }),
+          flexText(`วันหมดอายุ: ${displayDate(well.warranty_expire_date)}`),
+          flexText("หากต้องการนัดตรวจหรือซ่อม พิมพ์ “แจ้งซ่อม” ได้เลยครับ", { color: "#6B7280", size: "xs" }),
+        ],
+      },
+    };
+  });
+  return { type: "carousel", contents: bubbles };
+}
+
+function buildRepairHistoryFlex(repairs: any[]) {
+  const statusMap: Record<string, string> = {
+    NEW: "รับเรื่องแล้ว", QUOTED: "รอพิจารณาราคา", ACCEPTED: "รับงานแล้ว",
+    SCHEDULED: "นัดหมายแล้ว", IN_PROGRESS: "กำลังซ่อม", COMPLETED: "ซ่อมเสร็จแล้ว",
+    CLOSED: "ปิดงานแล้ว", REJECTED: "ไม่รับงาน", CANCELLED: "ยกเลิกแล้ว",
+  };
+  const bubbles = repairs.slice(0, 12).map((repair) => {
+    const problems = parseProblems(repair.problems);
+    return {
+      type: "bubble",
+      size: "giga",
+      header: {
+        type: "box", layout: "vertical", backgroundColor: "#8C5A2B",
+        contents: [flexText("ประวัติการซ่อม", { color: "#FFFFFF", weight: "bold", size: "lg" })],
+      },
+      body: {
+        type: "box", layout: "vertical", spacing: "md",
+        contents: [
+          flexText(`วันที่แจ้ง: ${displayDate(repair.created_at)}`, { color: "#6B7280", size: "xs" }),
+          flexText(Array.isArray(problems) && problems.length ? problems.join(", ") : "งานซ่อมบำรุง", { weight: "bold" }),
+          flexText(`สถานะ: ${statusMap[repair.status] || repair.status}`),
+          ...(repair.price != null ? [flexText(`ยอดล่าสุด: ${Number(repair.price).toLocaleString("th-TH")} บาท`, { weight: "bold", color: "#8C5A2B" })] : []),
+        ],
+      },
+    };
+  });
+  return { type: "carousel", contents: bubbles };
+}
+
 async function findOrCreateCustomerByLine(userId: string, profile: any, orgId: string | null): Promise<number> {
   const { rows } = await pool.query(
     "SELECT customer_id, org_id FROM customers WHERE line_user_id = $1",
@@ -153,43 +269,34 @@ async function handleText(userId: string, text: string, replyToken: string, org:
     if (!wells.rows.length) {
       lines.push("ยังไม่มีข้อมูลบ่อในระบบครับ");
     } else {
-      lines.push(`คุณ ${customer.customer_name} มีบ่อทั้งหมด ${wells.rows.length} บ่อ`);
-      wells.rows.forEach((w: any) => {
-        lines.push(
-          `• ${w.well_name} (บ่อ #${w.well_id})\n` +
-          `  ความลึก ${w.total_depth_m ?? "-"} ม. | น้ำ ${w.water_quantity_m3hr ?? "-"} ลบ.ม./ชม. | อัตรา ${w.yield_lpm ?? "-"} ลิตร/นาที`
-        );
-      });
+      return replyFlex(
+        org.line_channel_access_token,
+        replyToken,
+        `ข้อมูลบ่อของคุณ ${wells.rows.length} บ่อ`,
+        buildWellInfoFlex(customer.customer_name, wells.rows),
+      );
     }
   } else if (/ประกัน|รับประกัน|หมดอายุ/.test(text)) {
     if (!wells.rows.length) {
       lines.push("ยังไม่มีข้อมูลบ่อในระบบครับ");
     } else {
-      wells.rows.forEach((w: any) => {
-        const status =
-          w.warranty_status === "ACTIVE"
-            ? `อยู่ในประกัน (เหลือ ${w.days_left} วัน ถึง ${w.warranty_expire_date})`
-            : w.warranty_status === "EXPIRED"
-              ? "ประกันหมดอายุแล้ว"
-              : "ยังไม่มีวันที่เจาะเสร็จ";
-        lines.push(`• ${w.well_name}: ${status}`);
-      });
+      return replyFlex(
+        org.line_channel_access_token,
+        replyToken,
+        "สถานะประกันบ่อของคุณ",
+        buildWarrantyFlex(wells.rows),
+      );
     }
   } else if (/ประวัติซ่อม|การซ่อม|ซ่อมครั้ง/.test(text)) {
     if (!repairs.rows.length) {
       lines.push("ยังไม่มีประวัติการซ่อมครับ");
     } else {
-      lines.push("ประวัติการซ่อมล่าสุด:");
-      repairs.rows.forEach((r: any) => {
-        const problems = typeof r.problems === "string" ? JSON.parse(r.problems) : (r.problems || []);
-        const createdDate = r.created_at instanceof Date
-          ? r.created_at.toISOString().slice(0, 10)
-          : String(r.created_at).slice(0, 10);
-        lines.push(
-          `• แจ้ง ${createdDate} — ${problems.join(", ")}` +
-          `\n  สถานะ ${r.status}${r.price ? ` | ราคา ${Number(r.price).toLocaleString("th-TH")} บาท` : ""}`
-        );
-      });
+      return replyFlex(
+        org.line_channel_access_token,
+        replyToken,
+        "ประวัติการซ่อมล่าสุดของคุณ",
+        buildRepairHistoryFlex(repairs.rows),
+      );
     }
   } else if (/ประวัติงาน|ประวัติการเจาะ|งานของฉัน/.test(text)) {
     const jobs = await pool.query(
