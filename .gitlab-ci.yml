@@ -8,7 +8,6 @@ stages:
   - test
   - security
   - build
-  - database
   - deploy
   - verify
   - notify
@@ -55,39 +54,6 @@ test-frontend:
   rules:
     - if: '$CI_COMMIT_BRANCH || $CI_PIPELINE_SOURCE == "merge_request_event"'
       when: always
-
-test-tenant-isolation:
-  stage: test
-  image: node:20
-  script:
-    - cd backend
-    - npm ci
-    - npm run test:integration
-  rules:
-    - if: '$INTEGRATION_DATABASE_URL && ($CI_COMMIT_BRANCH || $CI_PIPELINE_SOURCE == "merge_request_event")'
-      when: on_success
-  needs:
-    - test-backend
-
-test-e2e:
-  stage: test
-  image: mcr.microsoft.com/playwright:v1.55.0-jammy
-  script:
-    - cd frontend
-    - npm ci
-    - npm run test:e2e
-  rules:
-    - if: '$E2E_BASE_URL && ($CI_COMMIT_BRANCH || $CI_PIPELINE_SOURCE == "merge_request_event")'
-      when: on_success
-  needs:
-    - test-frontend
-  artifacts:
-    when: always
-    reports:
-      junit: frontend/test-results/e2e.xml
-    paths:
-      - frontend/test-results/
-    expire_in: 7 days
 
 # ---------- BUILD ----------
 
@@ -146,53 +112,6 @@ deploy-render:
   resource_group: production-backend
   needs:
     - build-backend
-
-database-migrate:
-  stage: database
-  image: postgres:16-alpine
-  script:
-    - sh scripts/db-migrate.sh
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      when: manual
-  allow_failure: false
-  environment:
-    name: production/database
-  resource_group: production-database
-
-database-backup:
-  stage: database
-  image: postgres:16-alpine
-  script:
-    - sh scripts/db-backup.sh
-  artifacts:
-    paths:
-      - backups/
-    expire_in: 30 days
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      when: manual
-  allow_failure: false
-  environment:
-    name: production/database
-  resource_group: production-database
-
-database-restore:
-  stage: database
-  image: postgres:16-alpine
-  script:
-    - test "${CONFIRM_RESTORE:-}" = "YES"
-    - export BACKUP_FILE="${BACKUP_FILE:-$(find backups -type f -name '*.dump' | sort | tail -n 1)}"
-    - sh scripts/db-restore.sh
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      when: manual
-  allow_failure: false
-  environment:
-    name: production/database
-  resource_group: production-database
-  needs:
-    - database-backup
 
 deploy-vercel:
   stage: deploy

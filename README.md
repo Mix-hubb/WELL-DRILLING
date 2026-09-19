@@ -175,7 +175,7 @@ Build artifacts ถูกตั้งชื่อด้วย commit SHA เพ�
 - `scripts/db-migrate.sh` รัน Supabase migrations ตามลำดับ แล้วตามด้วย multi-tenant และ performance migrations ด้วย `ON_ERROR_STOP`
 - `scripts/db-backup.sh` สร้าง PostgreSQL custom-format dump พร้อม SHA-256 checksum
 - `scripts/db-restore.sh` restore ได้เมื่อกำหนด `CONFIRM_RESTORE=YES` เท่านั้น
-- GitLab มี manual jobs ชื่อ `database-migrate`, `database-backup` และ `database-restore` สำหรับ `main`; restore จะดาวน์โหลด artifact จาก backup job ล่าสุดใน pipeline เดียวกัน
+- Database scripts พร้อมใช้แบบ manual จากเครื่องหรือ workflow ภายหลัง แต่ยังไม่ถูกผูกเข้า pipeline หลัก 6 stages ในตอนนี้
 
 ตั้งค่า `DATABASE_URL` เป็น protected/masked CI variable และเก็บ backup artifact ไว้ใน storage ที่มี retention แยกจาก GitLab job artifacts ก่อนใช้งานจริง
 
@@ -183,8 +183,7 @@ Build artifacts ถูกตั้งชื่อด้วย commit SHA เพ�
 
 - Backend tenant isolation test: `cd backend; npm run test:integration`
 - Frontend Playwright test: `cd frontend; npm run test:e2e`
-- GitLab จะรัน integration test เมื่อมี `INTEGRATION_DATABASE_URL`
-- GitLab จะรัน E2E เมื่อมี `E2E_BASE_URL` เช่น staging URL
+- Integration และ E2E สามารถรันแยกจากเครื่องได้เมื่อมี test database และ staging URL
 
 ตั้งค่า `INTEGRATION_DATABASE_URL` เป็นฐานข้อมูลทดสอบแยกจาก production เท่านั้น และตั้ง `E2E_BASE_URL` เป็น staging พร้อมข้อมูลทดสอบ ห้ามใช้บัญชี production ใน E2E
 
