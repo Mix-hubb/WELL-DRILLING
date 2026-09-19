@@ -22,28 +22,36 @@ export const useWellsStore = defineStore("wells", {
       return this.current;
     },
     async addStrata(wellId: number | string, data: Partial<WellStrataLog>) {
-      this.current = await wellsApi.addStrata(wellId, data);
+      await wellsApi.addStrata(wellId, data);
+      await this.fetchOne(wellId);
     },
     async removeStrata(wellId: number | string, strataId: number) {
-      this.current = await wellsApi.removeStrata(wellId, strataId);
+      await wellsApi.removeStrata(wellId, strataId);
+      await this.fetchOne(wellId);
     },
     async addPipe(wellId: number | string, data: Partial<WellPipe>) {
-      this.current = await wellsApi.addPipe(wellId, data);
+      await wellsApi.addPipe(wellId, data);
+      await this.fetchOne(wellId);
     },
     async removePipe(wellId: number | string, pipeId: number) {
-      this.current = await wellsApi.removePipe(wellId, pipeId);
+      await wellsApi.removePipe(wellId, pipeId);
+      await this.fetchOne(wellId);
     },
     async addPump(wellId: number | string, data: Partial<WellPump>) {
-      this.current = await wellsApi.addPump(wellId, data);
+      await wellsApi.addPump(wellId, data);
+      await this.fetchOne(wellId);
     },
     async removePump(wellId: number | string, pumpId: number) {
-      this.current = await wellsApi.removePump(wellId, pumpId);
+      await wellsApi.removePump(wellId, pumpId);
+      await this.fetchOne(wellId);
     },
     async addControlBox(wellId: number | string, data: Partial<WellControlBox>) {
-      this.current = await wellsApi.addControlBox(wellId, data);
+      await wellsApi.addControlBox(wellId, data);
+      await this.fetchOne(wellId);
     },
     async removeControlBox(wellId: number | string, controlBoxId: number) {
-      this.current = await wellsApi.removeControlBox(wellId, controlBoxId);
+      await wellsApi.removeControlBox(wellId, controlBoxId);
+      await this.fetchOne(wellId);
     },
   },
 });

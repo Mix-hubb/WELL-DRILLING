@@ -63,27 +63,32 @@ describe("wells store", () => {
   it("addStrata updates the current well", async () => {
     const strata: WellStrataLog = { strata_id: 1, well_id: 1, depth_from_m: 0, depth_to_m: 5 } as WellStrataLog;
     const after = { ...fullWell, strata: [strata] };
-    mocks.addStrata.mockResolvedValueOnce(after);
+    mocks.addStrata.mockResolvedValueOnce(strata);
+    mocks.getOne.mockResolvedValueOnce(after);
     const store = useWellsStore();
     store.current = fullWell;
     await store.addStrata(1, { depth_from_m: 0, depth_to_m: 5 });
     expect(mocks.addStrata).toHaveBeenCalledWith(1, { depth_from_m: 0, depth_to_m: 5 });
+    expect(mocks.getOne).toHaveBeenCalledWith(1);
     expect(store.current?.strata).toEqual([strata]);
   });
 
   it("removeStrata updates the current well", async () => {
-    mocks.removeStrata.mockResolvedValueOnce(fullWell);
+    mocks.removeStrata.mockResolvedValueOnce(null);
+    mocks.getOne.mockResolvedValueOnce(fullWell);
     const store = useWellsStore();
     store.current = { ...fullWell, strata: [{ strata_id: 1 } as WellStrataLog] };
     await store.removeStrata(1, 1);
     expect(mocks.removeStrata).toHaveBeenCalledWith(1, 1);
+    expect(mocks.getOne).toHaveBeenCalledWith(1);
     expect(store.current).toEqual(fullWell);
   });
 
   it("delegates pipes, pumps and control boxes to the api", async () => {
-    mocks.addPipe.mockResolvedValueOnce(fullWell);
-    mocks.removePump.mockResolvedValueOnce(fullWell);
-    mocks.addControlBox.mockResolvedValueOnce(fullWell);
+    mocks.addPipe.mockResolvedValueOnce({});
+    mocks.removePump.mockResolvedValueOnce(null);
+    mocks.addControlBox.mockResolvedValueOnce({});
+    mocks.getOne.mockResolvedValue(fullWell);
     const store = useWellsStore();
     await store.addPipe(1, { material: "PVC" });
     await store.removePump(1, 9);
