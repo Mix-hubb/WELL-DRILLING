@@ -11,6 +11,6 @@ function fileUrl(req: any, res: any) {
 
 router.post("/", authMiddleware, upload.single("file"), fileUrl);
 router.post("/public", magicAuth, upload.single("file"), fileUrl);
-router.post("/form", upload.single("file"), fileUrl);
+router.post("/form", magicAuth, upload.single("file"), fileUrl);
 
 export default router;

@@ -17,7 +17,8 @@ import uploadRoutes          from "./routes/upload.routes";
 import webhookRoutes         from "./routes/webhooks.routes";
 import lineSettingsRoutes     from "./routes/lineSettings.routes";
 import orgRoutes              from "./routes/org.routes";
-import { authMiddleware }    from "./middleware/auth";
+import { authMiddleware, adminMiddleware } from "./middleware/auth";
+import { magicAuth }         from "./middleware/upload";
 import { asyncHandler }      from "./utils/asyncHandler";
 
 import { verifyToken }       from "./middleware/auth";
@@ -30,8 +31,23 @@ import * as wellsCtrl        from "./controllers/wells.controller";
 
 const app = express();
 
-app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
-app.use(express.json({ verify: (_req, _res, buf) => { (_req as any).rawBody = buf; } }));
+app.set("trust proxy", 1);
+
+const corsOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === "production" ? false : "*");
+app.use(cors({ origin: corsOrigin }));
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  next();
+});
+app.use(express.json({
+  limit: "1mb",
+  verify: (_req, _res, buf) => { (_req as any).rawBody = buf; },
+}));
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Request timeout middleware (30s)
@@ -44,7 +60,7 @@ app.use((_req, res, next) => {
   next();
 });
 
-app.get("/api/health", async (_req, res) => {
+app.get("/api/health", publicLimiter, async (_req, res) => {
   try {
     const { pool } = await import("./config/db.js");
     await pool.query("SELECT 1 as ok");
@@ -54,7 +70,7 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 
-app.get("/api/debug/postback-test/:customerId/:requestId", async (req, res) => {
+app.get("/api/debug/postback-test/:customerId/:requestId", authMiddleware, adminMiddleware, apiLimiter, async (req, res) => {
   try {
     const { pool } = await import("./config/db.js");
     const { customerId, requestId } = req.params;
@@ -89,7 +105,7 @@ app.get("/api/debug/postback-test/:customerId/:requestId", async (req, res) => {
   }
 });
 
-app.get("/api/debug/overview", async (_req, res) => {
+app.get("/api/debug/overview", authMiddleware, adminMiddleware, apiLimiter, async (_req, res) => {
   try {
     const { pool } = await import("./config/db.js");
     const customers = await pool.query(
@@ -163,17 +179,17 @@ app.get("/api/public/customer-by-line", publicLimiter, asyncHandler(async (req: 
 }));
 app.get("/api/public/wells/:id/report.pdf", publicLimiter, asyncHandler(wellsCtrl.exportReport));
 app.get("/api/public/repairs/:id/receipt.pdf", publicLimiter, asyncHandler(repairCtrl.exportReceipt));
-app.get("/api/jobs/magic/:token", asyncHandler(jobsCtrl.getByMagicToken));
-app.patch("/api/jobs/:id/well", asyncHandler(jobsCtrl.completeWell));
-app.get("/api/repair-requests/magic/:token", asyncHandler(repairCtrl.getByMagicToken));
-app.post("/api/repair-requests/:id/records", asyncHandler(repairCtrl.addRecord));
-app.use("/api/pump-catalog", pumpCatalogRoutes);
-app.use("/api/upload", uploadRoutes);
-app.use("/api/webhooks", webhookRoutes);
+app.get("/api/jobs/magic/:token", publicLimiter, magicAuth, asyncHandler(jobsCtrl.getByMagicToken));
+app.patch("/api/jobs/:id/well", publicLimiter, magicAuth, asyncHandler(jobsCtrl.completeWell));
+app.get("/api/repair-requests/magic/:token", publicLimiter, magicAuth, asyncHandler(repairCtrl.getByMagicToken));
+app.post("/api/repair-requests/:id/records", publicLimiter, magicAuth, asyncHandler(repairCtrl.addRecord));
+app.use("/api/pump-catalog", publicLimiter, pumpCatalogRoutes);
+app.use("/api/upload", publicLimiter, uploadRoutes);
+app.use("/api/webhooks", publicLimiter, webhookRoutes);
 
 // SSE endpoint — real-time dashboard updates (cap at 50 concurrent)
 const MAX_SSE_CLIENTS = 50;
-app.get("/api/events", (req, res) => {
+app.get("/api/events", apiLimiter, (req, res) => {
   if (clientCount() >= MAX_SSE_CLIENTS) {
     return res.status(429).json({ error: "Too many SSE connections" });
   }
