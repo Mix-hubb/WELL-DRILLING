@@ -93,43 +93,43 @@ npm run preview
 
 ### Backend ที่สำคัญ
 
-| ตัวแปร | ใช้สำหรับ |
-|---|---|
-| `PORT` | พอร์ต API |
-| `DATABASE_URL` | PostgreSQL connection string สำหรับ production |
-| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | การเชื่อมต่อ PostgreSQL แบบแยกค่า |
-| `DB_SSL` | เปิด SSL ของฐานข้อมูล |
-| `CORS_ORIGIN` | URL ของ frontend |
-| `JWT_SECRET` | secret สำหรับ JWT |
-| `APP_URL` | URL ที่ใช้สร้างลิงก์กลับไป frontend |
-| `LINE_CHANNEL_SECRET` | LINE channel secret แบบ legacy/single-org |
-| `LINE_CHANNEL_ACCESS_TOKEN` | LINE access token แบบ legacy/single-org |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | ส่ง email reset password |
-| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` | ส่ง SMS OTP |
+| ตัวแปร                                                           | ใช้สำหรับ                                      |
+| ---------------------------------------------------------------- | ---------------------------------------------- |
+| `PORT`                                                           | พอร์ต API                                      |
+| `DATABASE_URL`                                                   | PostgreSQL connection string สำหรับ production |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`        | การเชื่อมต่อ PostgreSQL แบบแยกค่า              |
+| `DB_SSL`                                                         | เปิด SSL ของฐานข้อมูล                          |
+| `CORS_ORIGIN`                                                    | URL ของ frontend                               |
+| `JWT_SECRET`                                                     | secret สำหรับ JWT                              |
+| `APP_URL`                                                        | URL ที่ใช้สร้างลิงก์กลับไป frontend            |
+| `LINE_CHANNEL_SECRET`                                            | LINE channel secret แบบ legacy/single-org      |
+| `LINE_CHANNEL_ACCESS_TOKEN`                                      | LINE access token แบบ legacy/single-org        |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`  | ส่ง email reset password                       |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` | ส่ง SMS OTP                                    |
 
 การตั้งค่า LINE แบบหลายองค์กรเก็บในตาราง `organizations` และรองรับ `line_bot_user_id`, LIFF IDs และ access token แยกองค์กร
 
 ### Frontend ที่สำคัญ
 
-| ตัวแปร | ใช้สำหรับ |
-|---|---|
-| `VITE_API_URL` | URL ของ backend API |
+| ตัวแปร                  | ใช้สำหรับ                                    |
+| ----------------------- | -------------------------------------------- |
+| `VITE_API_URL`          | URL ของ backend API                          |
 | `VITE_LIFF_ID_DRILLING` | LIFF สำหรับแจ้งเจาะ ถ้าไม่ได้ใช้ค่าจากองค์กร |
-| `VITE_LIFF_ID_REPAIR` | LIFF สำหรับแจ้งซ่อม ถ้าไม่ได้ใช้ค่าจากองค์กร |
+| `VITE_LIFF_ID_REPAIR`   | LIFF สำหรับแจ้งซ่อม ถ้าไม่ได้ใช้ค่าจากองค์กร |
 
 ## API และ realtime
 
 Backend ใช้ prefix `/api` ตัวอย่าง endpoint หลัก:
 
-| Method | Endpoint | รายละเอียด |
-|---|---|---|
-| `POST` | `/api/auth/login` | เข้าสู่ระบบ |
-| `GET` | `/api/jobs` | รายการงานเจาะ |
-| `GET` | `/api/wells` | รายการบ่อ |
-| `GET` | `/api/customers` | รายการลูกค้า |
-| `GET` | `/api/stats/overview` | สถิติ dashboard |
-| `GET` | `/api/events` | SSE realtime stream |
-| `POST` | `/api/webhooks/line` | LINE webhook |
+| Method | Endpoint              | รายละเอียด          |
+| ------ | --------------------- | ------------------- |
+| `POST` | `/api/auth/login`     | เข้าสู่ระบบ         |
+| `GET`  | `/api/jobs`           | รายการงานเจาะ       |
+| `GET`  | `/api/wells`          | รายการบ่อ           |
+| `GET`  | `/api/customers`      | รายการลูกค้า        |
+| `GET`  | `/api/stats/overview` | สถิติ dashboard     |
+| `GET`  | `/api/events`         | SSE realtime stream |
+| `POST` | `/api/webhooks/line`  | LINE webhook        |
 
 หน้า dashboard, jobs, requests, wells และรายละเอียดที่เกี่ยวข้องจะ refresh เมื่อได้รับ event จาก SSE เช่น job, request, quotation, well, customer และ repair record changes
 
@@ -156,6 +156,21 @@ https://<backend-domain>/api/webhooks/line
 - Database: Supabase PostgreSQL
 
 ก่อน deploy ให้ตรวจสอบว่า environment variables, CORS origin, LINE webhook URL และ migrations ครบถ้วน
+
+### CI/CD
+
+GitLab CI ทำงานตามลำดับ test, security scan, build, deploy และ smoke test โดย test backend/frontend ทำงานแบบขนาน และ deploy เฉพาะ branch `main`
+
+ต้องตั้งค่า CI/CD Variables ใน GitLab ดังนี้:
+
+- `RENDER_DEPLOY_HOOK_URL` สำหรับ trigger deploy backend
+- `VERCEL_DEPLOY_HOOK_URL` สำหรับ trigger deploy frontend
+- `SLACK_WEBHOOK_URL` (ถ้าต้องการรับ notification)
+- `FRONTEND_URL` (ถ้าต้องการให้ smoke test ตรวจ frontend ด้วย)
+
+Build artifacts ถูกตั้งชื่อด้วย commit SHA เพื่อให้ระบุเวอร์ชันได้ ส่วน rollback แบบ provider-native และ artifact registry ต้องตั้งค่า API/registry credentials เพิ่มเติมก่อนเปิดใช้งาน
+
+Backend และ frontend security scan เป็น quality gate แล้ว โดยตรวจ high/critical vulnerabilities ก่อน build และ deploy หลังอัปเกรด Nodemailer เป็น `10.0.10`, Vite เป็น `8.3.0` และ Vitest เป็น `5.0.1`
 
 ## ความปลอดภัยของไฟล์
 

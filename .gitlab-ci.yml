@@ -6,8 +6,21 @@
 
 stages:
   - test
+  - security
   - build
   - deploy
+  - verify
+  - notify
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: "$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS"
+      when: never
+    - if: "$CI_COMMIT_BRANCH"
+
+default:
+  interruptible: true
 
 variables:
   NODE_VERSION: "20"
@@ -28,18 +41,18 @@ test-backend:
     - npm ci
     - npm test
   rules:
-    - if: $CI_COMMIT_BRANCH
+    - if: '$CI_COMMIT_BRANCH || $CI_PIPELINE_SOURCE == "merge_request_event"'
       when: always
 
 test-frontend:
   stage: test
-  image: node:20
+  image: node:22
   script:
     - cd frontend
     - npm ci
     - npm test
   rules:
-    - if: $CI_COMMIT_BRANCH
+    - if: '$CI_COMMIT_BRANCH || $CI_PIPELINE_SOURCE == "merge_request_event"'
       when: always
 
 # ---------- BUILD ----------
@@ -49,33 +62,37 @@ build-backend:
   image: node:20
   needs:
     - test-backend
+    - security-backend
   script:
     - cd backend
     - npm ci
     - npm run build
   artifacts:
+    name: "backend-$CI_COMMIT_SHORT_SHA"
     paths:
       - backend/dist/
     expire_in: 1 hour
   rules:
-    - if: $CI_COMMIT_BRANCH
+    - if: '$CI_COMMIT_BRANCH || $CI_PIPELINE_SOURCE == "merge_request_event"'
       when: always
 
 build-frontend:
   stage: build
-  image: node:20
+  image: node:22
   needs:
     - test-frontend
+    - security-frontend
   script:
     - cd frontend
     - npm ci
     - npm run build
   artifacts:
+    name: "frontend-$CI_COMMIT_SHORT_SHA"
     paths:
       - frontend/dist/
     expire_in: 1 hour
   rules:
-    - if: $CI_COMMIT_BRANCH
+    - if: '$CI_COMMIT_BRANCH || $CI_PIPELINE_SOURCE == "merge_request_event"'
       when: always
 
 # ---------- DEPLOY (main branch only) ----------
@@ -89,6 +106,10 @@ deploy-render:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: on_success
+  environment:
+    name: production/backend
+    url: https://well-drilling-api.onrender.com
+  resource_group: production-backend
   needs:
     - build-backend
 
@@ -101,5 +122,85 @@ deploy-vercel:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: on_success
+  environment:
+    name: production/frontend
+    url: https://well-drilling.vercel.app
+  resource_group: production-frontend
   needs:
     - build-frontend
+
+security-backend:
+  stage: security
+  image: node:20
+  script:
+    - cd backend
+    - npm ci
+    - npm audit --audit-level=high
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: always
+  needs:
+    - test-backend
+
+security-frontend:
+  stage: security
+  image: node:22
+  script:
+    - cd frontend
+    - npm ci
+    - npm audit --audit-level=high
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: always
+  needs:
+    - test-frontend
+
+smoke-production:
+  stage: verify
+  image: alpine:latest
+  script:
+    - apk add --no-cache curl
+    - curl --fail --retry 12 --retry-delay 5 --retry-connrefused https://well-drilling-api.onrender.com/api/health
+    - if [ -n "${FRONTEND_URL:-}" ]; then curl --fail --retry 12 --retry-delay 5 --retry-connrefused "$FRONTEND_URL"; fi
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+  needs:
+    - deploy-render
+    - deploy-vercel
+
+notify-success:
+  stage: notify
+  image: alpine:latest
+  script:
+    - apk add --no-cache curl
+    - |
+      if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
+        curl --fail --silent --show-error -X POST -H 'Content-Type: application/json' --data "{\"text\":\"CI/CD succeeded: ${CI_PROJECT_PATH} ${CI_COMMIT_SHORT_SHA} (${CI_COMMIT_REF_NAME})\"}" "$SLACK_WEBHOOK_URL"
+      else
+        echo "SLACK_WEBHOOK_URL is not configured"
+      fi
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+  allow_failure: true
+  needs:
+    - smoke-production
+
+notify-failure:
+  stage: notify
+  image: alpine:latest
+  script:
+    - apk add --no-cache curl
+    - |
+      if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
+        curl --fail --silent --show-error -X POST -H 'Content-Type: application/json' --data "{\"text\":\"CI/CD failed: ${CI_PROJECT_PATH} ${CI_COMMIT_SHORT_SHA} (${CI_COMMIT_REF_NAME})\"}" "$SLACK_WEBHOOK_URL"
+      else
+        echo "SLACK_WEBHOOK_URL is not configured"
+      fi
+  when: on_failure
+  allow_failure: true
