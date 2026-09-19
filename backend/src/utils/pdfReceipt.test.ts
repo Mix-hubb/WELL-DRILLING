@@ -41,7 +41,7 @@ describe("streamRepairReceiptPdf", () => {
     expect(mockRes.setHeader).toHaveBeenCalledWith("Content-Type", "application/pdf");
     expect(mockRes.setHeader).toHaveBeenCalledWith(
       "Content-Disposition",
-      expect.stringContaining("well-drilling-vue" ? "receipt-repair-101.pdf" : "")
+      expect.stringContaining("receipt-repair-101.pdf")
     );
   });
 
