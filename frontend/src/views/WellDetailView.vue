@@ -25,7 +25,7 @@ const showPipe      = ref(false);
 const showPump      = ref(false);
 const showCtrl      = ref(false);
 
-const wellId = () => Number(route.params.id);
+const wellId = () => String(route.params.id);
 
 async function refresh() {
   try {

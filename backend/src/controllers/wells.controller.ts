@@ -209,7 +209,7 @@ export async function remove(req: Request, res: Response) {
 export async function addStrata(req: Request, res: Response) {
   const { wellId } = req.params;
   const { depth_from_m, depth_to_m, lithology_type, lithology_name, color_hex, hardness, water_bearing, description } = req.body;
-  if (depth_from_m == null || depth_to_m == null) {
+  if (depth_from_m == null || depth_to_m == null || !Number.isFinite(Number(depth_from_m)) || !Number.isFinite(Number(depth_to_m))) {
     return res.status(400).json({ error: "ต้องระบุ depth_from_m และ depth_to_m" });
   }
   const { sql, params } = userFilter(req, "c", 1);

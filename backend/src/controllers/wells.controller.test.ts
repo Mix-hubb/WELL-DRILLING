@@ -155,6 +155,16 @@ describe("strata / pipes / pumps / control boxes", () => {
     expect(mocks.poolQuery).not.toHaveBeenCalled();
   });
 
+  it("addStrata rejects non-numeric depths", async () => {
+    const res = createRes();
+    await wells.addStrata(
+      createReq({ params: { wellId: "1" }, body: { depth_from_m: "NaN", depth_to_m: 20 } }),
+      res
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mocks.poolQuery).not.toHaveBeenCalled();
+  });
+
   it("addStrata inserts and broadcasts", async () => {
     const res = createRes();
     await wells.addStrata(
