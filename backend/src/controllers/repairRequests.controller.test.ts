@@ -4,13 +4,23 @@ import type { Request, Response } from "express";
 const mocks = vi.hoisted(() => ({
   poolQuery: vi.fn(),
   poolConnect: vi.fn(),
-  sendTextToCustomer: vi.fn(),
+  sendTextToCustomer: vi.fn().mockResolvedValue(true),
+  sendFlexToCustomer: vi.fn().mockResolvedValue(true),
+  buildRepairReceiptFlex: vi.fn().mockReturnValue({ type: "bubble" }),
+  streamRepairReceiptPdf: vi.fn(),
   broadcast: vi.fn(),
 }));
 const client = { query: vi.fn(), release: vi.fn() };
 
 vi.mock("../config/db", () => ({ pool: { query: mocks.poolQuery, connect: mocks.poolConnect } }));
-vi.mock("../services/line", () => ({ sendTextToCustomer: mocks.sendTextToCustomer }));
+vi.mock("../services/line", () => ({
+  sendTextToCustomer: mocks.sendTextToCustomer,
+  sendFlexToCustomer: mocks.sendFlexToCustomer,
+  buildRepairReceiptFlex: mocks.buildRepairReceiptFlex,
+}));
+vi.mock("../utils/pdfReceipt", () => ({
+  streamRepairReceiptPdf: mocks.streamRepairReceiptPdf,
+}));
 vi.mock("../services/sse", () => ({ broadcast: mocks.broadcast }));
 
 import * as repairRequests from "./repairRequests.controller";
@@ -369,7 +379,13 @@ describe("addRecord", () => {
       "UPDATE repair_requests SET status = 'COMPLETED' WHERE repair_id = $1",
       ["1"]
     );
-    expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(2, expect.any(String), "STATUS", "org-1");
+    expect(mocks.sendFlexToCustomer).toHaveBeenCalledWith(
+      2,
+      "ใบเสร็จรับเงินการซ่อมบำรุง",
+      expect.any(Object),
+      "STATUS",
+      "org-1"
+    );
     expect(res.status).toHaveBeenCalledWith(201);
   });
 });
@@ -459,3 +475,113 @@ describe("createFromPublicForm", () => {
     expect(res.json).toHaveBeenCalledWith({ repair_id: 100, customer_id: 10 });
   });
 });
+
+describe("exportReceipt", () => {
+  it("returns 404 if repair request is not found", async () => {
+    mocks.poolQuery.mockResolvedValueOnce({ rows: [] });
+    const res = createRes();
+    await repairRequests.exportReceipt(createReq({ params: { id: "99" } }), res);
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  it("streams repair receipt PDF when request and record exist", async () => {
+    mocks.poolQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM repair_requests r")) {
+        return {
+          rows: [
+            {
+              repair_id: "1",
+              customer_id: "2",
+              customer_name: "สมชาย",
+              customer_phone: "0812345678",
+              well_name: "บ่อสวน",
+              problems: '["น้ำไม่ไหล"]',
+              org_name: "บริษัท เจาะน้ำบาดาล จำกัด",
+            },
+          ],
+        };
+      }
+      if (sql.includes("FROM repair_records")) {
+        return {
+          rows: [
+            {
+              record_id: "rec-1",
+              work_details: "เปลี่ยนปั๊มและเช็ควาล์ว",
+              final_price: 3500,
+              parts: '[{"name":"วาล์วกันกลับ","qty":1,"unit_price":450}]',
+              is_warranty_claim: false,
+              completed_at: "2026-03-10",
+            },
+          ],
+        };
+      }
+      return { rows: [] };
+    });
+
+    const res = createRes();
+    await repairRequests.exportReceipt(createReq({ params: { id: "1" } }), res);
+
+    expect(mocks.streamRepairReceiptPdf).toHaveBeenCalledWith(
+      res,
+      expect.objectContaining({
+        receipt_no: expect.stringContaining("REC-"),
+        customer_name: "สมชาย",
+        final_price: 3500,
+        work_details: "เปลี่ยนปั๊มและเช็ควาล์ว",
+      })
+    );
+  });
+});
+
+describe("sendReceiptToCustomer", () => {
+  it("returns 404 when repair request not found", async () => {
+    mocks.poolQuery.mockResolvedValueOnce({ rows: [] });
+    const res = createRes();
+    await repairRequests.sendReceiptToCustomer(createReq({ params: { id: "99" } }), res);
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  it("sends receipt Flex to customer and returns 200", async () => {
+    mocks.poolQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM repair_requests r")) {
+        return {
+          rows: [
+            {
+              repair_id: "1",
+              customer_id: "2",
+              customer_name: "สมชาย",
+              org_id: "org-1",
+            },
+          ],
+        };
+      }
+      if (sql.includes("FROM repair_records")) {
+        return {
+          rows: [
+            {
+              record_id: "rec-1",
+              work_details: "ล้างบ่อ",
+              final_price: 1200,
+              is_warranty_claim: false,
+            },
+          ],
+        };
+      }
+      return { rows: [] };
+    });
+    mocks.sendFlexToCustomer.mockResolvedValueOnce(true);
+
+    const res = createRes();
+    await repairRequests.sendReceiptToCustomer(createReq({ params: { id: "1" } }), res);
+
+    expect(mocks.sendFlexToCustomer).toHaveBeenCalledWith(
+      "2",
+      "ใบเสร็จรับเงินการซ่อมบำรุง",
+      expect.any(Object),
+      "STATUS",
+      "org-1"
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+});
+

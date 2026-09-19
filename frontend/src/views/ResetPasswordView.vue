@@ -3,7 +3,7 @@ import { ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { authApi } from "@/api/auth";
 import { useUiStore } from "@/stores/ui";
-import { requiredField } from "@/utils/validation";
+import { requiredField, allowOnlyDigits, cleanDigits } from "@/utils/validation";
 
 const router = useRouter();
 const route = useRoute();
@@ -75,10 +75,14 @@ async function handleResetPassword() {
               <v-text-field
                 v-model="code"
                 label="รหัสยืนยัน 6 หลัก"
+                type="tel"
+                maxlength="6"
                 prepend-inner-icon="mdi-key-outline"
                 variant="outlined"
                 density="comfortable"
-                :rules="[requiredField('กรุณารหัสยืนยัน')]"
+                @keypress="allowOnlyDigits"
+                @input="(e: any) => code = cleanDigits(e.target?.value ?? code, 6)"
+                :rules="[requiredField('กรุณากรอกรหัสยืนยัน')]"
                 class="mb-4"
                 autocomplete="one-time-code"
                 inputmode="numeric"

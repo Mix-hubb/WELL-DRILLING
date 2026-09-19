@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { allowOnlyDigits, cleanPhoneNumber, validThaiPhone, requiredField } from "@/utils/validation";
 
 const form = ref({
   name: "",
@@ -20,6 +21,7 @@ const isLoggedIn = ref(false);
 const profileName = ref("");
 const profilePicture = ref("");
 const customerFound = ref(false);
+const editInfo = ref(false);
 const checkingExisting = ref(false);
 const actualLiffId = ref<string | null>(null);
 
@@ -107,10 +109,22 @@ function resizeImage(file: File, maxW = 800): Promise<string> {
 }
 
 const canSubmit = computed(() => {
-  return form.value.problem_types.length > 0;
+  const hasValidPhone = validThaiPhone()(form.value.phone) === true;
+  const hasName = !!form.value.name?.trim();
+  const hasProblems = form.value.problem_types.length > 0;
+  return hasValidPhone && hasName && hasProblems;
 });
 
 async function submit() {
+  if (!form.value.name || !form.value.name.trim()) {
+    error.value = "กรุณากรอกชื่อ-นามสกุล";
+    return;
+  }
+  const phoneCheck = validThaiPhone()(form.value.phone);
+  if (phoneCheck !== true) {
+    error.value = typeof phoneCheck === "string" ? phoneCheck : "เบอร์โทรศัพท์ไม่ถูกต้อง (9-10 หลัก ขึ้นต้นด้วย 0)";
+    return;
+  }
   if (form.value.problem_types.length === 0) {
     error.value = "กรุณาเลือกอาการที่พบอย่างน้อย 1 รายการ";
     return;
@@ -260,12 +274,83 @@ async function checkExistingCustomer() {
           {{ error }}
         </v-alert>
 
-        <!-- แสดงข้อมูลลูกค้าอัตโนมัติ -->
-        <v-alert v-if="customerFound" type="info" variant="tonal" density="compact" rounded="lg" class="mb-4">
-          <div class="text-body-2"><strong>{{ form.name }}</strong></div>
-          <div v-if="form.phone" class="text-caption">{{ form.phone }}</div>
-          <div v-if="form.address" class="text-caption">{{ form.address }}</div>
+        <!-- แสดงข้อมูลลูกค้าเดิม ถ้ามี -->
+        <v-alert v-if="customerFound && !editInfo" type="info" variant="tonal" density="compact" rounded="lg" class="mb-4">
+          <div class="d-flex justify-space-between align-center">
+            <div>
+              <div class="text-body-2"><strong>{{ form.name }}</strong></div>
+              <div v-if="form.phone" class="text-caption">{{ form.phone }}</div>
+              <div v-if="form.address" class="text-caption">{{ form.address }}</div>
+            </div>
+            <v-btn variant="text" size="small" color="primary" @click="editInfo = true">
+              แก้ไขข้อมูล
+            </v-btn>
+          </div>
         </v-alert>
+
+        <!-- ฟอร์มกรอกข้อมูลผู้ติดต่อ ถ้าไม่มีข้อมูลเดิม หรือกดแก้ไข -->
+        <div v-if="!customerFound || editInfo" class="customer-fields mb-4 pa-3 rounded-lg" style="background: #FDFBF7; border: 1px solid #E2D9CC;">
+          <div class="d-flex justify-space-between align-center mb-2">
+            <div class="text-subtitle-2 font-weight-bold" style="color: #2E2418;">
+              <v-icon icon="mdi-account-outline" size="18" class="mr-1" />
+              ข้อมูลผู้แจ้งซ่อม
+            </div>
+            <v-btn v-if="customerFound && editInfo" variant="text" size="x-small" @click="editInfo = false">
+              ยกเลิกแก้ไข
+            </v-btn>
+          </div>
+
+          <div class="field-group mb-2">
+            <div class="field-label">
+              ชื่อ-นามสกุล <span class="text-error ml-1">*</span>
+            </div>
+            <v-text-field
+              v-model="form.name"
+              placeholder="กรอกชื่อ-นามสกุล"
+              variant="outlined"
+              density="comfortable"
+              rounded="lg"
+              :rules="[requiredField('กรุณากรอกชื่อ-นามสกุล')]"
+              class="field-input"
+            />
+          </div>
+
+          <div class="field-group mb-2">
+            <div class="field-label">
+              เบอร์โทรศัพท์ <span class="text-error ml-1">*</span>
+            </div>
+            <v-text-field
+              v-model="form.phone"
+              type="tel"
+              maxlength="10"
+              placeholder="เช่น 0812345678"
+              variant="outlined"
+              density="comfortable"
+              rounded="lg"
+              @keypress="allowOnlyDigits"
+              @input="(e: any) => form.phone = cleanPhoneNumber(e.target?.value ?? form.phone)"
+              :rules="[requiredField('กรุณากรอกเบอร์โทรศัพท์'), validThaiPhone()]"
+              class="field-input"
+            />
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">
+              ที่อยู่ / สถานที่บ่อ
+            </div>
+            <v-textarea
+              v-model="form.address"
+              placeholder="กรอกที่อยู่หรือจุดสังเกต"
+              variant="outlined"
+              density="comfortable"
+              rounded="lg"
+              rows="2"
+              auto-grow
+              hide-details
+              class="field-input"
+            />
+          </div>
+        </div>
 
         <v-form @submit.prevent="submit">
 

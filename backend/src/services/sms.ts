@@ -19,6 +19,8 @@ export async function sendResetCodeSms(phone: string, code: string): Promise<voi
     throw new Error("SMS service not configured");
   }
 
+
+
   await c.messages.create({
     body: `[Well-Drilling] รหัสยืนยันของคุณคือ ${code} (หมดอายุใน 10 นาที)`,
     from: fromNumber,

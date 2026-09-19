@@ -3,6 +3,8 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { api } from "@/api/client";
+import TeamMembersManager from "@/components/TeamMembersManager.vue";
+import PumpCatalogManager from "@/components/PumpCatalogManager.vue";
 
 const auth = useAuthStore();
 const ui = useUiStore();
@@ -38,11 +40,14 @@ const liffRepairStatus = ref<"ok" | "duplicate" | null>(null);
 const liffDrillUsedBy = ref("");
 const liffRepairUsedBy = ref("");
 
-const webhookUrl = "https://well-drilling-api.onrender.com/api/webhooks/line";
+const BASE_API = (import.meta.env.VITE_API_URL || "http://localhost:4001/api").replace(/\/api$/, "");
+const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
+
+const webhookUrl = `${BASE_API}/api/webhooks/line`;
 const drillUrl = computed(() => liffIdDrilling.value ? `https://liff.line.me/${liffIdDrilling.value}/request-drill` : "");
 const repairUrl = computed(() => liffIdRepair.value ? `https://liff.line.me/${liffIdRepair.value}/repair-form` : "");
-const drillEndpoint = computed(() => liffIdDrilling.value ? `https://well-drilling.vercel.app/request-drill?liffId=${liffIdDrilling.value}` : "");
-const repairEndpoint = computed(() => liffIdRepair.value ? `https://well-drilling.vercel.app/repair-form?liffId=${liffIdRepair.value}` : "");
+const drillEndpoint = computed(() => liffIdDrilling.value ? `${APP_URL}/request-drill?liffId=${liffIdDrilling.value}` : "");
+const repairEndpoint = computed(() => liffIdRepair.value ? `${APP_URL}/repair-form?liffId=${liffIdRepair.value}` : "");
 
 const hasLineConfig = computed(() => !!channelId.value);
 
@@ -513,6 +518,31 @@ function copyToClipboard(text: string, label: string) {
               </div>
             </div>
           </template>
+        </v-card>
+
+        <!-- Team Members Section -->
+        <v-card rounded="xl" elevation="1" class="mt-5">
+          <v-card-title class="text-h6 font-weight-bold pa-4 pb-2">
+            <v-icon start icon="mdi-account-group-outline" color="primary" />
+            สมาชิกในทีม
+          </v-card-title>
+          <v-divider />
+          <v-card-text class="pa-4">
+            <TeamMembersManager />
+          </v-card-text>
+        </v-card>
+
+        <!-- Pump Catalog Section -->
+        <v-card rounded="xl" elevation="1" class="mt-5">
+          <v-card-title class="text-h6 font-weight-bold pa-4 pb-2">
+            <v-icon start icon="mdi-water-pump" color="primary" />
+            แคตตาล็อกปั๊มน้ำ
+            <v-chip size="x-small" color="primary" variant="tonal" class="ml-2">จัดการรุ่นปั๊มน้ำ</v-chip>
+          </v-card-title>
+          <v-divider />
+          <v-card-text class="pa-4">
+            <PumpCatalogManager />
+          </v-card-text>
         </v-card>
       </v-col>
     </v-row>

@@ -16,14 +16,17 @@ import pumpCatalogRoutes     from "./routes/pumpCatalog.routes";
 import uploadRoutes          from "./routes/upload.routes";
 import webhookRoutes         from "./routes/webhooks.routes";
 import lineSettingsRoutes     from "./routes/lineSettings.routes";
+import orgRoutes              from "./routes/org.routes";
 import { authMiddleware }    from "./middleware/auth";
 import { asyncHandler }      from "./utils/asyncHandler";
+
 import { verifyToken }       from "./middleware/auth";
 import { addClient, clientCount } from "./services/sse";
 import { apiLimiter, authLimiter, publicLimiter } from "./middleware/rateLimit";
 import * as jobsCtrl         from "./controllers/jobs.controller";
 import * as repairCtrl       from "./controllers/repairRequests.controller";
 import * as drillingReqCtrl  from "./controllers/drillingRequests.controller";
+import * as wellsCtrl        from "./controllers/wells.controller";
 
 const app = express();
 
@@ -158,6 +161,8 @@ app.get("/api/public/customer-by-line", publicLimiter, asyncHandler(async (req: 
   );
   res.json({ found: true, customer: c, lastRequest: requests.rows[0] || null });
 }));
+app.get("/api/public/wells/:id/report.pdf", publicLimiter, asyncHandler(wellsCtrl.exportReport));
+app.get("/api/public/repairs/:id/receipt.pdf", publicLimiter, asyncHandler(repairCtrl.exportReceipt));
 app.get("/api/jobs/magic/:token", asyncHandler(jobsCtrl.getByMagicToken));
 app.patch("/api/jobs/:id/well", asyncHandler(jobsCtrl.completeWell));
 app.get("/api/repair-requests/magic/:token", asyncHandler(repairCtrl.getByMagicToken));
@@ -198,6 +203,8 @@ app.use("/api/repair-requests",   authMiddleware, apiLimiter, repairRequestsRout
 app.use("/api/quotations",        authMiddleware, apiLimiter, quotationsRoutes);
 app.use("/api/repair-records",    authMiddleware, apiLimiter, repairRecordsRoutes);
 app.use("/api/line-settings",     authMiddleware, apiLimiter, lineSettingsRoutes);
+app.use("/api/org",               authMiddleware, apiLimiter, orgRoutes);
+
 
 // centralized error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

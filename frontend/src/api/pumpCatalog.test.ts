@@ -15,7 +15,7 @@ beforeEach(() => {
 });
 
 describe("pumpCatalogApi", () => {
-  it("list calls GET /pump-catalog without brand", async () => {
+  it("list calls GET /pump-catalog without params", async () => {
     mockApi.get.mockResolvedValueOnce({ data: [{ id: 1, brand: "Grundfos" }] });
     const result = await pumpCatalogApi.list();
     expect(mockApi.get).toHaveBeenCalledWith("/pump-catalog");
@@ -24,19 +24,19 @@ describe("pumpCatalogApi", () => {
 
   it("list calls GET /pump-catalog?brand=X when brand provided", async () => {
     mockApi.get.mockResolvedValueOnce({ data: [{ id: 2, brand: "Franklin" }] });
-    await pumpCatalogApi.list("Franklin");
+    await pumpCatalogApi.list({ brand: "Franklin" });
     expect(mockApi.get).toHaveBeenCalledWith("/pump-catalog?brand=Franklin");
   });
 
   it("list encodes brand with special characters", async () => {
     mockApi.get.mockResolvedValueOnce({ data: [] });
-    await pumpCatalogApi.list("Brand & Co.");
-    expect(mockApi.get).toHaveBeenCalledWith("/pump-catalog?brand=Brand%20%26%20Co.");
+    await pumpCatalogApi.list({ brand: "Brand & Co." });
+    expect(mockApi.get).toHaveBeenCalledWith("/pump-catalog?brand=Brand+%26+Co.");
   });
 
   it("list returns empty data when no results", async () => {
     mockApi.get.mockResolvedValueOnce({ data: [] });
-    const result = await pumpCatalogApi.list("Nonexistent");
+    const result = await pumpCatalogApi.list({ brand: "Nonexistent" });
     expect(result).toEqual({ data: [] });
   });
 });

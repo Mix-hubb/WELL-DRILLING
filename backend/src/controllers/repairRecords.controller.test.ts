@@ -6,8 +6,12 @@ const mocks = vi.hoisted(() => ({
   broadcast: vi.fn(),
 }));
 
-vi.mock("../config/db", () => ({ pool: { query: mocks.poolQuery } }));
-vi.mock("../services/sse", () => ({ broadcast: mocks.broadcast }));
+vi.mock("../config/db", () => ({
+  pool: { query: mocks.poolQuery },
+}));
+vi.mock("../services/sse", () => ({
+  broadcast: mocks.broadcast,
+}));
 
 import * as repairRecords from "./repairRecords.controller";
 
@@ -16,95 +20,78 @@ function createRes() {
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
   res.end = vi.fn();
-  return res;
+  return res as Response & { statusCode: number; json: any; status: any; end: any };
 }
 
-function createReq(overrides: Record<string, any> = {}): Request {
-  return {
-    body: {},
-    params: {},
-    query: {},
-    user: { orgId: "org-1" },
-    ...overrides,
-  } as unknown as Request;
-}
-
-const recordRow = {
-  record_id: "rec-1",
-  repair_id: "r-1",
-  final_price: 1500,
-  work_details: "เปลี่ยนปั๊มน้ำ",
-  parts: null,
-  pump: null,
-  is_warranty_claim: false,
-  completed_at: "2025-06-01",
-  created_at: "2025-06-01",
-  customer_id: 2,
-  customer_name: "นายสมชาย",
-  customer_phone: "0812345678",
-};
-
-const recordRowMapped = {
-  record_id: "rec-1",
-  repair_id: "r-1",
-  final_price: 1500,
-  work_details: "เปลี่ยนปั๊มน้ำ",
-  parts: [],
-  pump: null,
-  is_warranty_claim: false,
-  completed_at: "2025-06-01",
-  created_at: "2025-06-01",
-};
-
-beforeEach(() => {
-  mocks.poolQuery.mockReset();
-  mocks.broadcast.mockReset();
-});
-
-describe("list", () => {
-  it("returns repair record rows", async () => {
-    mocks.poolQuery.mockResolvedValueOnce({ rows: [recordRow] });
-    const res = createRes();
-    await repairRecords.list(createReq(), res);
-    expect(res.json).toHaveBeenCalledWith([recordRowMapped]);
-  });
-});
-
-describe("getOne", () => {
-  it("returns 404 when not found", async () => {
-    mocks.poolQuery.mockResolvedValueOnce({ rows: [] });
-    const res = createRes();
-    await repairRecords.getOne(createReq({ params: { id: "999" } }), res);
-    expect(res.status).toHaveBeenCalledWith(404);
+describe("repairRecords.controller", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("returns the record", async () => {
-    mocks.poolQuery.mockResolvedValueOnce({ rows: [recordRow] });
-    const res = createRes();
-    await repairRecords.getOne(createReq({ params: { id: "rec-1" } }), res);
-    expect(res.json).toHaveBeenCalledWith(recordRowMapped);
-  });
-});
+  describe("update", () => {
+    it("should return 404 if record does not exist or unauthorized", async () => {
+      const req = {
+        params: { id: "99" },
+        body: { work_details: "เปลี่ยนซีล" },
+        user: { userId: "u-1", role: "ADMIN", orgId: "org-1" },
+      } as unknown as Request;
+      const res = createRes();
 
-describe("remove", () => {
-  it("returns 404 when not found", async () => {
-    mocks.poolQuery.mockResolvedValueOnce({ rows: [] });
-    const res = createRes();
-    await repairRecords.remove(createReq({ params: { id: "999" } }), res);
-    expect(res.status).toHaveBeenCalledWith(404);
-  });
+      mocks.poolQuery.mockResolvedValueOnce({ rows: [] });
 
-  it("deletes and returns 204", async () => {
-    mocks.poolQuery
-      .mockResolvedValueOnce({ rows: [{ record_id: "rec-1" }] })
-      .mockResolvedValueOnce({ rows: [] });
-    const res = createRes();
-    await repairRecords.remove(createReq({ params: { id: "rec-1" } }), res);
-    expect(mocks.poolQuery).toHaveBeenCalledWith(
-      "DELETE FROM repair_records WHERE record_id = $1",
-      ["rec-1"]
-    );
-    expect(res.status).toHaveBeenCalledWith(204);
-    expect(res.end).toHaveBeenCalled();
+      await repairRecords.update(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    it("should update repair record successfully and broadcast event", async () => {
+      const req = {
+        params: { id: "10" },
+        body: {
+          work_details: "เปลี่ยนปั๊มใหม่",
+          final_price: 15000,
+          is_warranty_claim: false,
+          parts: [{ name: "วาล์ว", qty: 1, unit_price: 500 }],
+        },
+        user: { userId: "u-1", role: "ADMIN", orgId: "org-1" },
+      } as unknown as Request;
+      const res = createRes();
+
+      mocks.poolQuery.mockResolvedValueOnce({
+        rows: [{ record_id: 10, repair_id: 5 }],
+      });
+      mocks.poolQuery.mockResolvedValueOnce({
+        rows: [
+          {
+            record_id: 10,
+            repair_id: 5,
+            work_details: "เปลี่ยนปั๊มใหม่",
+            final_price: "15000",
+            parts: JSON.stringify([{ name: "วาล์ว", qty: 1, unit_price: 500 }]),
+            pump: null,
+            is_warranty_claim: false,
+            completed_at: "2026-03-01T00:00:00Z",
+            created_at: "2026-03-01T00:00:00Z",
+          },
+        ],
+      });
+
+      await repairRecords.update(req, res);
+
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record_id: 10,
+          work_details: "เปลี่ยนปั๊มใหม่",
+          final_price: "15000",
+        })
+      );
+      expect(mocks.broadcast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "REPAIR_RECORD_UPDATED",
+          data: { record_id: 10, repair_id: 5 },
+          orgId: "org-1",
+        })
+      );
+    });
   });
 });

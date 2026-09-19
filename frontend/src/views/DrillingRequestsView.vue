@@ -10,6 +10,7 @@ import { money, REQUEST_STATUS } from "@/constants";
 import { fmtDate } from "@/utils/date";
 import type { DrillingRequest } from "@/types";
 import StatusChip from "@/components/StatusChip.vue";
+import { allowOnlyDigits, cleanPhoneNumber, validThaiPhone, requiredField } from "@/utils/validation";
 
 const router     = useRouter();
 const requests   = useDrillingRequestsStore();
@@ -99,9 +100,20 @@ function pickItem(r: DrillingRequest) {
 
 async function submitEdit() {
   if (!editTarget.value) return;
+  if (!editForm.value.name?.trim()) {
+    ui.notify("กรุณากรอกชื่อ-นามสกุล", "warning");
+    return;
+  }
+  const phoneCheck = validThaiPhone()(editForm.value.phone);
+  if (phoneCheck !== true) {
+    ui.notify(typeof phoneCheck === "string" ? phoneCheck : "เบอร์โทรศัพท์ไม่ถูกต้อง", "warning");
+    return;
+  }
   try {
     await requests.update(editTarget.value.request_id, {
       ...editForm.value,
+      name: editForm.value.name.trim(),
+      phone: editForm.value.phone.trim(),
       requested_depth_m: editForm.value.requested_depth_m ? Number(editForm.value.requested_depth_m) : null,
     });
     ui.notify("แก้ไขข้อมูลแล้ว", "success");
@@ -392,8 +404,26 @@ async function reject(r: any) {
         <v-card-title class="pa-4 pb-2 font-display font-weight-bold">แก้ไขคำร้องแจ้งเจาะ</v-card-title>
         <v-divider />
         <v-card-text class="pa-4">
-          <v-text-field v-model="editForm.name" label="ชื่อ-นามสกุล" class="mb-3" density="comfortable" variant="outlined" />
-          <v-text-field v-model="editForm.phone" label="เบอร์โทร" class="mb-3" density="comfortable" variant="outlined" />
+          <v-text-field
+            v-model="editForm.name"
+            label="ชื่อ-นามสกุล *"
+            class="mb-3"
+            density="comfortable"
+            variant="outlined"
+            :rules="[requiredField('กรุณากรอกชื่อ-นามสกุล')]"
+          />
+          <v-text-field
+            v-model="editForm.phone"
+            label="เบอร์โทร *"
+            type="tel"
+            maxlength="10"
+            class="mb-3"
+            density="comfortable"
+            variant="outlined"
+            @keypress="allowOnlyDigits"
+            @input="(e: any) => editForm.phone = cleanPhoneNumber(e.target?.value ?? editForm.phone)"
+            :rules="[requiredField('กรุณากรอกเบอร์โทรศัพท์'), validThaiPhone()]"
+          />
           <v-textarea v-model="editForm.address" label="ที่อยู่" rows="2" class="mb-3" density="comfortable" variant="outlined" />
           <v-text-field v-model="editForm.requested_depth_m" type="number" label="ความลึกที่ต้องการ (ม.)" class="mb-3" density="comfortable" variant="outlined" />
           <v-text-field v-model="editForm.appointment_date" type="date" label="วันนัดหมาย" class="mb-3" density="comfortable" variant="outlined" />
@@ -403,7 +433,12 @@ async function reject(r: any) {
         <v-card-actions class="pa-4 ga-2">
           <v-spacer />
           <v-btn variant="outlined" @click="editDlg = false">ยกเลิก</v-btn>
-          <v-btn color="primary" variant="flat" @click="submitEdit">บันทึก</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            :disabled="!editForm.name?.trim() || validThaiPhone()(editForm.phone) !== true"
+            @click="submitEdit"
+          >บันทึก</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

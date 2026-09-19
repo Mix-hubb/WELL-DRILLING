@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { RepairRequest, PaymentSlip } from "@/types";
+import type { RepairRequest, PaymentSlip, RepairRecord } from "@/types";
 
 export const repairRequestsApi = {
   list: () => api.get<RepairRequest[]>("/repair-requests"),
@@ -22,5 +22,16 @@ export const repairRequestsApi = {
     api.get<PaymentSlip[]>(`/repair-requests/${id}/payment-slips`),
   verifyPaymentSlip: (id: number | string, slipId: string, data: { status: "VERIFIED" | "REJECTED"; notes?: string }) =>
     api.patch<PaymentSlip>(`/repair-requests/${id}/payment-slips/${slipId}`, data),
+  downloadReceiptPdf: (id: number | string) =>
+    api.download(`/repair-requests/${id}/receipt.pdf`, `receipt-repair-${id}.pdf`),
+  sendReceipt: (id: number | string) =>
+    api.post<{ ok: boolean; message: string }>(`/repair-requests/${id}/send-receipt`, {}),
 };
+
+export const repairRecordsApi = {
+  getOne: (id: number | string) => api.get<RepairRecord>(`/repair-records/${id}`),
+  update: (id: number | string, data: Partial<RepairRecord>) => api.put<RepairRecord>(`/repair-records/${id}`, data),
+  remove: (id: number | string) => api.del<void>(`/repair-records/${id}`),
+};
+
 

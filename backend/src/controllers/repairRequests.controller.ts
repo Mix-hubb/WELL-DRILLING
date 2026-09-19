@@ -3,12 +3,24 @@ import crypto from "crypto";
 import { pool } from "../config/db";
 import { userFilter } from "../utils/userFilter";
 import { RepairRequest } from "../types";
-import { sendTextToCustomer } from "../services/line";
+import { sendTextToCustomer, sendFlexToCustomer, buildRepairReceiptFlex } from "../services/line";
 import { broadcast } from "../services/sse";
 import { resolveOrgId } from "../utils/resolveOrg";
+import { streamRepairReceiptPdf, ReceiptData } from "../utils/pdfReceipt";
 
 function generateMagicToken(): string {
   return "repair-" + crypto.randomBytes(16).toString("hex");
+}
+
+function getReqBaseUrl(req: Request): string {
+  if (process.env.API_BASE_URL) return process.env.API_BASE_URL.replace(/\/$/, "");
+  if (process.env.BACKEND_URL) return process.env.BACKEND_URL.replace(/\/$/, "");
+  if (process.env.APP_URL && !process.env.APP_URL.includes("5173")) {
+    return process.env.APP_URL.replace(/\/$/, "");
+  }
+  const proto = (req.headers && (req.headers["x-forwarded-proto"] as string)) || req.protocol || "http";
+  const host = (req.headers && (req.headers["x-forwarded-host"] as string)) || (typeof req.get === "function" ? req.get("host") : "") || `localhost:${process.env.PORT || 4000}`;
+  return `${proto}://${host}`;
 }
 
 const REQUEST_SELECT = `
@@ -314,6 +326,33 @@ export async function updateStatus(req: Request, res: Response) {
       req.user?.orgId
     ).catch(() => {});
   }
+  if (customerId && status === "COMPLETED") {
+    const recCheck = await pool.query(
+      "SELECT * FROM repair_records WHERE repair_id = $1 ORDER BY completed_at DESC, created_at DESC LIMIT 1",
+      [id]
+    );
+    if (recCheck.rows.length) {
+      const rec = recCheck.rows[0];
+      const baseUrl = getReqBaseUrl(req);
+      const pdfUrl = `${baseUrl.replace(/\/$/, "")}/api/public/repairs/${id}/receipt.pdf`;
+      const dateStr = (rec.completed_at ? new Date(rec.completed_at) : new Date()).toISOString().slice(0, 10).replace(/-/g, "");
+      const receiptNo = `REC-${dateStr}-${String(id).slice(-4).toUpperCase()}`;
+      let partsList: any[] = [];
+      try { partsList = typeof rec.parts === "string" ? JSON.parse(rec.parts) : (rec.parts || []); } catch {}
+      const flex = buildRepairReceiptFlex({
+        receiptNo,
+        customerName: rows[0].customer_name,
+        repairId: id,
+        wellName: rows[0].well_name,
+        workDetails: rec.work_details,
+        parts: partsList,
+        finalPrice: rec.final_price,
+        isWarrantyClaim: Boolean(rec.is_warranty_claim),
+        pdfUrl,
+      });
+      sendFlexToCustomer(customerId, "ใบเสร็จรับเงินการซ่อมบำรุง", flex, "STATUS", req.user?.orgId).catch(() => {});
+    }
+  }
 
   broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(id), status }, orgId: req.user?.orgId });
   res.json(mapRow(rows[0]));
@@ -375,19 +414,42 @@ export async function addRecord(req: Request, res: Response) {
   );
 
   const reqRow = await pool.query(
-    "SELECT r.customer_id, c.org_id FROM repair_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.repair_id = $1", [id]
+    "SELECT r.customer_id, r.well_id, w.well_name, c.customer_name, c.org_id FROM repair_requests r JOIN customers c ON c.customer_id = r.customer_id LEFT JOIN wells w ON w.well_id = r.well_id WHERE r.repair_id = $1",
+    [id]
   );
   if (reqRow.rows.length) {
-    const orgId = reqRow.rows[0].org_id;
+    const cust = reqRow.rows[0];
+    const orgId = cust.org_id;
     broadcast({ type: "REPAIR_RECORD_ADDED", data: { repair_id: Number(id) }, orgId });
     broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(id), status: "COMPLETED" }, orgId });
-    const partsList = parts?.length
-      ? "\nรายการอะไหล่: " + parts.map((p: any) => `${p.name} x${p.qty}`).join(", ")
-      : "";
-    const msg = final_price != null
-      ? `แจ้งผลการซ่อมเสร็จเรียบร้อยแล้วครับ\n\nรายละเอียดงาน:\n${work_details || "-"}${partsList}\n\nราคาจบงาน ${Number(final_price).toLocaleString("th-TH")} บาท\n\nกรุณาอัปโหลดสลิปโอนเงินผ่านลิงก์ในแชทครับ`
-      : `แจ้งผลการซ่อมเสร็จเรียบร้อยแล้วครับ\n\nรายละเอียดงาน:\n${work_details || "-"}${partsList}\n\nกรุณาอัปโหลดสลิปโอนเงินผ่านลิงก์ในแชทครับ`;
-    sendTextToCustomer(reqRow.rows[0].customer_id, msg, "STATUS", orgId).catch(() => {});
+
+    // Send automatic receipt Flex card to customer
+    const baseUrl = getReqBaseUrl(req);
+    const pdfUrl = `${baseUrl.replace(/\/$/, "")}/api/public/repairs/${id}/receipt.pdf`;
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const receiptNo = `REC-${dateStr}-${String(id).slice(-4).toUpperCase()}`;
+
+    const receiptFlex = buildRepairReceiptFlex({
+      receiptNo,
+      customerName: cust.customer_name,
+      repairId: id,
+      wellName: cust.well_name,
+      workDetails: work_details,
+      parts: parts,
+      finalPrice: final_price,
+      isWarrantyClaim: Boolean(is_warranty_claim),
+      pdfUrl,
+    });
+
+    sendFlexToCustomer(cust.customer_id, "ใบเสร็จรับเงินการซ่อมบำรุง", receiptFlex, "STATUS", orgId).catch(() => {
+      const partsList = parts?.length
+        ? "\nรายการอะไหล่: " + parts.map((p: any) => `${p.name} x${p.qty}`).join(", ")
+        : "";
+      const msg = final_price != null
+        ? `แจ้งผลการซ่อมเสร็จเรียบร้อยแล้วครับ\n\nรายละเอียดงาน:\n${work_details || "-"}${partsList}\n\nราคาจบงาน ${Number(final_price).toLocaleString("th-TH")} บาท\n\nดาวน์โหลดใบเสร็จ (PDF):\n${pdfUrl}`
+        : `แจ้งผลการซ่อมเสร็จเรียบร้อยแล้วครับ\n\nรายละเอียดงาน:\n${work_details || "-"}${partsList}\n\nดาวน์โหลดใบเสร็จ (PDF):\n${pdfUrl}`;
+      sendTextToCustomer(cust.customer_id, msg, "STATUS", orgId).catch(() => {});
+    });
   }
 
   res.status(201).json(recs.rows[0]);
@@ -494,4 +556,141 @@ export async function verifyPaymentSlip(req: Request, res: Response) {
 
   res.json(result.rows[0]);
 }
+
+export async function exportReceipt(req: Request, res: Response) {
+  const { id } = req.params;
+  const orgId = req.user?.orgId;
+  const orgClause = orgId ? ` AND c.org_id = $2` : "";
+  const params = orgId ? [id, orgId] : [id];
+
+  const { rows } = await pool.query(`
+    SELECT
+      r.*,
+      c.customer_name,
+      c.phone AS customer_phone,
+      c.address AS customer_address,
+      w.well_name,
+      o.name AS org_name
+    FROM repair_requests r
+    JOIN customers c ON c.customer_id = r.customer_id
+    LEFT JOIN wells w ON w.well_id = r.well_id
+    LEFT JOIN organizations o ON o.org_id = c.org_id
+    WHERE r.repair_id = $1${orgClause}
+  `, params);
+
+  if (!rows.length) return res.status(404).json({ error: "ไม่พบข้อมูลคำร้องซ่อม" });
+  const r = rows[0];
+
+  const recResult = await pool.query(
+    "SELECT * FROM repair_records WHERE repair_id = $1 ORDER BY completed_at DESC, created_at DESC LIMIT 1",
+    [id]
+  );
+  const rec = recResult.rows[0] || {};
+
+  let problems: string[] = [];
+  if (Array.isArray(r.problems)) problems = r.problems.map(String);
+  else if (typeof r.problems === "string") {
+    try { problems = JSON.parse(r.problems); } catch {}
+  }
+
+  let parts: any[] = [];
+  if (Array.isArray(rec.parts)) parts = rec.parts;
+  else if (typeof rec.parts === "string") {
+    try { parts = JSON.parse(rec.parts); } catch {}
+  }
+
+  let pump: any = null;
+  if (rec.pump && typeof rec.pump === "object") pump = rec.pump;
+  else if (typeof rec.pump === "string") {
+    try { pump = JSON.parse(rec.pump); } catch {}
+  }
+
+  const completedDate = rec.completed_at || r.updated_at || r.created_at;
+  const dateStr = completedDate ? new Date(completedDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+  const receiptNo = `REC-${dateStr.replace(/-/g, "")}-${String(id).slice(-4).toUpperCase()}`;
+
+  const receiptData: ReceiptData = {
+    receipt_no: receiptNo,
+    issued_date: dateStr,
+    org_name: r.org_name || "บริการขุดเจาะและซ่อมบำรุงบ่อบาดาล",
+    customer_name: r.customer_name || "ลูกค้า",
+    customer_phone: r.customer_phone || "",
+    customer_address: r.customer_address || "",
+    repair_id: id,
+    well_id: r.well_id,
+    well_name: r.well_name,
+    problems,
+    work_details: rec.work_details || r.detail,
+    parts,
+    pump,
+    is_warranty_claim: Boolean(rec.is_warranty_claim),
+    final_price: rec.final_price != null ? Number(rec.final_price) : null,
+    status: r.status,
+  };
+
+  streamRepairReceiptPdf(res, receiptData);
+}
+
+export async function sendReceiptToCustomer(req: Request, res: Response) {
+  const { id } = req.params;
+  const { sql, params } = userFilter(req, "c", 1);
+  const { rows } = await pool.query(`
+    SELECT
+      r.repair_id, r.customer_id, r.well_id, r.problems, r.detail,
+      c.customer_name, c.org_id,
+      w.well_name
+    FROM repair_requests r
+    JOIN customers c ON c.customer_id = r.customer_id
+    LEFT JOIN wells w ON w.well_id = r.well_id
+    WHERE r.repair_id = $1${sql}
+  `, [id, ...params]);
+
+  if (!rows.length) return res.status(404).json({ error: "ไม่พบคำร้องซ่อม" });
+  const r = rows[0];
+
+  const recResult = await pool.query(
+    "SELECT * FROM repair_records WHERE repair_id = $1 ORDER BY completed_at DESC, created_at DESC LIMIT 1",
+    [id]
+  );
+  if (!recResult.rows.length) {
+    return res.status(400).json({ error: "ยังไม่มีบันทึกการซ่อม ไม่สามารถออกใบเสร็จได้" });
+  }
+  const rec = recResult.rows[0];
+
+  let parts: any[] = [];
+  if (Array.isArray(rec.parts)) parts = rec.parts;
+  else if (typeof rec.parts === "string") {
+    try { parts = JSON.parse(rec.parts); } catch {}
+  }
+
+  const baseUrl = getReqBaseUrl(req);
+  const pdfUrl = `${baseUrl.replace(/\/$/, "")}/api/public/repairs/${id}/receipt.pdf`;
+  const dateStr = (rec.completed_at ? new Date(rec.completed_at) : new Date()).toISOString().slice(0, 10).replace(/-/g, "");
+  const receiptNo = `REC-${dateStr}-${String(id).slice(-4).toUpperCase()}`;
+
+  const flex = buildRepairReceiptFlex({
+    receiptNo,
+    customerName: r.customer_name,
+    repairId: id,
+    wellName: r.well_name,
+    workDetails: rec.work_details || r.detail,
+    parts,
+    finalPrice: rec.final_price,
+    isWarrantyClaim: Boolean(rec.is_warranty_claim),
+    pdfUrl,
+  });
+
+  const ok = await sendFlexToCustomer(r.customer_id, "ใบเสร็จรับเงินการซ่อมบำรุง", flex, "STATUS", r.org_id);
+  if (!ok) {
+    await sendTextToCustomer(
+      r.customer_id,
+      `ใบเสร็จรับเงินการซ่อมบำรุง เลขที่ ${receiptNo}\nสามารถดาวน์โหลดใบเสร็จ (PDF) ได้ที่:\n${pdfUrl}`,
+      "STATUS",
+      r.org_id
+    ).catch(() => {});
+  }
+
+  res.json({ ok: true, message: "ส่งใบเสร็จให้ลูกค้าผ่าน LINE สำเร็จ" });
+}
+
 

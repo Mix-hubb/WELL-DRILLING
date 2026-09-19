@@ -2,6 +2,7 @@
 import { useRoute } from "vue-router";
 import { useDrillerRepairForm } from "@/composables/useDrillerRepairForm";
 import PumpCatalogPicker from "@/components/PumpCatalogPicker.vue";
+import { requiredField } from "@/utils/validation";
 
 const route = useRoute();
 const token    = route.params.token as string;
@@ -33,7 +34,13 @@ const { request, loading, submitting, saved, form, addPart, removePart, submit }
       </div>
       <div v-if="request.detail" class="text-caption text-medium-emphasis mb-3">{{ request.detail }}</div>
 
-      <v-textarea v-model="form.work_details" label="รายละเอียดงานที่ซ่อม *" rows="3" class="mb-3" />
+      <v-textarea
+        v-model="form.work_details"
+        label="รายละเอียดงานที่ซ่อม *"
+        :rules="[requiredField('กรุณากรอกรายละเอียดงานที่ซ่อม')]"
+        rows="3"
+        class="mb-3"
+      />
 
       <div class="text-subtitle-2 font-weight-bold mb-1">ปั๊มที่เปลี่ยน/ติดตั้ง (ถ้ามี)</div>
       <PumpCatalogPicker v-model="form.pump" label="รุ่นปั๊ม" class="mb-3" />

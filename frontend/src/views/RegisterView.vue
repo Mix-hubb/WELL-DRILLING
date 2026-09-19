@@ -3,7 +3,7 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
-import { requiredField, validEmail, validPhone } from "@/utils/validation";
+import { requiredField, validEmail, validPhone, validThaiPhone, allowOnlyDigits, cleanPhoneNumber } from "@/utils/validation";
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -23,6 +23,11 @@ const showPassword = ref(false);
 async function handleRegister() {
   if (!fullName.value || !email.value || !phone.value || !password.value) {
     ui.notify("กรุณากรอกข้อมูลให้ครบทุกช่อง", "warning");
+    return;
+  }
+  const phoneCheck = validThaiPhone()(phone.value);
+  if (phoneCheck !== true) {
+    ui.notify(typeof phoneCheck === "string" ? phoneCheck : "เบอร์โทรศัพท์ไม่ถูกต้อง", "warning");
     return;
   }
   if (password.value.length < 6) {
@@ -121,13 +126,16 @@ async function handleRegister() {
               />
               <v-text-field
                 v-model="phone"
-                label="เบอร์โทรศัพท์"
+                label="เบอร์โทรศัพท์ *"
                 type="tel"
+                maxlength="10"
                 prepend-inner-icon="mdi-phone-outline"
                 variant="outlined"
                 density="comfortable"
-                hint="สำหรับกู้คืนรหัสผ่าน"
-                :rules="[requiredField('กรุณากรอกเบอร์โทรศัพท์'), validPhone('เบอร์โทรศัพท์ต้องเป็นตัวเลข 9-10 หลัก')]"
+                hint="สำหรับกู้คืนรหัสผ่าน (เฉพาะตัวเลข 9-10 หลัก)"
+                @keypress="allowOnlyDigits"
+                @input="(e: any) => phone = cleanPhoneNumber(e.target?.value ?? phone)"
+                :rules="[requiredField('กรุณากรอกเบอร์โทรศัพท์'), validThaiPhone()]"
                 class="mb-2"
               />
               <v-text-field

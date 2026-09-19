@@ -13,6 +13,8 @@ const transporter = nodemailer.createTransport({
 export async function sendResetCodeEmail(email: string, code: string): Promise<void> {
   const from = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@well-drilling.com";
 
+
+
   await transporter.sendMail({
     from,
     to: email,

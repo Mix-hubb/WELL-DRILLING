@@ -13,6 +13,7 @@ async function getWellRow(id: string, orgId?: string | null): Promise<any | null
       w.*,
       c.customer_name,
       c.phone AS customer_phone,
+      c.address AS customer_address,
       c.line_picture_url,
       CASE
         WHEN w.warranty_expire_date IS NULL THEN 'UNKNOWN'
@@ -341,11 +342,11 @@ export async function exportReport(req: Request, res: Response) {
 
   const fullWell = { ...well, strata: strata.rows, pipes: pipes.rows, pumps: pumps.rows, control_boxes: controlBoxes.rows } as FullWell;
   const job = {
-    job_title: fullWell.well_name,
-    site_address: fullWell.address || "",
+    job_title: fullWell.well_name || `บ่อ #${fullWell.well_id}`,
+    site_address: (fullWell as any).customer_address || fullWell.address || "",
     customer_name: fullWell.customer_name || "",
     driller_name: fullWell.driller_name || "-",
-    scheduled_date: fullWell.completion_date || "-",
+    scheduled_date: fullWell.completion_date ? String(fullWell.completion_date).slice(0, 10) : "-",
   };
 
   streamWellReportPdf(res, fullWell, job);

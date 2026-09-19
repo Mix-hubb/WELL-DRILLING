@@ -69,8 +69,9 @@ interface StrataRow {
 
 export function streamWellReportPdf(res: Response, well: FullWell, job: JobInfo) {
   const doc = new PDFDocument({ size: "A4", margin: 50, autoFirstPage: true });
+  const isAttachment = (res as any).req?.query?.download === "1" || (res as any).req?.query?.download === "true";
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename="well-report-${well.well_id}.pdf"`);
+  res.setHeader("Content-Disposition", `${isAttachment ? "attachment" : "inline"}; filename="well-report-${well.well_id}.pdf"`);
   doc.pipe(res);
 
   doc.registerFont("Thai", FONT_REGULAR);

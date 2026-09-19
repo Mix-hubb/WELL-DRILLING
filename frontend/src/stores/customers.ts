@@ -16,5 +16,21 @@ export const useCustomersStore = defineStore("customers", {
         this.loading = false;
       }
     },
+    async create(data: Partial<Customer>) {
+      const created = await customersApi.create(data);
+      this.customers.unshift(created);
+      return created;
+    },
+    async update(id: number, data: Partial<Customer>) {
+      const updated = await customersApi.update(id, data);
+      const idx = this.customers.findIndex((c) => c.customer_id === id);
+      if (idx !== -1) this.customers[idx] = updated;
+      return updated;
+    },
+    async remove(id: number) {
+      await customersApi.remove(id);
+      this.customers = this.customers.filter((c) => c.customer_id !== id);
+    },
   },
 });
+

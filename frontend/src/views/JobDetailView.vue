@@ -3,7 +3,9 @@ import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { jobsApi }       from "@/api/jobs";
 import { wellsApi }      from "@/api/wells";
+import { api }           from "@/api/client";
 import { useUiStore }    from "@/stores/ui";
+
 import { useSSERefresh } from "@/composables/useSSERefresh";
 import { fmtDate }       from "@/utils/date";
 import type { DrillingJob, DrillingJobStatus } from "@/types";
@@ -55,6 +57,18 @@ async function createWellLog(form: any) {
     ui.notify("บันทึกข้อมูลเรียบร้อยแล้ว", "success");
   } catch (e) { ui.notifyError(e); }
 }
+
+async function downloadWellPdf() {
+  if (!wellId.value) return;
+  try {
+    ui.notify("กำลังเตรียมรายงาน PDF...", "info");
+    await api.download(`/wells/${wellId.value}/report.pdf`, `report-${wellId.value}.pdf`);
+    ui.notify("ดาวน์โหลดรายงาน PDF สำเร็จ", "success");
+  } catch (e) {
+    ui.notifyError(e);
+  }
+}
+
 
 async function regenerateMagicLink() {
   if (!job.value) return;
@@ -159,17 +173,30 @@ async function regenerateMagicLink() {
       class="pa-5 cursor-pointer"
       @click="wellId ? router.push(`/wells/${wellId}`) : (showWellForm = true)"
     >
-      <div class="d-flex align-center justify-space-between">
+      <div class="d-flex align-center justify-space-between flex-wrap ga-2">
         <span class="font-weight-bold d-flex align-center ga-2">
           <v-icon icon="mdi-layers-outline" />
           {{ wellId ? "ดูประวัติบ่อบาดาล" : "+ บันทึกประวัติบ่อบาดาล (เริ่มประกัน 2 ปี)" }}
         </span>
-        <v-icon icon="mdi-arrow-right" />
+        <div class="d-flex align-center ga-2">
+          <v-btn
+            v-if="wellId"
+            size="small"
+            variant="flat"
+            color="secondary"
+            prepend-icon="mdi-file-pdf-box"
+            @click.stop="downloadWellPdf"
+          >
+            ออกรายงาน PDF
+          </v-btn>
+          <v-icon icon="mdi-arrow-right" />
+        </div>
       </div>
     </v-card>
 
     <WellLogFormDialog v-model="showWellForm" @submit="createWellLog" />
   </div>
+
 
   <div v-else class="text-center py-10 text-medium-emphasis">
     <v-progress-circular indeterminate color="primary" class="mb-3" /><br />กำลังโหลด...

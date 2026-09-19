@@ -14,7 +14,10 @@ const loading = ref(false);
 const sent = ref(false);
 
 async function handleSendCode() {
-  if (!email.value) return;
+  if (!email.value || validEmail("รูปแบบอีเมลไม่ถูกต้อง")(email.value) !== true) {
+    ui.notify("กรุณากรอกอีเมลที่ถูกต้อง", "warning");
+    return;
+  }
   loading.value = true;
   try {
     await authApi.forgotPassword(email.value, method.value);

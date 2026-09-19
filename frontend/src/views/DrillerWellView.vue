@@ -2,6 +2,7 @@
 import { useRoute } from "vue-router";
 import { useDrillerWellForm } from "@/composables/useDrillerWellForm";
 import PumpCatalogPicker from "@/components/PumpCatalogPicker.vue";
+import { requiredField } from "@/utils/validation";
 
 const route = useRoute();
 const token = route.params.token as string;
@@ -39,10 +40,22 @@ const {
         <v-radio label="เจาะไม่สำเร็จ" value="FAIL" />
       </v-radio-group>
 
-      <v-text-field v-model="form.well_name" label="ชื่อบ่อ *" class="mb-3" />
+      <v-text-field
+        v-model="form.well_name"
+        label="ชื่อบ่อ *"
+        :rules="[requiredField('กรุณากรอกชื่อบ่อ')]"
+        class="mb-3"
+      />
 
       <v-row dense class="mb-1">
-        <v-col cols="6"><v-text-field v-model="form.total_depth_m" type="number" label="ความลึกรวม (ม.) *" /></v-col>
+        <v-col cols="6">
+          <v-text-field
+            v-model="form.total_depth_m"
+            type="number"
+            label="ความลึกรวม (ม.) *"
+            :rules="[requiredField('กรุณาระบุความลึกรวม')]"
+          />
+        </v-col>
         <v-col cols="6"><v-text-field v-model="form.water_quantity_m3hr" type="number" label="ปริมาณน้ำ (ม³/ชม.)" /></v-col>
       </v-row>
       <v-row dense class="mb-1">
@@ -61,7 +74,9 @@ const {
 
       <v-text-field
         v-if="form.result === 'FAIL'"
-        v-model="form.failure_reason" label="สาเหตุที่เจาะไม่สำเร็จ *"
+        v-model="form.failure_reason"
+        label="สาเหตุที่เจาะไม่สำเร็จ *"
+        :rules="[requiredField('กรุณาระบุสาเหตุที่เจาะไม่สำเร็จ')]"
         class="mb-3"
       />
       <v-textarea v-model="form.notes" label="บันทึกช่าง" rows="2" class="mb-3" />

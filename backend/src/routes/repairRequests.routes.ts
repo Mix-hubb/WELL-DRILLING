@@ -13,5 +13,7 @@ router.delete("/:id", asyncHandler(c.remove));
 // Payment slips — ดูและยืนยันสลิปโอนเงินของลูกค้า
 router.get("/:id/payment-slips", asyncHandler(c.listPaymentSlips));
 router.patch("/:id/payment-slips/:slipId", asyncHandler(c.verifyPaymentSlip));
+router.get("/:id/receipt.pdf", asyncHandler(c.exportReceipt));
+router.post("/:id/send-receipt", asyncHandler(c.sendReceiptToCustomer));
 
 export default router;

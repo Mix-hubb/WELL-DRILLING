@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { allowOnlyDigits, cleanPhoneNumber, validThaiPhone, requiredField } from "@/utils/validation";
 
 let liffInstance: any = null;
 
@@ -90,8 +91,13 @@ function editForm() {
 }
 
 async function submit() {
-  if (!form.value.name || !form.value.phone) {
-    error.value = "กรุณากรอกชื่อและเบอร์โทรศัพท์";
+  if (!form.value.name || !form.value.name.trim()) {
+    error.value = "กรุณากรอกชื่อ-นามสกุล";
+    return;
+  }
+  const phoneCheck = validThaiPhone()(form.value.phone);
+  if (phoneCheck !== true) {
+    error.value = typeof phoneCheck === "string" ? phoneCheck : "เบอร์โทรศัพท์ไม่ถูกต้อง";
     return;
   }
   loading.value = true;
@@ -220,7 +226,15 @@ async function submit() {
               ชื่อ-นามสกุล
               <span class="text-error ml-1">*</span>
             </div>
-            <v-text-field v-model="form.name" placeholder="กรอกชื่อ-นามสกุล" variant="outlined" density="comfortable" rounded="lg" hide-details class="field-input" />
+            <v-text-field
+              v-model="form.name"
+              placeholder="กรอกชื่อ-นามสกุล"
+              variant="outlined"
+              density="comfortable"
+              rounded="lg"
+              :rules="[requiredField('กรุณากรอกชื่อ-นามสกุล')]"
+              class="field-input"
+            />
           </div>
 
           <div class="field-group">
@@ -229,7 +243,19 @@ async function submit() {
               เบอร์โทรศัพท์
               <span class="text-error ml-1">*</span>
             </div>
-            <v-text-field v-model="form.phone" placeholder="เช่น 081-234-5678" variant="outlined" density="comfortable" rounded="lg" hide-details class="field-input" />
+            <v-text-field
+              v-model="form.phone"
+              type="tel"
+              maxlength="10"
+              placeholder="เช่น 0812345678"
+              variant="outlined"
+              density="comfortable"
+              rounded="lg"
+              @keypress="allowOnlyDigits"
+              @input="(e: any) => form.phone = cleanPhoneNumber(e.target?.value ?? form.phone)"
+              :rules="[requiredField('กรุณากรอกเบอร์โทรศัพท์'), validThaiPhone()]"
+              class="field-input"
+            />
           </div>
 
           <div class="field-group">
@@ -256,7 +282,7 @@ async function submit() {
             block
             size="x-large"
             :loading="loading"
-            :disabled="!form.name || !form.phone"
+            :disabled="!form.name?.trim() || validThaiPhone()(form.phone) !== true"
             rounded="lg"
             class="mt-2 submit-btn"
             elevation="0"

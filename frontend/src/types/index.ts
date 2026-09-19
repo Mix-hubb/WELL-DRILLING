@@ -255,12 +255,18 @@ export interface Quotation {
   updated_at?: string;
 }
 
+export interface RepairPart {
+  name: string;
+  qty: number;
+  unit_price: number;
+}
+
 export interface RepairRecord {
   record_id: number;
   repair_id: number;
   final_price?: number | null;
   work_details?: string | null;
-  parts?: { name: string; qty: number; unit_price: number }[] | null;   // JSON
+  parts?: RepairPart[] | null;   // JSON
   pump?: PumpCatalogModel | null;                                        // JSON: ปั๊มที่เปลี่ยนระหว่างซ่อม
   is_warranty_claim: number;    // TINYINT 0|1
   completed_at?: string | null;

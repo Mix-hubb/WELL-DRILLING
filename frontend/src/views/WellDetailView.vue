@@ -58,7 +58,20 @@ async function removePipe(id: number)   { try { await store.removePipe(wellId(),
 async function removePump(id: number)   { try { await store.removePump(wellId(), id); } catch (e) { ui.notifyError(e); } }
 async function removeControlBox(id: number) { try { await store.removeControlBox(wellId(), id); } catch (e) { ui.notifyError(e); } }
 
-function downloadReport() { api.download(`/wells/${wellId()}/report.pdf`, `report-${wellId()}.pdf`).catch(e => ui.notifyError(e)); }
+const downloadingReport = ref(false);
+
+async function downloadReport() {
+  try {
+    downloadingReport.value = true;
+    ui.notify("กำลังเตรียมรายงาน PDF...", "info");
+    await api.download(`/wells/${wellId()}/report.pdf`, `report-${wellId()}.pdf`);
+    ui.notify("ดาวน์โหลดรายงาน PDF สำเร็จ", "success");
+  } catch (e) {
+    ui.notifyError(e);
+  } finally {
+    downloadingReport.value = false;
+  }
+}
 
 function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
   const days = Number(w.days_left);
@@ -75,10 +88,17 @@ function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
       <v-btn variant="text" prepend-icon="mdi-arrow-left" class="ml-n3" @click="router.push('/wells')">
         บ่อบาดาล
       </v-btn>
-      <v-btn color="secondary" variant="tonal" prepend-icon="mdi-file-pdf-box" @click="downloadReport">
+      <v-btn
+        color="secondary"
+        variant="tonal"
+        prepend-icon="mdi-file-pdf-box"
+        :loading="downloadingReport"
+        @click="downloadReport"
+      >
         ออกรายงาน PDF
       </v-btn>
     </div>
+
 
     <!-- Well Summary Card -->
     <v-card class="pa-5 mb-4">

@@ -98,30 +98,67 @@ function parseProblems(value: unknown): string[] {
   }
 }
 
-function buildWellInfoFlex(customerName: string, wells: any[]) {
-  const bubbles = wells.slice(0, 12).map((well) => ({
-    type: "bubble",
-    size: "giga",
-    header: {
-      type: "box", layout: "vertical", backgroundColor: "#315A49",
-      contents: [flexText(well.well_name || `บ่อ #${well.well_id}`, { color: "#FFFFFF", weight: "bold", size: "lg" })],
-    },
-    body: {
-      type: "box", layout: "vertical", spacing: "md",
-      contents: [
-        flexText(`คุณ${customerName}`, { color: "#6B7280", size: "xs" }),
-        flexText(`รหัสบ่อ: #${well.well_id}`),
-        flexText(`ความลึก: ${well.total_depth_m ?? "-"} เมตร`),
-        flexText(`ปริมาณน้ำ: ${well.water_quantity_m3hr ?? "-"} ลบ.ม./ชม.`),
-        flexText(`อัตราการไหล: ${well.yield_lpm ?? "-"} ลิตร/นาที`),
-        flexText(`เจาะเสร็จ: ${displayDate(well.completion_date)}`, { color: "#6B7280" }),
-      ],
-    },
-  }));
+function getBaseUrl(req?: Request): string {
+  if (process.env.BACKEND_URL) return process.env.BACKEND_URL.replace(/\/$/, "");
+  if (process.env.API_BASE_URL) return process.env.API_BASE_URL.replace(/\/$/, "");
+  if (process.env.APP_URL && !process.env.APP_URL.includes("5173")) {
+    return process.env.APP_URL.replace(/\/$/, "");
+  }
+  if (req) {
+    const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol || "http";
+    const host = (req.headers["x-forwarded-host"] as string) || req.get("host");
+    if (host) return `${proto}://${host}`;
+  }
+  return `http://localhost:${process.env.PORT || 4000}`;
+}
+
+export function buildWellInfoFlex(customerName: string, wells: any[], baseUrl: string = "") {
+  const host = (baseUrl || getBaseUrl()).replace(/\/$/, "");
+  const bubbles = wells.slice(0, 12).map((well) => {
+    const pdfUrl = `${host}/api/public/wells/${well.well_id}/report.pdf`;
+    return {
+      type: "bubble",
+      size: "giga",
+      header: {
+        type: "box", layout: "vertical", backgroundColor: "#315A49",
+        contents: [flexText(well.well_name || `บ่อ #${well.well_id}`, { color: "#FFFFFF", weight: "bold", size: "lg" })],
+      },
+      body: {
+        type: "box", layout: "vertical", spacing: "md",
+        contents: [
+          flexText(`คุณ${customerName}`, { color: "#6B7280", size: "xs" }),
+          flexText(`รหัสบ่อ: #${well.well_id}`),
+          flexText(`ความลึก: ${well.total_depth_m ?? "-"} เมตร`),
+          flexText(`ปริมาณน้ำ: ${well.water_quantity_m3hr ?? "-"} ลบ.ม./ชม.`),
+          flexText(`อัตราการไหล: ${well.yield_lpm ?? "-"} ลิตร/นาที`),
+          flexText(`เจาะเสร็จ: ${displayDate(well.completion_date)}`, { color: "#6B7280" }),
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        spacing: "sm",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            color: "#315A49",
+            height: "sm",
+            action: {
+              type: "uri",
+              label: "ดาวน์โหลดรายงาน PDF",
+              uri: pdfUrl,
+            },
+          },
+        ],
+      },
+    };
+  });
   return { type: "carousel", contents: bubbles };
 }
 
-function buildWarrantyFlex(wells: any[]) {
+export function buildWarrantyFlex(wells: any[], baseUrl: string = "") {
+  const host = (baseUrl || getBaseUrl()).replace(/\/$/, "");
   const bubbles = wells.slice(0, 12).map((well) => {
     const active = well.warranty_status === "ACTIVE";
     const expired = well.warranty_status === "EXPIRED";
@@ -129,6 +166,7 @@ function buildWarrantyFlex(wells: any[]) {
       ? `อยู่ในประกัน เหลือ ${well.days_left ?? 0} วัน`
       : expired ? "หมดอายุแล้ว" : "ยังไม่มีวันที่เจาะเสร็จ";
     const color = active ? "#2E7D32" : expired ? "#C62828" : "#757575";
+    const pdfUrl = `${host}/api/public/wells/${well.well_id}/report.pdf`;
     return {
       type: "bubble",
       size: "giga",
@@ -142,6 +180,24 @@ function buildWarrantyFlex(wells: any[]) {
           flexText(status, { weight: "bold", color }),
           flexText(`วันหมดอายุ: ${displayDate(well.warranty_expire_date)}`),
           flexText("หากต้องการนัดตรวจหรือซ่อม พิมพ์ “แจ้งซ่อม” ได้เลยครับ", { color: "#6B7280", size: "xs" }),
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        spacing: "sm",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            color,
+            height: "sm",
+            action: {
+              type: "uri",
+              label: "ดาวน์โหลดรายงาน PDF",
+              uri: pdfUrl,
+            },
+          },
         ],
       },
     };
@@ -208,7 +264,7 @@ async function findOrCreateCustomerByLine(userId: string, profile: any, orgId: s
   return result.rows[0].customer_id;
 }
 
-async function handleText(userId: string, text: string, replyToken: string, org: OrgLineConfig) {
+async function handleText(userId: string, text: string, replyToken: string, org: OrgLineConfig, baseUrl: string = "") {
   const custResult = await pool.query(
     "SELECT customer_id, customer_name FROM customers WHERE line_user_id = $1",
     [userId]
@@ -273,7 +329,7 @@ async function handleText(userId: string, text: string, replyToken: string, org:
         org.line_channel_access_token,
         replyToken,
         `ข้อมูลบ่อของคุณ ${wells.rows.length} บ่อ`,
-        buildWellInfoFlex(customer.customer_name, wells.rows),
+        buildWellInfoFlex(customer.customer_name, wells.rows, baseUrl),
       );
     }
   } else if (/ประกัน|รับประกัน|หมดอายุ/.test(text)) {
@@ -284,7 +340,7 @@ async function handleText(userId: string, text: string, replyToken: string, org:
         org.line_channel_access_token,
         replyToken,
         "สถานะประกันบ่อของคุณ",
-        buildWarrantyFlex(wells.rows),
+        buildWarrantyFlex(wells.rows, baseUrl),
       );
     }
   } else if (/ประวัติซ่อม|การซ่อม|ซ่อมครั้ง/.test(text)) {
@@ -546,6 +602,7 @@ router.post(
       return res.status(400).json({ error: "Invalid signature" });
     }
 
+    const baseUrl = getBaseUrl(req);
     const events = body?.events || [];
     for (const event of events) {
       const userId = event.source?.userId;
@@ -556,7 +613,7 @@ router.post(
 
       try {
         if (event.type === "message" && event.message?.type === "text") {
-          await handleText(userId, event.message.text, event.replyToken, org);
+          await handleText(userId, event.message.text, event.replyToken, org, baseUrl);
         } else if (event.type === "message" && event.message?.type === "image") {
           await handleImage(userId, event.message.id, org, event.replyToken);
         } else if (event.type === "postback") {

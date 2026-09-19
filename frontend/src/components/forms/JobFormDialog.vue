@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import type { Customer } from "@/types";
+import { requiredField } from "@/utils/validation";
 
 const props = defineProps<{ modelValue: boolean; customers: Customer[] }>();
 const emit  = defineEmits<{ "update:modelValue": [boolean]; submit: [Record<string, any>] }>();
@@ -42,8 +43,19 @@ function submit() {
           label="ลูกค้า *"
           class="mb-3"
         />
-        <v-text-field v-model="form.job_title" label="หัวข้องาน *" class="mb-3" />
-        <v-textarea   v-model="form.site_address" label="ที่ตั้งหน้างาน *" rows="2" class="mb-3" />
+        <v-text-field
+          v-model="form.job_title"
+          label="หัวข้องาน *"
+          :rules="[requiredField('กรุณากรอกหัวข้องาน')]"
+          class="mb-3"
+        />
+        <v-textarea
+          v-model="form.site_address"
+          label="ที่ตั้งหน้างาน *"
+          :rules="[requiredField('กรุณากรอกที่ตั้งหน้างาน')]"
+          rows="2"
+          class="mb-3"
+        />
 
         <v-row dense class="mb-1">
           <v-col cols="6"><v-text-field v-model="form.province" label="จังหวัด" /></v-col>

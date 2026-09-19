@@ -2,16 +2,20 @@
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { customersApi, type CustomerOverview } from "@/api/customers";
+import { api } from "@/api/client";
 import { useUiStore } from "@/stores/ui";
 import { useSSERefresh } from "@/composables/useSSERefresh";
 import { fmtDate } from "@/utils/date";
 import { DRILLING_METHOD } from "@/constants";
+import CustomerFormDialog from "@/components/forms/CustomerFormDialog.vue";
+import type { Customer } from "@/types";
 
 const route = useRoute();
 const router = useRouter();
 const ui = useUiStore();
 const loading = ref(true);
 const data = ref<CustomerOverview | null>(null);
+const showEditCustomer = ref(false);
 
 const customer = computed(() => data.value?.customer);
 
@@ -33,6 +37,27 @@ useSSERefresh(refresh, [
   "CUSTOMER_UPDATED",
   "CUSTOMER_DELETED",
 ]);
+
+async function handleUpdateCustomer(formData: Partial<Customer>) {
+  if (!customer.value?.customer_id) return;
+  try {
+    await customersApi.update(customer.value.customer_id, formData);
+    ui.notify("แก้ไขข้อมูลลูกค้าเรียบร้อยแล้ว", "success");
+    showEditCustomer.value = false;
+    await refresh();
+  } catch (e) {
+    ui.notifyError(e);
+  }
+}
+
+async function downloadWellReport(wellId: number) {
+  try {
+    ui.notify("กำลังเตรียมรายงาน PDF...", "info");
+    await api.download(`/wells/${wellId}/report.pdf`, `report-${wellId}.pdf`);
+  } catch (e) {
+    ui.notifyError(e);
+  }
+}
 </script>
 
 <template>
@@ -53,7 +78,16 @@ useSSERefresh(refresh, [
             <v-icon icon="mdi-account-outline" size="32" />
           </v-avatar>
           <div>
-            <div class="text-h6 font-display font-weight-bold">{{ customer.customer_name }}</div>
+            <div class="d-flex align-center ga-2">
+              <span class="text-h6 font-display font-weight-bold">{{ customer.customer_name }}</span>
+              <v-btn
+                icon="mdi-pencil-outline"
+                size="x-small"
+                variant="text"
+                color="medium-emphasis"
+                @click="showEditCustomer = true"
+              />
+            </div>
             <div class="text-caption text-medium-emphasis">
               <v-icon icon="mdi-phone-outline" size="14" /> {{ customer.phone }}
               <template v-if="customer.phone_alt"> · {{ customer.phone_alt }}</template>
@@ -73,11 +107,21 @@ useSSERefresh(refresh, [
       <v-row v-if="data?.wells.length">
         <v-col v-for="w in data.wells" :key="w.well_id" cols="12" sm="6" md="4">
           <v-card variant="outlined" class="pa-4 h-100 cursor-pointer" @click="router.push(`/wells/${w.well_id}`)">
-            <div class="d-flex align-center ga-3 mb-3">
-              <v-avatar color="primary" variant="tonal" size="42">
-                <v-icon icon="mdi-water-outline" />
-              </v-avatar>
-              <div class="text-body-1 font-weight-bold">{{ w.well_name || `บ่อบาดาล #${w.well_id}` }}</div>
+            <div class="d-flex align-center justify-space-between mb-3">
+              <div class="d-flex align-center ga-3">
+                <v-avatar color="primary" variant="tonal" size="42">
+                  <v-icon icon="mdi-water-outline" />
+                </v-avatar>
+                <div class="text-body-1 font-weight-bold">{{ w.well_name || `บ่อบาดาล #${w.well_id}` }}</div>
+              </div>
+              <v-btn
+                icon="mdi-file-pdf-box"
+                size="small"
+                variant="tonal"
+                color="secondary"
+                title="ออกรายงาน PDF"
+                @click.stop="downloadWellReport(w.well_id)"
+              />
             </div>
             <div class="d-flex ga-4 text-caption text-medium-emphasis">
               <span><v-icon icon="mdi-ruler" size="14" /> {{ w.total_depth_m ?? "-" }} ม.</span>
@@ -99,6 +143,13 @@ useSSERefresh(refresh, [
         </v-col>
       </v-row>
       <div v-else class="text-center py-10 text-medium-emphasis">ลูกค้ารายนี้ยังไม่มีบ่อบาดาล</div>
+
+      <!-- Edit Customer Dialog -->
+      <CustomerFormDialog
+        v-model="showEditCustomer"
+        :customer="customer"
+        @submit="handleUpdateCustomer"
+      />
     </template>
 
     <v-card v-else class="pa-6 text-center">
@@ -107,3 +158,4 @@ useSSERefresh(refresh, [
     </v-card>
   </div>
 </template>
+

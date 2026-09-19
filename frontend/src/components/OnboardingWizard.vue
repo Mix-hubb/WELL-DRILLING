@@ -44,7 +44,7 @@ const steps = [
       "สร้าง <strong>Channel</strong> ประเภท <strong>Messaging API</strong>",
       "ไป tab <strong>LIFF</strong> → กด <strong>Add</strong>",
       "ตั้ง <strong>App name</strong> เช่น ฟอร์มแจ้งเจาะ",
-      "ตั้ง <strong>Endpoint URL</strong> = <code>https://well-drilling.vercel.app</code>",
+      `ตั้ง <strong>Endpoint URL</strong> = <code>${import.meta.env.VITE_APP_URL || window.location.origin}</code>`,
       "เลือก Scope = <strong>profile</strong> + <strong>openid</strong>",
       "คัดลอก <strong>LIFF ID</strong> (ตัวอย่าง: 2011510067-xxxxx)",
       "ทำซ้ำอีกครั้งสำหรับ <strong>ฟอร์มแจ้งซ่อม</strong> (สร้าง LIFF App ที่ 2)",

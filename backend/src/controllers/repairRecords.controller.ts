@@ -46,6 +46,52 @@ export async function getOne(req: Request, res: Response) {
   res.json(mapRow(rows[0]));
 }
 
+export async function update(req: Request, res: Response) {
+  const { id } = req.params;
+  const { sql, params } = userFilter(req, "c", 1);
+  const existing = await pool.query(
+    `SELECT rec.record_id, rec.repair_id
+     FROM repair_records rec
+     JOIN repair_requests r ON r.repair_id = rec.repair_id
+     JOIN customers c ON c.customer_id = r.customer_id
+     WHERE rec.record_id = $1${sql}`,
+    [id, ...params]
+  );
+  if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบบันทึกการซ่อม" });
+
+  const { final_price, work_details, parts, pump, is_warranty_claim, completed_at } = req.body;
+
+  const { rows } = await pool.query(
+    `UPDATE repair_records SET
+      final_price = $1,
+      work_details = $2,
+      parts = $3,
+      pump = $4,
+      is_warranty_claim = $5,
+      completed_at = COALESCE($6, completed_at)
+     WHERE record_id = $7
+     RETURNING *`,
+    [
+      final_price == null || final_price === "" ? null : Number(final_price),
+      work_details ?? null,
+      parts ? JSON.stringify(parts) : "[]",
+      pump ? JSON.stringify(pump) : null,
+      Boolean(is_warranty_claim),
+      completed_at || null,
+      id,
+    ]
+  );
+
+  const updatedRecord = mapRow(rows[0]);
+  broadcast({
+    type: "REPAIR_RECORD_UPDATED",
+    data: { record_id: Number(id), repair_id: existing.rows[0].repair_id },
+    orgId: req.user?.orgId,
+  });
+
+  res.json(updatedRecord);
+}
+
 export async function remove(req: Request, res: Response) {
   const { sql, params } = userFilter(req, "c", 1);
   const existing = await pool.query(
@@ -61,3 +107,4 @@ export async function remove(req: Request, res: Response) {
   broadcast({ type: "REPAIR_RECORD_DELETED", data: { record_id: Number(req.params.id) }, orgId: req.user?.orgId });
   res.status(204).end();
 }
+

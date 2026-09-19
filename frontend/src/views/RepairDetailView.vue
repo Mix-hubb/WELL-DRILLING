@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { repairRequestsApi } from "@/api/repairRequests";
+import { repairRequestsApi, repairRecordsApi } from "@/api/repairRequests";
 import { quotationsApi } from "@/api/quotations";
 import { api } from "@/api/client";
 import { useUiStore } from "@/stores/ui";
 import { fmtDate } from "@/utils/date";
 import { useSSE } from "@/composables/useSSE";
-import type { RepairRequest, PaymentSlip } from "@/types";
+import type { RepairRequest, PaymentSlip, RepairRecord } from "@/types";
 import { REPAIR_STATUS, QUOTATION_STATUS, money } from "@/constants";
 import StatusChip from "@/components/StatusChip.vue";
 import DrillerLinkChip from "@/components/DrillerLinkChip.vue";
+import RepairRecordEditDialog from "@/components/forms/RepairRecordEditDialog.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -80,6 +81,9 @@ onMounted(async () => {
     if (data.repair_id === Number(route.params.id)) reload();
   });
   on("REPAIR_RECORD_DELETED", () => reload());
+  on("REPAIR_RECORD_UPDATED", (data) => {
+    if (data.repair_id === Number(route.params.id)) reload();
+  });
   on("QUOTATION_CREATED", (data) => {
     if (data.kind === "REPAIR") reload();
   });
@@ -198,6 +202,77 @@ async function confirmRejectSlip() {
     await loadSlips();
   } catch (e) {
     ui.notifyError(e);
+  }
+}
+
+// Repair Record Edit / Delete
+const editRecordDlg = ref(false);
+const editingRecord = ref<RepairRecord | null>(null);
+const deleteRecordDlg = ref(false);
+const deletingRecord = ref<RepairRecord | null>(null);
+
+function openEditRecord(rec: RepairRecord) {
+  editingRecord.value = rec;
+  editRecordDlg.value = true;
+}
+
+function confirmDeleteRecord(rec: RepairRecord) {
+  deletingRecord.value = rec;
+  deleteRecordDlg.value = true;
+}
+
+async function handleUpdateRecord(data: Partial<RepairRecord>) {
+  if (!editingRecord.value) return;
+  try {
+    await repairRecordsApi.update(editingRecord.value.record_id, data);
+    editRecordDlg.value = false;
+    await reload();
+    ui.notify("แก้ไขบันทึกการซ่อมแล้ว", "success");
+  } catch (e) {
+    ui.notifyError(e);
+  }
+}
+
+async function handleDeleteRecord() {
+  if (!deletingRecord.value) return;
+  try {
+    await repairRecordsApi.remove(deletingRecord.value.record_id);
+    deleteRecordDlg.value = false;
+    deletingRecord.value = null;
+    await reload();
+    ui.notify("ลบบันทึกการซ่อมแล้ว", "success");
+  } catch (e) {
+    ui.notifyError(e);
+  }
+}
+
+// Receipt (ใบเสร็จรับเงิน)
+const downloadingReceipt = ref(false);
+const sendingReceipt = ref(false);
+
+async function downloadReceipt() {
+  if (!request.value) return;
+  downloadingReceipt.value = true;
+  try {
+    await repairRequestsApi.downloadReceiptPdf(request.value.repair_id);
+    ui.notify("ดาวน์โหลดใบเสร็จรับเงินสำเร็จ", "success");
+  } catch (e) {
+    ui.notifyError(e);
+  } finally {
+    downloadingReceipt.value = false;
+  }
+}
+
+async function handleSendReceipt() {
+  if (!request.value) return;
+  sendingReceipt.value = true;
+  try {
+    const res = await repairRequestsApi.sendReceipt(request.value.repair_id);
+    ui.notify(res.message || "ส่งใบเสร็จให้ลูกค้าผ่าน LINE เรียบร้อยแล้ว", "success");
+  } catch (e) {
+    ui.notifyError(e);
+  } finally {
+    sendingReceipt.value = false;
   }
 }
 </script>
@@ -370,12 +445,42 @@ async function confirmRejectSlip() {
 
       <!-- Records -->
       <v-card class="pa-4">
-        <div class="text-subtitle-1 font-display font-weight-bold mb-2">บันทึกการซ่อม ({{ request.records?.length ?? 0 }})</div>
+        <div class="d-flex flex-wrap justify-space-between align-center ga-2 mb-3">
+          <div class="text-subtitle-1 font-display font-weight-bold">
+            บันทึกการซ่อม ({{ request.records?.length ?? 0 }})
+          </div>
+          <div v-if="request.records?.length" class="d-flex flex-wrap ga-2">
+            <v-btn
+              size="small"
+              color="primary"
+              variant="tonal"
+              prepend-icon="mdi-file-document-outline"
+              :loading="downloadingReceipt"
+              @click="downloadReceipt"
+            >
+              ดาวน์โหลดใบเสร็จ (PDF)
+            </v-btn>
+            <v-btn
+              size="small"
+              color="success"
+              variant="flat"
+              prepend-icon="mdi-cellphone-message"
+              :loading="sendingReceipt"
+              @click="handleSendReceipt"
+            >
+              ส่งใบเสร็จหาลูกค้า (LINE)
+            </v-btn>
+          </div>
+        </div>
         <div v-if="request.records?.length">
           <v-card v-for="rec in request.records" :key="rec.record_id" variant="outlined" class="pa-3 mb-3">
             <div class="d-flex justify-space-between align-center mb-1">
               <div class="text-subtitle-2 font-weight-bold">บันทึก #{{ rec.record_id }}</div>
-              <div class="text-caption text-medium-emphasis">{{ fmtDate(rec.completed_at) }}</div>
+              <div class="d-flex align-center ga-1">
+                <div class="text-caption text-medium-emphasis mr-2">{{ fmtDate(rec.completed_at) }}</div>
+                <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="medium-emphasis" @click="openEditRecord(rec)" />
+                <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error" @click="confirmDeleteRecord(rec)" />
+              </div>
             </div>
             <div v-if="rec.final_price" class="font-weight-bold text-success mb-1">ราคาจบงาน {{ money(rec.final_price) }} บาท</div>
             <div v-if="rec.is_warranty_claim" class="mb-1">
@@ -490,6 +595,26 @@ async function confirmRejectSlip() {
         <v-card class="pa-2 text-center" v-if="previewImage">
           <img :src="previewImage" style="max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 4px;" />
           <v-btn class="mt-2" variant="tonal" size="small" @click="previewImage = null">ปิด</v-btn>
+        </v-card>
+      </v-dialog>
+
+      <!-- Repair Record Edit Dialog -->
+      <RepairRecordEditDialog
+        v-model="editRecordDlg"
+        :record="editingRecord"
+        @submit="handleUpdateRecord"
+      />
+
+      <!-- Repair Record Delete Confirm Dialog -->
+      <v-dialog v-model="deleteRecordDlg" max-width="420">
+        <v-card>
+          <v-card-title class="pa-4 font-display font-weight-bold text-error">ยืนยันการลบบันทึกการซ่อม</v-card-title>
+          <v-card-text class="pa-4">คุณแน่ใจหรือไม่ว่าต้องการลบบันทึก #{{ deletingRecord?.record_id }}?</v-card-text>
+          <v-card-actions class="pa-4 ga-2">
+            <v-spacer />
+            <v-btn variant="text" @click="deleteRecordDlg = false">ยกเลิก</v-btn>
+            <v-btn color="error" variant="flat" @click="handleDeleteRecord">ลบข้อมูล</v-btn>
+          </v-card-actions>
         </v-card>
       </v-dialog>
     </template>

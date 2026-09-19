@@ -169,3 +169,112 @@ async function logNotification(
     [customerId, kind, content, lineMessageId || null, status]
   );
 }
+
+export function buildRepairReceiptFlex(options: {
+  receiptNo: string;
+  customerName: string;
+  repairId: number | string;
+  wellName?: string | null;
+  workDetails?: string | null;
+  parts?: Array<{ name: string; qty: number; unit_price: number }>;
+  finalPrice?: number | null;
+  isWarrantyClaim?: boolean;
+  pdfUrl: string;
+}) {
+  const isWarranty = Boolean(options.isWarrantyClaim);
+  const priceText = isWarranty
+    ? "เคลมประกัน (0 บาท)"
+    : options.finalPrice != null
+      ? `${Number(options.finalPrice).toLocaleString("th-TH")} บาท`
+      : "—";
+
+  const partsSummary = options.parts && options.parts.length > 0
+    ? options.parts.map((p) => `• ${p.name} x${p.qty}`).slice(0, 4).join("\n")
+    : "";
+
+  return {
+    type: "bubble",
+    size: "giga",
+    header: {
+      type: "box",
+      layout: "vertical",
+      backgroundColor: "#1B5E20",
+      paddingAll: "lg",
+      contents: [
+        {
+          type: "text",
+          text: "ใบเสร็จรับเงิน / ผลการซ่อม",
+          weight: "bold",
+          color: "#FFFFFF",
+          size: "lg",
+        },
+        {
+          type: "text",
+          text: `เลขที่: ${options.receiptNo}`,
+          color: "#C8E6C9",
+          size: "xs",
+          margin: "xs",
+        },
+      ],
+    },
+    body: {
+      type: "box",
+      layout: "vertical",
+      spacing: "md",
+      paddingAll: "lg",
+      contents: [
+        {
+          type: "box",
+          layout: "vertical",
+          spacing: "xs",
+          contents: [
+            { type: "text", text: `คุณ${options.customerName}`, weight: "bold", size: "md", color: "#111827" },
+            { type: "text", text: `รหัสงานซ่อม: #${options.repairId}${options.wellName ? ` · ${options.wellName}` : ""}`, size: "xs", color: "#6B7280" },
+          ],
+        },
+        { type: "separator", color: "#E5E7EB" },
+        {
+          type: "box",
+          layout: "vertical",
+          spacing: "xs",
+          contents: [
+            { type: "text", text: "รายละเอียดการซ่อม:", size: "xs", color: "#6B7280" },
+            { type: "text", text: options.workDetails || "ซ่อมบำรุงระบบบ่อบาดาลเรียบร้อยแล้ว", size: "sm", wrap: true, color: "#1F2937" },
+            ...(partsSummary ? [
+              { type: "text", text: "รายการอะไหล่:", size: "xs", color: "#6B7280", margin: "sm" },
+              { type: "text", text: partsSummary, size: "xs", color: "#374151", wrap: true },
+            ] : []),
+          ],
+        },
+        { type: "separator", color: "#E5E7EB" },
+        {
+          type: "box",
+          layout: "horizontal",
+          contents: [
+            { type: "text", text: "ยอดสุทธิ:", weight: "bold", size: "md", color: "#111827", flex: 3 },
+            { type: "text", text: priceText, weight: "bold", size: "md", color: isWarranty ? "#2E7D32" : "#8C5A2B", align: "right", flex: 5 },
+          ],
+        },
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      paddingAll: "md",
+      contents: [
+        {
+          type: "button",
+          style: "primary",
+          color: "#1B5E20",
+          height: "sm",
+          action: {
+            type: "uri",
+            label: "📄 ดาวน์โหลดใบเสร็จ (PDF)",
+            uri: options.pdfUrl,
+          },
+        },
+      ],
+    },
+  };
+}
