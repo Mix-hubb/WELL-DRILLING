@@ -1,8 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
 import { PassThrough } from "stream";
+import fs from "fs";
+import path from "path";
 import { streamRepairReceiptPdf, ReceiptData } from "./pdfReceipt";
 
 describe("streamRepairReceiptPdf", () => {
+  it("has the bundled Thai fonts required for PDF generation", () => {
+    expect(fs.existsSync(path.join(__dirname, "..", "..", "fonts", "Sarabun-Regular.ttf"))).toBe(true);
+    expect(fs.existsSync(path.join(__dirname, "..", "..", "fonts", "Sarabun-Bold.ttf"))).toBe(true);
+  });
+
   it("generates a valid PDF stream with standard receipt data", () => {
     const mockRes = new PassThrough() as any;
     mockRes.setHeader = vi.fn();
