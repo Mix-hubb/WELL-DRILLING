@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { pool } from "../config/db";
 import { asyncHandler } from "../utils/asyncHandler";
+import { adminMiddleware } from "../middleware/auth";
 
 const router = Router();
 
@@ -68,6 +69,7 @@ router.get(
 
 router.put(
   "/",
+  adminMiddleware,
   asyncHandler(async (req: Request, res: Response) => {
     const {
       line_channel_id, line_channel_secret, line_channel_access_token,

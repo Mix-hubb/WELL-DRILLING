@@ -18,9 +18,19 @@ CREATE TABLE IF NOT EXISTS public.organizations (
   updated_at             timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_organizations_updated
-  BEFORE UPDATE ON public.organizations
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 'trg_organizations_updated'
+      AND tgrelid = 'public.organizations'::regclass
+  ) THEN
+    CREATE TRIGGER trg_organizations_updated
+      BEFORE UPDATE ON public.organizations
+      FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  END IF;
+END
+$$;
 
 -- 2. Index สำหรับ webhook routing
 CREATE INDEX IF NOT EXISTS idx_org_channel_id ON public.organizations(line_channel_id);

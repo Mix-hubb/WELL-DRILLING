@@ -170,6 +170,28 @@ GitLab CI ทำงานตามลำดับ test, security scan, build, de
 
 Build artifacts ถูกตั้งชื่อด้วย commit SHA เพื่อให้ระบุเวอร์ชันได้ ส่วน rollback แบบ provider-native และ artifact registry ต้องตั้งค่า API/registry credentials เพิ่มเติมก่อนเปิดใช้งาน
 
+### Database Operations
+
+- `scripts/db-migrate.sh` รัน Supabase migrations ตามลำดับ แล้วตามด้วย multi-tenant และ performance migrations ด้วย `ON_ERROR_STOP`
+- `scripts/db-backup.sh` สร้าง PostgreSQL custom-format dump พร้อม SHA-256 checksum
+- `scripts/db-restore.sh` restore ได้เมื่อกำหนด `CONFIRM_RESTORE=YES` เท่านั้น
+- GitLab มี manual jobs ชื่อ `database-migrate`, `database-backup` และ `database-restore` สำหรับ `main`; restore จะดาวน์โหลด artifact จาก backup job ล่าสุดใน pipeline เดียวกัน
+
+ตั้งค่า `DATABASE_URL` เป็น protected/masked CI variable และเก็บ backup artifact ไว้ใน storage ที่มี retention แยกจาก GitLab job artifacts ก่อนใช้งานจริง
+
+### Integration และ E2E
+
+- Backend tenant isolation test: `cd backend; npm run test:integration`
+- Frontend Playwright test: `cd frontend; npm run test:e2e`
+- GitLab จะรัน integration test เมื่อมี `INTEGRATION_DATABASE_URL`
+- GitLab จะรัน E2E เมื่อมี `E2E_BASE_URL` เช่น staging URL
+
+ตั้งค่า `INTEGRATION_DATABASE_URL` เป็นฐานข้อมูลทดสอบแยกจาก production เท่านั้น และตั้ง `E2E_BASE_URL` เป็น staging พร้อมข้อมูลทดสอบ ห้ามใช้บัญชี production ใน E2E
+
+### Observability
+
+ทุก request มี `X-Request-Id` และ JSON log ที่มี method, path, status, duration, user และ organization context เพื่อค้นหาใน Render logs ได้ โดยไม่บันทึก JWT หรือ request body
+
 Backend และ frontend security scan เป็น quality gate แล้ว โดยตรวจ high/critical vulnerabilities ก่อน build และ deploy หลังอัปเกรด Nodemailer เป็น `10.0.10`, Vite เป็น `8.3.0` และ Vitest เป็น `5.0.1`
 
 ## ความปลอดภัยของไฟล์

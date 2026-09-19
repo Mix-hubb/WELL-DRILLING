@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
-import { signToken, verifyToken, authMiddleware, type AuthPayload } from "./auth";
+import { signToken, verifyToken, authMiddleware, adminMiddleware, type AuthPayload } from "./auth";
 
 const payload: AuthPayload = {
   userId: "u-1",
@@ -79,6 +79,30 @@ describe("authMiddleware", () => {
     authMiddleware(req, res, next);
     expect(req.user).toMatchObject({ userId: "u-1", email: "test@example.com" });
     expect(next).toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+});
+
+describe("adminMiddleware", () => {
+  it("rejects non-admin users", () => {
+    const req = { user: { ...payload, role: "DRILLER" } } as unknown as Request;
+    const res = createRes();
+    const next = vi.fn() as unknown as NextFunction;
+
+    adminMiddleware(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("allows admin users", () => {
+    const req = { user: payload } as unknown as Request;
+    const res = createRes();
+    const next = vi.fn() as unknown as NextFunction;
+
+    adminMiddleware(req, res, next);
+
+    expect(next).toHaveBeenCalledOnce();
     expect(res.status).not.toHaveBeenCalled();
   });
 });

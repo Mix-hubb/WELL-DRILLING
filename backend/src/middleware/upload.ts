@@ -38,13 +38,7 @@ export const upload = multer({
 });
 
 export async function magicAuth(req: Request, res: Response, next: NextFunction) {
-  const header = req.headers.authorization;
-  if (header?.startsWith("Bearer ")) {
-    return authMiddleware(req, res, next);
-  }
-
   const magic =
-    (req.params.token as string) ||
     (req.query.magic as string) ||
     (req.headers["x-magic-token"] as string) ||
     (req.body?.magic_token as string);
@@ -66,4 +60,31 @@ export async function magicAuth(req: Request, res: Response, next: NextFunction)
   } catch {
     res.status(500).json({ error: "ไม่สามารถตรวจสอบลิงก์ได้" });
   }
+}
+
+export function magicResourceAuth(resource: "job" | "repair") {
+  return async function resourceAuth(req: Request, res: Response, next: NextFunction) {
+    const magic =
+      (req.query.magic as string) ||
+      (req.headers["x-magic-token"] as string) ||
+      (req.body?.magic_token as string);
+    const id = req.params.id;
+
+    if (!magic || !id) return res.status(401).json({ error: "ต้องระบุ magic token" });
+
+    try {
+      const table = resource === "job" ? "drilling_jobs" : "repair_requests";
+      const idColumn = resource === "job" ? "job_id" : "repair_id";
+      const { rows } = await pool.query(
+        `SELECT 1 FROM ${table}
+         WHERE ${idColumn} = $1 AND magic_link_token = $2
+           AND (magic_link_expires_at IS NULL OR magic_link_expires_at > NOW())`,
+        [id, magic]
+      );
+      if (!rows.length) return res.status(403).json({ error: "ลิงก์ไม่ถูกต้องหรือหมดอายุ" });
+      next();
+    } catch {
+      res.status(500).json({ error: "ไม่สามารถตรวจสอบลิงก์ได้" });
+    }
+  };
 }

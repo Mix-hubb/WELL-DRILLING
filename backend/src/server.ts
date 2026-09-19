@@ -18,11 +18,12 @@ import webhookRoutes         from "./routes/webhooks.routes";
 import lineSettingsRoutes     from "./routes/lineSettings.routes";
 import orgRoutes              from "./routes/org.routes";
 import { authMiddleware, adminMiddleware } from "./middleware/auth";
-import { magicAuth }         from "./middleware/upload";
+import { magicAuth, magicResourceAuth } from "./middleware/upload";
 import { asyncHandler }      from "./utils/asyncHandler";
 
 import { verifyToken }       from "./middleware/auth";
 import { addClient, clientCount } from "./services/sse";
+import { requestContext, logError } from "./middleware/observability";
 import { apiLimiter, authLimiter, publicLimiter } from "./middleware/rateLimit";
 import * as jobsCtrl         from "./controllers/jobs.controller";
 import * as repairCtrl       from "./controllers/repairRequests.controller";
@@ -32,6 +33,7 @@ import * as wellsCtrl        from "./controllers/wells.controller";
 const app = express();
 
 app.set("trust proxy", 1);
+app.use(requestContext);
 
 const corsOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === "production" ? false : "*");
 app.use(cors({ origin: corsOrigin }));
@@ -180,9 +182,9 @@ app.get("/api/public/customer-by-line", publicLimiter, asyncHandler(async (req: 
 app.get("/api/public/wells/:id/report.pdf", publicLimiter, asyncHandler(wellsCtrl.exportReport));
 app.get("/api/public/repairs/:id/receipt.pdf", publicLimiter, asyncHandler(repairCtrl.exportReceipt));
 app.get("/api/jobs/magic/:token", publicLimiter, magicAuth, asyncHandler(jobsCtrl.getByMagicToken));
-app.patch("/api/jobs/:id/well", publicLimiter, magicAuth, asyncHandler(jobsCtrl.completeWell));
+app.patch("/api/jobs/:id/well", publicLimiter, magicResourceAuth("job"), asyncHandler(jobsCtrl.completeWell));
 app.get("/api/repair-requests/magic/:token", publicLimiter, magicAuth, asyncHandler(repairCtrl.getByMagicToken));
-app.post("/api/repair-requests/:id/records", publicLimiter, magicAuth, asyncHandler(repairCtrl.addRecord));
+app.post("/api/repair-requests/:id/records", publicLimiter, magicResourceAuth("repair"), asyncHandler(repairCtrl.addRecord));
 app.use("/api/pump-catalog", publicLimiter, pumpCatalogRoutes);
 app.use("/api/upload", publicLimiter, uploadRoutes);
 app.use("/api/webhooks", publicLimiter, webhookRoutes);
@@ -224,11 +226,11 @@ app.use("/api/org",               authMiddleware, apiLimiter, orgRoutes);
 
 // centralized error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error(err);
+  logError(err, _req.header("x-request-id"));
   res.status(500).json({ error: err?.message || "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์", code: err?.code });
 });
 
-process.on("unhandledRejection", (reason) => console.error("Unhandled rejection:", reason));
+process.on("unhandledRejection", (reason) => logError(reason));
 
 // Graceful shutdown
 async function shutdown(signal: string) {

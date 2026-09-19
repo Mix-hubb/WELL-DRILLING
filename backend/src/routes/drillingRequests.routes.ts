@@ -1,13 +1,14 @@
 import { Router } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import * as c from "../controllers/drillingRequests.controller";
+import { adminMiddleware } from "../middleware/auth";
 
 const router = Router();
 router.get("/", asyncHandler(c.list));
 router.get("/:id", asyncHandler(c.getOne));
-router.post("/", asyncHandler(c.create));
-router.put("/:id", asyncHandler(c.update));
-router.patch("/:id/status", asyncHandler(c.updateStatus));
-router.delete("/:id", asyncHandler(c.remove));
+router.post("/", adminMiddleware, asyncHandler(c.create));
+router.put("/:id", adminMiddleware, asyncHandler(c.update));
+router.patch("/:id/status", adminMiddleware, asyncHandler(c.updateStatus));
+router.delete("/:id", adminMiddleware, asyncHandler(c.remove));
 
 export default router;
