@@ -2,6 +2,44 @@ import { pool } from "../config/db";
 
 const MESSAGING_API = "https://api.line.me/v2/bot/message/push";
 
+export function buildLineNoticeFlex(text: string, title = "แจ้งเตือนจากระบบ") {
+  const urlMatch = text.match(/https?:\/\/[^\s]+/);
+  const rawUrl = urlMatch?.[0];
+  const url = rawUrl?.replace(/[)。，、]+$/, "");
+  const bodyText = rawUrl ? text.replace(rawUrl, "").trim() : text;
+
+  return {
+    type: "bubble",
+    size: "giga",
+    header: {
+      type: "box",
+      layout: "vertical",
+      backgroundColor: "#315A49",
+      paddingAll: "lg",
+      contents: [{ type: "text", text: title, color: "#FFFFFF", weight: "bold", size: "lg", wrap: true }],
+    },
+    body: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "lg",
+      contents: [{ type: "text", text: bodyText || text, color: "#1F2937", size: "sm", wrap: true }],
+    },
+    ...(url ? {
+      footer: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "md",
+        contents: [{
+          type: "button",
+          style: "primary",
+          color: "#315A49",
+          action: { type: "uri", label: "เปิดลิงก์", uri: url },
+        }],
+      },
+    } : {}),
+  };
+}
+
 async function getAccessTokenForCustomer(customerId: number, fallbackOrgId?: string | null): Promise<string | null> {
   const { rows } = await pool.query(
     `SELECT o.line_channel_access_token
@@ -57,7 +95,11 @@ export async function sendTextToCustomerById(
       },
       body: JSON.stringify({
         to: customer.line_user_id,
-        messages: [{ type: "text", text }],
+        messages: [{
+          type: "flex",
+          altText: text.slice(0, 400),
+          contents: buildLineNoticeFlex(text),
+        }],
       }),
     });
 

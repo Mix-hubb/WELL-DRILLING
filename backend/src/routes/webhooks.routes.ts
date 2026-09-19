@@ -4,6 +4,7 @@ import { pool } from "../config/db";
 import { asyncHandler } from "../utils/asyncHandler";
 
 import { broadcast } from "../services/sse";
+import { buildLineNoticeFlex } from "../services/line";
 
 const router = Router();
 
@@ -58,7 +59,10 @@ async function reply(accessToken: string, replyToken: string, text: string) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ replyToken, messages: [{ type: "text", text }] }),
+    body: JSON.stringify({
+      replyToken,
+      messages: [{ type: "flex", altText: text.slice(0, 400), contents: buildLineNoticeFlex(text) }],
+    }),
   });
 }
 

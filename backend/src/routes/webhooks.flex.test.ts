@@ -1,5 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { buildWellInfoFlex, buildWarrantyFlex } from "./webhooks.routes";
+import { buildLineNoticeFlex } from "../services/line";
+
+describe("buildLineNoticeFlex", () => {
+  it("builds a graphic card and turns a URL into a button", () => {
+    const flex = buildLineNoticeFlex("เปิดแบบฟอร์มได้ที่ https://example.com/form");
+
+    expect(flex.type).toBe("bubble");
+    expect(flex.body.contents[0].text).toBe("เปิดแบบฟอร์มได้ที่");
+    expect(flex.footer?.contents[0].action).toEqual({
+      type: "uri",
+      label: "เปิดลิงก์",
+      uri: "https://example.com/form",
+    });
+  });
+});
 
 describe("buildWellInfoFlex", () => {
   it("generates carousel with footer containing PDF download button", () => {
