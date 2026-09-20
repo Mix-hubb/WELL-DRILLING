@@ -22,3 +22,7 @@ export const pool = new Pool({
 pool.on("error", (err) => {
   console.error("Unexpected PG pool error:", err);
 });
+
+pool.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"').catch((err) => {
+  console.error("Failed to ensure pgcrypto extension:", err.message);
+});
