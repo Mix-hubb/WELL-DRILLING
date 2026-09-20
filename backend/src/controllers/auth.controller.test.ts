@@ -70,8 +70,7 @@ beforeEach(() => {
 
   client.query.mockReset();
   client.query.mockImplementation(async (sql: string) => {
-    if (sql.includes("INSERT INTO organizations")) return { rows: [{ org_id: "org-1" }] };
-    if (sql.includes("INSERT INTO users")) return { rows: [{ user_id: "u-1" }] };
+    if (sql.includes("SELECT org_id FROM organizations")) return { rows: [{ org_id: "org-1" }] };
     return { rows: [] };
   });
   client.release.mockImplementation(() => undefined);
@@ -113,7 +112,7 @@ describe("register", () => {
     await auth.register(createReq({ ...validBody, phone: "081 234-5678" }), res);
     expect(res.status).toHaveBeenCalledWith(201);
     const inserted = client.query.mock.calls.find((c) => String(c[0]).includes("INSERT INTO users"));
-    expect(inserted![1][3]).toBe("0812345678");
+    expect(inserted![1][4]).toBe("0812345678");
   });
 
   it("returns 400 for a short password", async () => {
@@ -164,10 +163,11 @@ describe("register", () => {
       String(c[0]).includes("INSERT INTO organizations")
     );
     expect(orgInsertCall).toBeDefined();
-    expect(orgInsertCall![1][0]).toBe("My Company");
-    expect(orgInsertCall![1][1]).toBe("my-company");
-    expect(typeof orgInsertCall![1][2]).toBe("string");
-    expect(orgInsertCall![1][2].length).toBeGreaterThanOrEqual(4);
+    expect(typeof orgInsertCall![1][0]).toBe("string");
+    expect(orgInsertCall![1][1]).toBe("My Company");
+    expect(orgInsertCall![1][2]).toBe("my-company");
+    expect(typeof orgInsertCall![1][3]).toBe("string");
+    expect(orgInsertCall![1][3].length).toBeGreaterThanOrEqual(4);
     expect(mocks.bcryptHash).toHaveBeenCalledWith("secret123", 10);
     expect(client.query).toHaveBeenCalledWith("COMMIT");
     expect(client.release).toHaveBeenCalled();
@@ -176,11 +176,11 @@ describe("register", () => {
     const userInsertCall = client.query.mock.calls.find((c) =>
       String(c[0]).includes("INSERT INTO users")
     );
-    expect(userInsertCall![1][4]).toBe("ADMIN");
+    expect(userInsertCall![1][5]).toBe("ADMIN");
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         token: "token",
-        user: expect.objectContaining({ user_id: "u-1", email: "user@example.com", role: "ADMIN" }),
+        user: expect.objectContaining({ email: "user@example.com", role: "ADMIN" }),
       })
     );
   });
@@ -191,7 +191,6 @@ describe("register", () => {
     mocks.signToken.mockReturnValueOnce("token");
     client.query.mockImplementation(async (sql: string) => {
       if (sql.includes("SELECT org_id FROM organizations")) return { rows: [{ org_id: "org-1" }] };
-      if (sql.includes("INSERT INTO users")) return { rows: [{ user_id: "u-1" }] };
       return { rows: [] };
     });
     const res = createRes();
