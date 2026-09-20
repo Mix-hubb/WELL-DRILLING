@@ -56,8 +56,8 @@ beforeEach(() => {
     if (sql.includes("UPDATE drilling_requests SET status")) return { rows: [] };
     if (sql.includes("UPDATE repair_requests SET status")) return { rows: [] };
     if (sql.includes("SELECT * FROM quotations")) return { rows: [quotationRow] };
-    if (sql.includes("SELECT r.request_id FROM drilling_requests")) return { rows: [{ request_id: 10 }] };
-    if (sql.includes("SELECT r.repair_id FROM repair_requests")) return { rows: [{ repair_id: "r-1" }] };
+    if (sql.includes("SELECT r.request_id, r.status")) return { rows: [{ request_id: 10, status: "NEW", job_status: null }] };
+    if (sql.includes("SELECT r.repair_id, r.status")) return { rows: [{ repair_id: "r-1", status: "NEW" }] };
     if (sql.includes("SELECT c.customer_id FROM")) return { rows: [{ customer_id: 2 }] };
     if (sql.includes("quotation_id = $1")) return { rows: [quotationRow] };
     return { rows: [] };

@@ -150,10 +150,18 @@ export async function updateStatus(req: Request, res: Response) {
 
   const { sql, params } = userFilter(req, "c", 1);
   const existing = await pool.query(
-    `SELECT r.request_id FROM drilling_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.request_id = $1${sql}`,
+    `SELECT r.request_id, r.status, j.job_id
+     FROM drilling_requests r
+     JOIN customers c ON c.customer_id = r.customer_id
+     LEFT JOIN drilling_jobs j ON j.request_id = r.request_id
+     WHERE r.request_id = $1${sql}`,
     [id, ...params]
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้องเจาะ" });
+
+  if ((existing.rows[0].status === "ACCEPTED" || existing.rows[0].job_id) && ["NEW", "QUOTED"].includes(status)) {
+    return res.status(409).json({ error: "คำร้องนี้ถูกรับงานหรือมีคิวเจาะแล้ว ไม่สามารถย้อนกลับเป็นรอใบราคาหรือคำร้องใหม่ได้" });
+  }
 
   await pool.query("UPDATE drilling_requests SET status = $1 WHERE request_id = $2", [status, id]);
 
@@ -252,6 +260,23 @@ export async function createFromPublicForm(req: Request, res: Response) {
         [name, phone, address || null, line_user_id || null, line_display_name || null, line_picture_url || null, resolvedOrgId]
       );
       customerId = c.rows[0].customer_id;
+    }
+
+    const duplicate = await client.query(
+      `SELECT r.request_id
+       FROM drilling_requests r
+       WHERE r.customer_id = $1
+         AND r.name = $2
+         AND r.phone = $3
+         AND r.address IS NOT DISTINCT FROM $4
+         AND r.requested_depth_m IS NOT DISTINCT FROM $5
+       ORDER BY r.created_at DESC
+       LIMIT 1`,
+      [customerId, name, phone, address || null, requested_depth_m ?? null]
+    );
+    if (duplicate.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "มีคำร้องแจ้งเจาะข้อมูลเดียวกันอยู่แล้ว ไม่สร้างคำร้องซ้ำ" });
     }
 
     const r = await client.query(

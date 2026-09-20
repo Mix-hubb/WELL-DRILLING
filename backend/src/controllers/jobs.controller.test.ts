@@ -137,6 +137,13 @@ describe("create", () => {
   });
 
   it("creates a job with a magic token and accepts the request", async () => {
+    mocks.poolQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM customers c WHERE c.customer_id")) return { rows: [{ customer_id: 2 }] };
+      if (sql.includes("FROM drilling_requests r")) return { rows: [{ status: "NEW", job_id: null }] };
+      if (sql.includes("INSERT INTO drilling_jobs")) return { rows: [{ job_id: 1 }] };
+      if (sql.includes("FROM drilling_jobs j")) return { rows: [jobRow] };
+      return { rows: [] };
+    });
     const res = createRes();
     await jobs.create(
       createReq({ body: { customer_id: 2, request_id: 7, job_title: "เจาะบ่อ" } }),

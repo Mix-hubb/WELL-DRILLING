@@ -129,6 +129,23 @@ export async function create(req: Request, res: Response) {
     return res.status(404).json({ error: "ไม่พบลูกค้าหรือไม่มีสิทธิ์เข้าถึง" });
   }
 
+  if (request_id) {
+    const requestCheck = await pool.query(
+      `SELECT r.status, j.job_id
+       FROM drilling_requests r
+       JOIN customers c ON c.customer_id = r.customer_id
+       LEFT JOIN drilling_jobs j ON j.request_id = r.request_id
+       WHERE r.request_id = $1 AND r.customer_id = $2 AND c.org_id = $3`,
+      [request_id, customer_id, req.user?.orgId]
+    );
+    if (!requestCheck.rows.length) {
+      return res.status(404).json({ error: "ไม่พบคำร้องเจาะของลูกค้าหรือไม่มีสิทธิ์เข้าถึง" });
+    }
+    if (requestCheck.rows[0].job_id || !["NEW", "QUOTED", "ACCEPTED"].includes(requestCheck.rows[0].status)) {
+      return res.status(409).json({ error: "คำร้องนี้มีคิวงานหรือถูกปิดแล้ว ไม่สามารถสร้างคิวงานซ้ำได้" });
+    }
+  }
+
   const token = generateMagicToken();
   const { rows } = await pool.query(
     `INSERT INTO drilling_jobs

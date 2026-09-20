@@ -113,17 +113,27 @@ export async function create(req: Request, res: Response) {
   if (kind === "DRILLING") {
     const { sql, params } = userFilter(req, "c", 1);
     const ownershipCheck = await pool.query(
-      `SELECT r.request_id FROM drilling_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.request_id = $1${sql}`,
+      `SELECT r.request_id, r.status, j.status AS job_status
+       FROM drilling_requests r
+       JOIN customers c ON c.customer_id = r.customer_id
+       LEFT JOIN drilling_jobs j ON j.request_id = r.request_id
+       WHERE r.request_id = $1${sql}`,
       [drilling_request_id, ...params]
     );
     if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบคำร้องหรือไม่มีสิทธิ์" });
+    if (ownershipCheck.rows[0].job_status || ownershipCheck.rows[0].status !== "NEW") {
+      return res.status(409).json({ error: "คำร้องนี้ถูกดำเนินการไปแล้ว ไม่สามารถสร้างใบเสนอราคาซ้ำได้" });
+    }
   } else {
     const { sql, params } = userFilter(req, "c", 1);
     const ownershipCheck = await pool.query(
-      `SELECT r.repair_id FROM repair_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.repair_id = $1${sql}`,
+      `SELECT r.repair_id, r.status FROM repair_requests r JOIN customers c ON c.customer_id = r.customer_id WHERE r.repair_id = $1${sql}`,
       [repair_request_id, ...params]
     );
     if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบคำร้องหรือไม่มีสิทธิ์" });
+    if (ownershipCheck.rows[0].status !== "NEW") {
+      return res.status(409).json({ error: "คำร้องนี้ถูกดำเนินการไปแล้ว ไม่สามารถสร้างใบเสนอราคาซ้ำได้" });
+    }
   }
 
   const { rows } = await pool.query(
