@@ -157,9 +157,17 @@ router.put(
           const botInfo: any = await botInfoRes.json();
           newBotUserId = botInfo.userId || null;
           if (newBotUserId) {
-            updates.push(`line_bot_user_id = $${idx++}`);
-            params.push(newBotUserId);
-            console.log(`[lineSettings] Auto-fetched bot user ID: ${newBotUserId}`);
+            const { rows: existing } = await pool.query(
+              "SELECT org_id FROM organizations WHERE line_bot_user_id = $1 AND org_id != $2",
+              [newBotUserId, orgId]
+            );
+            if (existing.length) {
+              console.warn(`[lineSettings] Bot user ID ${newBotUserId} already used by org ${existing[0].org_id}, skipping`);
+            } else {
+              updates.push(`line_bot_user_id = $${idx++}`);
+              params.push(newBotUserId);
+              console.log(`[lineSettings] Auto-fetched bot user ID: ${newBotUserId}`);
+            }
           }
         } else {
           console.warn(`[lineSettings] Could not fetch bot info: ${botInfoRes.status}`);
