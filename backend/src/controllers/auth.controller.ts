@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 import { pool } from "../config/db";
 import { signToken } from "../middleware/auth";
 import { UserRole } from "../types";
@@ -60,11 +59,11 @@ export async function register(req: Request, res: Response) {
       }
       const slug = org_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const newInviteCode = await createUniqueInviteCode((sql, params) => client.query(sql, params));
-      orgId = crypto.randomUUID();
-      await client.query(
-        "INSERT INTO organizations (org_id, name, slug, invite_code) VALUES ($1, $2, $3, $4)",
-        [orgId, org_name, slug, newInviteCode]
+      const { rows: orgRows } = await client.query(
+        "INSERT INTO organizations (name, slug, invite_code) VALUES ($1, $2, $3) RETURNING org_id",
+        [org_name, slug, newInviteCode]
       );
+      orgId = orgRows[0].org_id;
     }
 
     const password_hash = await bcrypt.hash(password, 10);
@@ -72,11 +71,12 @@ export async function register(req: Request, res: Response) {
 
     const USER_ROLE: UserRole = inviteCode ? "DRILLER" : "ADMIN";
 
-    const newUserId = crypto.randomUUID();
-    await client.query(
-      "INSERT INTO users (user_id, email, password_hash, full_name, phone, role, org_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-      [newUserId, email, password_hash, full_name, cleanPhone, USER_ROLE, orgId]
+    const { rows } = await client.query(
+      "INSERT INTO users (email, password_hash, full_name, phone, role, org_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id",
+      [email, password_hash, full_name, cleanPhone, USER_ROLE, orgId]
     );
+
+    const newUserId = rows[0].user_id;
     await client.query("COMMIT");
 
     if (inviteCode) broadcast({ type: "ORG_MEMBERS_CHANGED", data: {}, orgId });
