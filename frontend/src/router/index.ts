@@ -97,7 +97,7 @@ const routes: RouteRecordRaw[] = [
     props: true,
     meta: { public: true, hidden: true },
   },
-  { path: "/:pathMatch(.*)*", redirect: "/login" },
+  { path: "/:pathMatch(.*)*", redirect: (to) => ({ path: "/login", query: to.query }) },
 ];
 
 export const router = createRouter({
@@ -109,7 +109,7 @@ router.beforeEach(async (to, _from, next) => {
   const token = localStorage.getItem("welldrill-token");
 
   const urlLiffId = sanitizeLiffId(to.query.liffId) || undefined;
-  if (urlLiffId && (to.path === "/" || to.path === "/login")) {
+  if (urlLiffId && to.name !== "request-drill" && to.name !== "repair-form") {
     try {
       const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4001/api";
       const res = await fetch(`${BASE_URL}/public/liff-info?liff_id=${encodeURIComponent(urlLiffId)}`);
@@ -118,7 +118,7 @@ router.beforeEach(async (to, _from, next) => {
         return next({ path: `/${data.formType}`, query: { liffId: urlLiffId } });
       }
     } catch {
-      // fallback: show login
+      // network error — fall through to normal routing
     }
   }
 
