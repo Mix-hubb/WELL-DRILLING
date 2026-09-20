@@ -1,4 +1,5 @@
-import { createRouter, createWebHistory, type NavigationGuardNext, type RouteLocationNormalized } from "vue-router";
+import { createRouter, createWebHistory } from "vue-router";
+import { sanitizeLiffId } from "@/utils/liffId";
 
 const routes = [
   { path: "/login", name: "login", component: () => import("@/views/LoginView.vue"), meta: { public: true } },
@@ -70,10 +71,18 @@ const routes = [
     meta: { public: true, hidden: true },
   },
   {
+    path: "/request-drill/:pathMatch(.*)*",
+    redirect: (to) => ({ path: "/request-drill", query: to.query }),
+  },
+  {
     path: "/repair-form",
     name: "repair-form",
     component: () => import("@/views/RepairFormView.vue"),
     meta: { public: true, hidden: true },
+  },
+  {
+    path: "/repair-form/:pathMatch(.*)*",
+    redirect: (to) => ({ path: "/repair-form", query: to.query }),
   },
   // ===== ช่าง (magic link, public) =====
   {
@@ -99,7 +108,7 @@ export const router = createRouter({
 router.beforeEach(async (to, _from, next) => {
   const token = localStorage.getItem("welldrill-token");
 
-  const urlLiffId = to.query.liffId as string | undefined;
+  const urlLiffId = sanitizeLiffId(to.query.liffId) || undefined;
   if (urlLiffId && (to.path === "/" || to.path === "/login")) {
     try {
       const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4001/api";

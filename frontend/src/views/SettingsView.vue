@@ -6,10 +6,13 @@ import { useSSERefresh } from "@/composables/useSSERefresh";
 import { api } from "@/api/client";
 import TeamMembersManager from "@/components/TeamMembersManager.vue";
 import PumpCatalogManager from "@/components/PumpCatalogManager.vue";
+import OnboardingWizard from "@/components/OnboardingWizard.vue";
 import { copyText } from "@/utils/clipboard";
+import { sanitizeLiffId } from "@/utils/liffId";
 
 const auth = useAuthStore();
 const ui = useUiStore();
+const showGuideDialog = ref(false);
 
 interface LineSettings {
   org_id: string;
@@ -46,10 +49,12 @@ const BASE_API = (import.meta.env.VITE_API_URL || "http://localhost:4001/api").r
 const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
 
 const webhookUrl = `${BASE_API}/api/webhooks/line`;
-const drillUrl = computed(() => liffIdDrilling.value ? `https://liff.line.me/${liffIdDrilling.value}/request-drill` : "");
-const repairUrl = computed(() => liffIdRepair.value ? `https://liff.line.me/${liffIdRepair.value}/repair-form` : "");
-const drillEndpoint = computed(() => liffIdDrilling.value ? `${APP_URL}/request-drill?liffId=${liffIdDrilling.value}` : "");
-const repairEndpoint = computed(() => liffIdRepair.value ? `${APP_URL}/repair-form?liffId=${liffIdRepair.value}` : "");
+const cleanDrillLiff = computed(() => sanitizeLiffId(liffIdDrilling.value));
+const cleanRepairLiff = computed(() => sanitizeLiffId(liffIdRepair.value));
+const drillUrl = computed(() => cleanDrillLiff.value ? `https://liff.line.me/${cleanDrillLiff.value}` : "");
+const repairUrl = computed(() => cleanRepairLiff.value ? `https://liff.line.me/${cleanRepairLiff.value}` : "");
+const drillEndpoint = computed(() => cleanDrillLiff.value ? `${APP_URL}/request-drill?liffId=${cleanDrillLiff.value}` : "");
+const repairEndpoint = computed(() => cleanRepairLiff.value ? `${APP_URL}/repair-form?liffId=${cleanRepairLiff.value}` : "");
 
 const hasLineConfig = computed(() => !!channelId.value);
 
@@ -57,7 +62,8 @@ let checkDrillTimer: ReturnType<typeof setTimeout> | null = null;
 let checkRepairTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function checkLiffId(liffId: string, type: "drill" | "repair") {
-  if (!liffId || liffId.length < 5) {
+  const cleanId = sanitizeLiffId(liffId);
+  if (!cleanId || cleanId.length < 5) {
     if (type === "drill") { liffDrillStatus.value = null; liffDrillUsedBy.value = ""; }
     else { liffRepairStatus.value = null; liffRepairUsedBy.value = ""; }
     return;
@@ -67,7 +73,7 @@ async function checkLiffId(liffId: string, type: "drill" | "repair") {
 
   try {
     const res = await api.get<{ available: boolean; used_by?: { org_id: string; org_name: string } }>(
-      `/line-settings/check-liff?liff_id=${encodeURIComponent(liffId)}`
+      `/line-settings/check-liff?liff_id=${encodeURIComponent(cleanId)}`
     );
     if (type === "drill") {
       liffDrillStatus.value = res.available ? "ok" : "duplicate";
@@ -125,40 +131,39 @@ onUnmounted(() => {
 });
 
 const canSave = computed(() => {
-  if (liffDrillStatus.value === "duplicate" || liffRepairStatus.value === "duplicate") return false;
   if (liffDrillChecking.value || liffRepairChecking.value) return false;
   return true;
 });
 
 const liffDrillHint = computed(() =>
   liffDrillStatus.value === "duplicate"
-    ? "ถูกใช้โดย \"" + liffDrillUsedBy.value + "\" แล้ว!"
+    ? "เคยถูกผูกกับ \"" + liffDrillUsedBy.value + "\" — กดบันทึกเพื่อย้ายมาองค์กรนี้"
     : "LIFF App ที่ตั้ง Endpoint = /request-drill"
 );
 
 const liffRepairHint = computed(() =>
   liffRepairStatus.value === "duplicate"
-    ? "ถูกใช้โดย \"" + liffRepairUsedBy.value + "\" แล้ว!"
+    ? "เคยถูกผูกกับ \"" + liffRepairUsedBy.value + "\" — กดบันทึกเพื่อย้ายมาองค์กรนี้"
     : "LIFF App ที่ตั้ง Endpoint = /repair-form"
 );
 
 const liffDrillColor = computed(() =>
-  liffDrillStatus.value === "duplicate" ? "error" : liffDrillStatus.value === "ok" ? "success" : undefined
+  liffDrillStatus.value === "duplicate" ? "warning" : liffDrillStatus.value === "ok" ? "success" : undefined
 );
 
 const liffRepairColor = computed(() =>
-  liffRepairStatus.value === "duplicate" ? "error" : liffRepairStatus.value === "ok" ? "success" : undefined
+  liffRepairStatus.value === "duplicate" ? "warning" : liffRepairStatus.value === "ok" ? "success" : undefined
 );
 
 async function handleSave() {
   saving.value = true;
   try {
     await api.put("/line-settings", {
-      line_channel_id: channelId.value,
+      line_channel_id: channelId.value.trim(),
       line_channel_secret: channelSecret.value,
       line_channel_access_token: channelAccessToken.value,
-      line_liff_id_drilling: liffIdDrilling.value,
-      line_liff_id_repair: liffIdRepair.value,
+      line_liff_id_drilling: sanitizeLiffId(liffIdDrilling.value),
+      line_liff_id_repair: sanitizeLiffId(liffIdRepair.value),
     });
     channelSecret.value = "";
     channelAccessToken.value = "";
@@ -202,9 +207,19 @@ async function copyToClipboard(text: string, label: string) {
     <v-row>
       <v-col cols="12" md="8" lg="7">
         <v-card rounded="xl" elevation="1">
-          <v-card-title class="text-h6 font-weight-bold pa-4 pb-2">
+          <v-card-title class="d-flex align-center text-h6 font-weight-bold pa-4 pb-2">
             <v-icon start icon="mdi-cog-outline" color="primary" />
             ตั้งค่าระบบ
+            <v-spacer />
+            <v-btn
+              variant="tonal"
+              color="primary"
+              size="small"
+              prepend-icon="mdi-help-circle-outline"
+              @click="showGuideDialog = true"
+            >
+              คู่มือตั้งค่า LINE
+            </v-btn>
           </v-card-title>
 
           <v-card-text v-if="loading" class="text-center pa-8">
@@ -352,7 +367,7 @@ async function copyToClipboard(text: string, label: string) {
                 <template #append-inner>
                   <v-progress-circular v-if="liffDrillChecking" indeterminate size="18" width="2" color="primary" />
                   <v-icon v-else-if="liffDrillStatus === 'ok'" icon="mdi-check-circle" color="success" />
-                  <v-icon v-else-if="liffDrillStatus === 'duplicate'" icon="mdi-alert-circle" color="error" />
+                  <v-icon v-else-if="liffDrillStatus === 'duplicate'" icon="mdi-alert" color="warning" />
                 </template>
               </v-text-field>
               <v-alert v-if="liffDrillStatus === 'duplicate'" type="error" variant="tonal" density="compact" class="mb-3">
@@ -375,7 +390,7 @@ async function copyToClipboard(text: string, label: string) {
                 <template #append-inner>
                   <v-progress-circular v-if="liffRepairChecking" indeterminate size="18" width="2" color="primary" />
                   <v-icon v-else-if="liffRepairStatus === 'ok'" icon="mdi-check-circle" color="success" />
-                  <v-icon v-else-if="liffRepairStatus === 'duplicate'" icon="mdi-alert-circle" color="error" />
+                  <v-icon v-else-if="liffRepairStatus === 'duplicate'" icon="mdi-alert" color="warning" />
                 </template>
               </v-text-field>
               <v-alert v-if="liffRepairStatus === 'duplicate'" type="error" variant="tonal" density="compact" class="mb-3">
@@ -503,13 +518,14 @@ async function copyToClipboard(text: string, label: string) {
                   </div>
                 </div>
 
-                <v-alert type="warning" variant="tonal" density="compact">
+                <v-alert type="info" variant="tonal" density="compact">
                   <div class="text-body-2">
-                    <strong>วิธีตั้งค่า Rich Menu:</strong>
+                    <strong>วิธีตั้งค่าปุ่มใน LINE Official Account Manager:</strong>
                     <ol class="mt-1 mb-0 pl-4">
-                      <li>ไปที่ LINE Official Account Manager → Rich Menu</li>
-                      <li>สร้าง/แก้ไขปุ่ม → เลือก <strong>Open URL</strong></li>
-                      <li>คัดลอก URL ด้านบนไปใส่ในแต่ละปุ่ม</li>
+                      <li>ไปที่ <strong>LINE Official Account Manager</strong> (manager.line.biz) → <strong>ริชเมนู (Rich Menu)</strong></li>
+                      <li>สร้างหรือแก้ไขปุ่ม → Action เลือก <strong>ลิงก์ (Open URL)</strong></li>
+                      <li>คัดลอก <strong>Rich Menu URLs</strong> ด้านบนไปใส่ในแต่ละปุ่ม (เช่น ปุ่มแจ้งเจาะ ใส่ <code>{{ drillUrl || 'https://liff.line.me/{LIFF_ID}' }}</code>)</li>
+                      <li>กดบันทึกใน LINE — เมื่อลูกค้ากดปุ่มใน LINE ระบบจะเปิดฟอร์มของลูกค้าโดยตรงทันที ไม่ต้องเข้าสู่ระบบ</li>
                     </ol>
                   </div>
                 </v-alert>
@@ -531,8 +547,8 @@ async function copyToClipboard(text: string, label: string) {
                 <v-icon start icon="mdi-content-save" />
                 บันทึกการตั้งค่า
               </v-btn>
-              <div v-if="!canSave && (liffDrillStatus === 'duplicate' || liffRepairStatus === 'duplicate')" class="text-caption text-error mt-1">
-                ไม่สามารถบันทึกได้ — มี LIFF ID ที่ซ้ำกับองค์กรอื่น
+              <div v-if="liffDrillStatus === 'duplicate' || liffRepairStatus === 'duplicate'" class="text-caption text-medium-emphasis mt-1">
+                LIFF ID นี้เคยถูกผูกกับองค์กรอื่น ระบบจะย้ายมาองค์กรนี้เมื่อกดบันทึก
               </div>
             </div>
           </template>
@@ -564,5 +580,13 @@ async function copyToClipboard(text: string, label: string) {
         </v-card>
       </v-col>
     </v-row>
+
+    <!-- Dialog คู่มือการตั้งค่า LINE -->
+    <OnboardingWizard
+      v-if="showGuideDialog"
+      :channel-id="channelId"
+      :org-id="settings?.org_id"
+      @done="showGuideDialog = false"
+    />
   </v-container>
 </template>

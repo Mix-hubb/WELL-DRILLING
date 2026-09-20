@@ -6,64 +6,71 @@ import { useUiStore } from "@/stores/ui";
 const ui = useUiStore();
 const router = useRouter();
 
-const props = defineProps<{ channelId?: string | null }>();
+const props = defineProps<{ channelId?: string | null; orgId?: string | null }>();
 const emit = defineEmits<{ done: [] }>();
 
 const step = ref(1);
-const totalSteps = 4;
+const totalSteps = 5;
+
+const BASE_API = (import.meta.env.VITE_API_URL || "http://localhost:4001/api").replace(/\/api$/, "");
+const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
 
 const steps = [
   {
     title: "สร้าง LINE Official Account",
     icon: "mdi-message-text-outline",
     items: [
-      "ไปที่ <strong>LINE Official Account Manager</strong> → สร้างบัญชีใหม่",
-      "เลือก <strong>ธุรกิจ</strong> เป็นประเภทบัญชี",
-      "ตั้งชื่อบัญชี เช่น <code>ชื่อร้าน-เจาะบ่อ</code>",
-      "บันทึก <strong>ชื่อผู้ใช้ (@xxx)</strong> เก็บไว้",
+      "ไปที่ <strong>LINE Official Account Manager</strong> (manager.line.biz) → สร้างบัญชีใหม่",
+      "เลือก <strong>ธุรกิจ</strong> หรือประเภทบัญชีที่ต้องการ",
+      "ตั้งชื่อบัญชี เช่น <code>ชื่อร้าน-เจาะน้ำบาดาล</code>",
+      "บันทึก <strong>Basic ID (@xxx)</strong> เก็บไว้ใช้งาน",
     ],
-    tip: "ถ้ามี LINE OA อยู่แล้วข้ามขั้นตอนนี้ได้",
+    tip: "หากมี LINE OA สำหรับร้านอยู่แล้ว สามารถใช้บัญชีเดิมได้เลย",
   },
   {
     title: "เปิดใช้ Messaging API",
     icon: "mdi-api",
     items: [
-      "ไปที่ <strong>LIVE Official Account Manager</strong> → <strong>Messaging API</strong>",
-      "เปิดใช้ <strong>Messaging API</strong>",
-      "คัดลอก <strong>Channel ID</strong> (ตัวอย่าง: Uxxxxxxxxxx)",
-      "ไปที่ <strong>Channel Access Token</strong> → กด <strong>Issue</strong> → คัดลอกเก็บไว้",
+      "ใน LINE Official Account Manager ไปที่ <strong>ตั้งค่า</strong> (รูปฟันเฟืองขวาบน) → <strong>Messaging API</strong>",
+      "กด <strong>เปิดใช้ Messaging API</strong> และเลือกหรือสร้าง Provider",
+      "คัดลอก <strong>Channel ID</strong> และ <strong>Channel Secret</strong>",
+      "ไปที่ <strong>Channel Access Token (Long-lived)</strong> → กด <strong>Issue</strong> เพื่อสร้าง Token แล้วคัดลอกเก็บไว้",
     ],
-    tip: "Channel Secret อยู่ที่ LINE Developers Console → Basic settings",
+    tip: "สามารถดูค่าทั้งหมดได้ที่ LINE Developers Console (developers.line.biz) ใน Channel ของ Messaging API",
   },
   {
-    title: "สร้าง LIFF App",
+    title: "สร้าง LINE Login Channel & LIFF Apps",
     icon: "mdi-cellphone-link",
     items: [
-      "ไปที่ <strong>LINE Developers Console</strong> (developers.line.me)",
-      "สร้าง <strong>Provider</strong> ใหม่ (ชื่ออะไรก็ได้)",
-      "สร้าง <strong>Channel</strong> ประเภท <strong>Messaging API</strong>",
-      "ไป tab <strong>LIFF</strong> → กด <strong>Add</strong>",
-      "ตั้ง <strong>App name</strong> เช่น ฟอร์มแจ้งเจาะ",
-      `ตั้ง <strong>Endpoint URL</strong> = <code>${import.meta.env.VITE_APP_URL || window.location.origin}</code>`,
-      "เลือก Scope = <strong>profile</strong> + <strong>openid</strong>",
-      "คัดลอก <strong>LIFF ID</strong> (ตัวอย่าง: 2011510067-xxxxx)",
-      "ทำซ้ำอีกครั้งสำหรับ <strong>ฟอร์มแจ้งซ่อม</strong> (สร้าง LIFF App ที่ 2)",
+      "ไปที่ <strong>LINE Developers Console</strong> → ภายใต้ Provider เดิม กด <strong>Create a new channel</strong>",
+      "เลือก Channel Type เป็น <strong>LINE Login</strong> (ตั้งชื่อ เช่น <code>Well-Drilling-Login</code>)",
+      "เข้าไปใน Channel LINE Login ที่เพิ่งสร้าง → ไปที่แท็บ <strong>LIFF</strong> → กด <strong>Add</strong>",
+      `<strong>LIFF ตัวที่ 1 (แจ้งเจาะ):</strong><br/>• Size: Full หรือ Tall<br/>• Endpoint URL: <code>${APP_URL}/request-drill?liffId=ใส่LIFF_ID_ของตัวนี้</code><br/>• Scopes: ติ๊ก <strong>profile</strong> และ <strong>openid</strong><br/>• กด Add แล้วคัดลอก <strong>LIFF ID</strong> (เช่น 2011510067-xxxxxx)`,
+      `<strong>LIFF ตัวที่ 2 (แจ้งซ่อม):</strong><br/>• กด Add เพิ่มอีก 1 ตัว<br/>• Endpoint URL: <code>${APP_URL}/repair-form?liffId=ใส่LIFF_ID_ของตัวนี้</code><br/>• Scopes: ติ๊ก <strong>profile</strong> และ <strong>openid</strong><br/>• กด Add แล้วคัดลอก <strong>LIFF ID</strong>`,
     ],
-    tip: "ต้องสร้าง 2 LIFF App: หนึ่งสำหรับแจ้งเจาะ อีกหนึ่งสำหรับแจ้งซ่อม",
+    tip: "Endpoint URL ต้องระบุ ?liffId= ให้ตรงกับ LIFF ID ของตัวนั้นๆ เพื่อให้ระบบเชื่อมต่ออัตโนมัติ",
   },
   {
-    title: "กรอกข้อมูลในระบบ",
+    title: "กรอกข้อมูลในหน้าตั้งค่าระบบ",
     icon: "mdi-cog-outline",
     items: [
-      "ไปที่ <strong>ตั้งค่าระบบ</strong> ในเมนูซ้าย",
-      "กรอก <strong>Channel ID</strong> จากขั้นตอนที่ 2",
-      "กรอก <strong>Channel Secret</strong> จาก LINE Developers Console",
-      "กรอก <strong>Channel Access Token</strong> จากขั้นตอนที่ 2",
-      "กรอก <strong>LIFF ID (ฟอร์มแจ้งเจาะ)</strong> จากขั้นตอนที่ 3",
-      "กรอก <strong>LIFF ID (ฟอร์มแจ้งซ่อม)</strong> จากขั้นตอนที่ 3",
-      "กด <strong>บันทึกการตั้งค่า</strong>",
+      "ไปที่เมนู <strong>ตั้งค่าระบบ</strong> ของเว็บไซต์นี้",
+      "กรอก <strong>Channel ID</strong>, <strong>Channel Secret</strong> และ <strong>Channel Access Token</strong>",
+      "กรอก <strong>LIFF ID (ฟอร์มแจ้งเจาะ)</strong> และ <strong>LIFF ID (ฟอร์มแจ้งซ่อม)</strong>",
+      "กดปุ่ม <strong>บันทึกการตั้งค่า</strong> (ระบบจะตรวจสอบและผูกกับองค์กรนี้ให้ทันที)",
     ],
-    tip: "หลังบันทึก ระบบจะแสดง URL สำหรับ Rich Menu ให้อัตโนมัติ",
+    tip: "หากเคยนำ Bot นี้ไปทดสอบในองค์กรอื่น ระบบจะย้ายการผูกมายังองค์กรนี้ให้อัตโนมัติ",
+  },
+  {
+    title: "ตั้งค่า Webhook & Rich Menu ใน LINE",
+    icon: "mdi-check-decagram-outline",
+    items: [
+      `<strong>1. Webhook URL:</strong><br/>นำ URL <code>${BASE_API}/api/webhooks/line</code> ไปวางที่ LINE Developers Console → Messaging API → Webhook URL แล้วกดเปิด <strong>Use Webhook</strong>`,
+      "<strong>2. Rich Menu (เมนูลัดในห้องแชท):</strong><br/>ไปที่ LINE Official Account Manager → ริชเมนู (Rich Menu) → สร้างเมนู",
+      "• ปุ่มแจ้งเจาะ: Action เลือก <strong>ลิงก์ (Open URL)</strong> → ใส่ <code>https://liff.line.me/LIFF_ID_แจ้งเจาะ</code>",
+      "• ปุ่มแจ้งซ่อม: Action เลือก <strong>ลิงก์ (Open URL)</strong> → ใส่ <code>https://liff.line.me/LIFF_ID_แจ้งซ่อม</code>",
+    ],
+    tip: "ลิงก์ Rich Menu ใช้แค่ https://liff.line.me/{LIFF_ID} โดยตรง ไม่ต้องต่อท้าย path ใดๆ เพราะ LINE จะเปิด Endpoint URL ให้อัตโนมัติ",
   },
 ];
 
@@ -77,29 +84,30 @@ function prev() {
   if (step.value > 1) step.value--;
 }
 
-function skip() {
+function markOnboardingDone() {
+  const orgKey = props.orgId || "default";
+  localStorage.setItem(`onboarding-done-${orgKey}`, "1");
   localStorage.setItem("onboarding-done", "1");
+}
+
+function skip() {
+  markOnboardingDone();
   emit("done");
 }
 
 function finish() {
-  localStorage.setItem("onboarding-done", "1");
+  markOnboardingDone();
   router.push("/settings");
   emit("done");
-}
-
-function copyText(text: string) {
-  navigator.clipboard.writeText(text);
-  ui.notify("คัดลอกแล้ว", "success");
 }
 </script>
 
 <template>
-  <v-dialog :model-value="true" max-width="640" persistent>
+  <v-dialog :model-value="true" max-width="680" persistent>
     <v-card rounded="xl">
       <v-card-title class="d-flex align-center pa-4 pb-2">
         <v-icon icon="mdi-rocket-launch-outline" color="primary" class="mr-2" />
-        <span class="text-h6 font-weight-bold">เริ่มต้นใช้งานระบบ</span>
+        <span class="text-h6 font-weight-bold">คู่มือการเชื่อมต่อ LINE ระบบจัดการบ่อบาดาล</span>
         <v-spacer />
         <v-btn icon="mdi-close" variant="text" size="small" @click="skip" />
       </v-card-title>
@@ -138,20 +146,7 @@ function copyText(text: string) {
         </v-card>
 
         <v-alert
-          v-if="step === 4 && !props.channelId"
-          type="warning"
-          variant="tonal"
-          density="compact"
-          rounded="lg"
-          class="mb-3"
-        >
-          <div class="text-body-2">
-            <strong>ยังไม่ได้กรอกข้อมูล LINE</strong> — กรุณากรอกข้อมูลที่หน้าตั้งค่า系统หลังจากทำ wizard เสร็จ
-          </div>
-        </v-alert>
-
-        <v-alert
-          v-if="step === 4 && props.channelId"
+          v-if="step === totalSteps && props.channelId"
           type="success"
           variant="tonal"
           density="compact"
@@ -159,7 +154,7 @@ function copyText(text: string) {
           class="mb-3"
         >
           <div class="text-body-2">
-            <strong>พบข้อมูล LINE OA แล้ว!</strong> — ข้อมูลถูกบันทึกในระบบเรียบร้อย
+            <strong>ระบบนี้ตั้งค่า LINE เรียบร้อยแล้ว!</strong> — หากต้องการเปลี่ยนบอท สามารถอัปเดตข้อมูลได้ที่หน้าตั้งค่า
           </div>
         </v-alert>
       </v-card-text>

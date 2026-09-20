@@ -20,6 +20,7 @@ import orgRoutes              from "./routes/org.routes";
 import { authMiddleware, adminMiddleware } from "./middleware/auth";
 import { magicAuth, magicResourceAuth } from "./middleware/upload";
 import { asyncHandler }      from "./utils/asyncHandler";
+import { sanitizeLiffId }    from "./utils/liffId";
 
 import { verifyToken }       from "./middleware/auth";
 import { addClient, clientCount } from "./services/sse";
@@ -150,23 +151,27 @@ app.post("/api/public/drilling-requests", publicLimiter, asyncHandler(drillingRe
 app.get("/api/public/liff-info", publicLimiter, asyncHandler(async (req: any, res: any) => {
   const { liff_id } = req.query;
   if (!liff_id) return res.status(400).json({ error: "ต้องระบุ liff_id" });
+  const cleanId = sanitizeLiffId(liff_id);
+  if (!cleanId) return res.status(400).json({ error: "ต้องระบุ liff_id" });
   const { pool } = await import("./config/db.js");
   const result = await pool.query(
     `SELECT org_id, line_liff_id_drilling, line_liff_id_repair FROM organizations
-     WHERE line_liff_id_drilling = $1 OR line_liff_id_repair = $1 ORDER BY created_at ASC LIMIT 1`,
-    [liff_id]
+     WHERE line_liff_id_drilling = $1 OR line_liff_id_repair = $1 ORDER BY created_at DESC LIMIT 1`,
+    [cleanId]
   );
   if (!result.rows.length) return res.json({ found: false });
   const org = result.rows[0];
   let formType = "";
-  if (org.line_liff_id_drilling === liff_id) formType = "request-drill";
-  else if (org.line_liff_id_repair === liff_id) formType = "repair-form";
+  if (org.line_liff_id_drilling === cleanId) formType = "request-drill";
+  else if (org.line_liff_id_repair === cleanId) formType = "repair-form";
   res.json({ found: true, formType, org_id: org.org_id });
 }));
 app.get("/api/public/customer-by-line", publicLimiter, asyncHandler(async (req: any, res: any) => {
   const { line_user_id } = req.query;
   const { liff_id } = req.query;
   if (!line_user_id || !liff_id) return res.status(400).json({ error: "ต้องระบุ line_user_id และ liff_id" });
+  const cleanId = sanitizeLiffId(liff_id);
+  if (!cleanId) return res.status(400).json({ error: "ต้องระบุ liff_id" });
   const { pool } = await import("./config/db.js");
   const result = await pool.query(
     `SELECT c.customer_id, c.customer_name, c.phone, c.address
@@ -175,7 +180,7 @@ app.get("/api/public/customer-by-line", publicLimiter, asyncHandler(async (req: 
      WHERE c.line_user_id = $1
        AND (o.line_liff_id_drilling = $2 OR o.line_liff_id_repair = $2)
      LIMIT 1`,
-    [line_user_id, liff_id]
+    [line_user_id, cleanId]
   );
   if (!result.rows.length) return res.json({ found: false });
   const c = result.rows[0];

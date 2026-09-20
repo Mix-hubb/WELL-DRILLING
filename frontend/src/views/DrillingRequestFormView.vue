@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { allowOnlyDigits, cleanPhoneNumber, validThaiPhone, requiredField } from "@/utils/validation";
+import { sanitizeLiffId } from "@/utils/liffId";
 
 let liffInstance: any = null;
 
@@ -25,8 +26,9 @@ const existingCustomer = ref(false);
 const checkingExisting = ref(false);
 
 onMounted(async () => {
-  const urlLiffId = new URLSearchParams(window.location.search).get("liffId") || "";
-  const liffId = urlLiffId || sessionStorage.getItem("liffId") || "";
+  const liffId = sanitizeLiffId(
+    new URLSearchParams(window.location.search).get("liffId") || sessionStorage.getItem("liffId") || ""
+  );
 
   if (!liffId) {
     liffReady.value = true;

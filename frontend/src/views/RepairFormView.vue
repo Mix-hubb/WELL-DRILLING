@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { allowOnlyDigits, cleanPhoneNumber, validThaiPhone, requiredField } from "@/utils/validation";
+import { sanitizeLiffId } from "@/utils/liffId";
 
 const form = ref({
   name: "",
@@ -168,8 +169,9 @@ async function submit() {
 }
 
 onMounted(async () => {
-  const urlLiffId = new URLSearchParams(window.location.search).get("liffId") || "";
-  const liffId = urlLiffId || sessionStorage.getItem("liffId") || "";
+  const liffId = sanitizeLiffId(
+    new URLSearchParams(window.location.search).get("liffId") || sessionStorage.getItem("liffId") || ""
+  );
 
   if (!liffId) {
     liffReady.value = true;

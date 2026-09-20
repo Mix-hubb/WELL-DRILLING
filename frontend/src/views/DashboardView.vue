@@ -19,6 +19,7 @@ const stats  = ref<StatsOverview | null>(null);
 const loading = ref(true);
 const showOnboarding = ref(false);
 const orgChannelId = ref<string | null>(null);
+const orgId = ref<string | null>(null);
 
 async function refreshStats() {
   try {
@@ -56,13 +57,15 @@ useSSERefresh(refreshStats, [
 onMounted(async () => {
   loading.value = false;
 
-  if (!localStorage.getItem("onboarding-done")) {
-    try {
-      const data = await api.get<{ line_channel_id: string | null }>("/line-settings");
-      orgChannelId.value = data.line_channel_id;
-    } catch {}
-    showOnboarding.value = true;
-  }
+  try {
+    const data = await api.get<{ org_id?: string; line_channel_id: string | null }>("/line-settings");
+    orgChannelId.value = data.line_channel_id;
+    orgId.value = data.org_id || null;
+    const orgKey = data.org_id || "default";
+    if (!localStorage.getItem(`onboarding-done-${orgKey}`) && !data.line_channel_id) {
+      showOnboarding.value = true;
+    }
+  } catch {}
 });
 
 const statusSegments = computed(() => {
@@ -236,6 +239,7 @@ const todayLabel = new Date().toLocaleDateString("th-TH", {
     <OnboardingWizard
       v-if="showOnboarding"
       :channel-id="orgChannelId"
+      :org-id="orgId"
       @done="showOnboarding = false"
     />
   </div>
