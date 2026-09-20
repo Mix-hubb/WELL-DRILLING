@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, publicApi } from "./client";
 import type { DrillingJob, DrillingJobStatus } from "@/types";
 
 export const jobsApi = {
@@ -10,7 +10,7 @@ export const jobsApi = {
   generateMagicLink: (id: number | string) => api.post<{ token: string }>(`/jobs/${id}/magic-link`, {}),
   remove: (id: number | string) => api.del<void>(`/jobs/${id}`),
 
-  getByMagicToken: (token: string) => api.get<DrillingJob>(`/jobs/magic/${token}`),
+  getByMagicToken: (token: string) => publicApi.get<DrillingJob>(`/jobs/magic/${token}`),
   completeWell: (id: number | string, data: Record<string, unknown>) =>
-    api.patch<DrillingJob>(`/jobs/${id}/well`, data),
+    publicApi.patch<DrillingJob>(`/jobs/${id}/well`, data),
 };

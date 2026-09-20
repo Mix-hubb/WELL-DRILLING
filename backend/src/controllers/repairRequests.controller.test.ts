@@ -405,6 +405,10 @@ describe("remove", () => {
     const res = createRes();
     await repairRequests.remove(createReq({ params: { id: "1" } }), res);
     expect(mocks.poolQuery).toHaveBeenCalledWith(
+      "DELETE FROM quotations WHERE kind = 'REPAIR' AND repair_request_id = $1",
+      ["1"]
+    );
+    expect(mocks.poolQuery).toHaveBeenCalledWith(
       "DELETE FROM repair_requests WHERE repair_id = $1",
       ["1"]
     );

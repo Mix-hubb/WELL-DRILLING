@@ -280,6 +280,10 @@ describe("remove", () => {
     const res = createRes();
     await drillingRequests.remove(createReq({ params: { id: "1" } }), res);
     expect(mocks.poolQuery).toHaveBeenCalledWith(
+      "DELETE FROM quotations WHERE kind = 'DRILLING' AND drilling_request_id = $1",
+      ["1"]
+    );
+    expect(mocks.poolQuery).toHaveBeenCalledWith(
       "DELETE FROM drilling_requests WHERE request_id = $1",
       ["1"]
     );

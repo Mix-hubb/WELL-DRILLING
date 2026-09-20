@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockApi = vi.hoisted(() => ({
   get: vi.fn().mockResolvedValue({ data: null }),
+  publicGet: vi.fn().mockResolvedValue({ data: null }),
   post: vi.fn().mockResolvedValue({ data: null }),
+  publicPost: vi.fn().mockResolvedValue({ data: null }),
   put: vi.fn().mockResolvedValue({ data: null }),
   patch: vi.fn().mockResolvedValue({ data: null }),
   del: vi.fn().mockResolvedValue(null),
@@ -10,6 +12,7 @@ const mockApi = vi.hoisted(() => ({
 
 vi.mock("./client", () => ({
   api: mockApi,
+  publicApi: { get: mockApi.publicGet, post: mockApi.publicPost },
 }));
 
 import { repairRequestsApi } from "./repairRequests";
@@ -77,17 +80,17 @@ describe("repairRequestsApi", () => {
   });
 
   it("getByMagicToken calls GET /repair-requests/magic/:token", async () => {
-    mockApi.get.mockResolvedValueOnce({ data: { id: 1 } });
+    mockApi.publicGet.mockResolvedValueOnce({ data: { id: 1 } });
     const result = await repairRequestsApi.getByMagicToken("mytoken");
-    expect(mockApi.get).toHaveBeenCalledWith("/repair-requests/magic/mytoken");
+    expect(mockApi.publicGet).toHaveBeenCalledWith("/repair-requests/magic/mytoken");
     expect(result).toEqual({ data: { id: 1 } });
   });
 
   it("addRecord calls POST /repair-requests/:id/records with data", async () => {
     const data = { description: "replaced seal" };
-    mockApi.post.mockResolvedValueOnce({ data: { id: 3, records: [data] } });
+    mockApi.publicPost.mockResolvedValueOnce({ data: { id: 3, records: [data] } });
     const result = await repairRequestsApi.addRecord(3, data);
-    expect(mockApi.post).toHaveBeenCalledWith("/repair-requests/3/records", data);
+    expect(mockApi.publicPost).toHaveBeenCalledWith("/repair-requests/3/records", data);
     expect(result).toEqual({ data: { id: 3, records: [data] } });
   });
 });

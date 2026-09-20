@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, publicApi } from "./client";
 import type { RepairRequest, PaymentSlip, RepairRecord } from "@/types";
 
 export const repairRequestsApi = {
@@ -14,9 +14,9 @@ export const repairRequestsApi = {
   generateMagicLink: (id: number | string) => api.post<{ token: string }>(`/repair-requests/${id}/magic-link`, {}),
   remove: (id: number | string) => api.del<void>(`/repair-requests/${id}`),
 
-  getByMagicToken: (token: string) => api.get<RepairRequest>(`/repair-requests/magic/${token}`),
+  getByMagicToken: (token: string) => publicApi.get<RepairRequest>(`/repair-requests/magic/${token}`),
   addRecord: (id: number | string, data: Record<string, unknown>) =>
-    api.post<RepairRequest>(`/repair-requests/${id}/records`, data),
+    publicApi.post<RepairRequest>(`/repair-requests/${id}/records`, data),
 
   getPaymentSlips: (id: number | string) =>
     api.get<PaymentSlip[]>(`/repair-requests/${id}/payment-slips`),

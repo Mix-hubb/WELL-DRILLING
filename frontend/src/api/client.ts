@@ -25,6 +25,22 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function publicRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers: { ...headers, ...options.headers as any } });
+
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      message = body.error || message;
+    } catch { /* ignore */ }
+    throw new Error(message);
+  }
+  if (res.status === 204) return null as T;
+  return res.json() as Promise<T>;
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body: unknown) => request<T>(path, { method: "POST", body: JSON.stringify(body) }),
@@ -51,4 +67,10 @@ export const api = {
     a.click();
     URL.revokeObjectURL(url);
   },
+};
+
+export const publicApi = {
+  get: <T>(path: string) => publicRequest<T>(path),
+  post: <T>(path: string, body: unknown) => publicRequest<T>(path, { method: "POST", body: JSON.stringify(body) }),
+  patch: <T>(path: string, body: unknown) => publicRequest<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
 };

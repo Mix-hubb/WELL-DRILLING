@@ -39,6 +39,7 @@ export const upload = multer({
 
 export async function magicAuth(req: Request, res: Response, next: NextFunction) {
   const magic =
+    (req.params.token as string) ||
     (req.query.magic as string) ||
     (req.headers["x-magic-token"] as string) ||
     (req.body?.magic_token as string);

@@ -179,6 +179,10 @@ export async function remove(req: Request, res: Response) {
     [req.params.id, ...params]
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้อง" });
+  await pool.query(
+    "DELETE FROM quotations WHERE kind = 'DRILLING' AND drilling_request_id = $1",
+    [req.params.id]
+  );
   await pool.query("DELETE FROM drilling_requests WHERE request_id = $1", [req.params.id]);
   broadcast({ type: "DRILLING_REQUEST_DELETED", data: { request_id: Number(req.params.id) }, orgId: req.user?.orgId });
   res.status(204).end();

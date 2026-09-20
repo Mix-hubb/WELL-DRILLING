@@ -51,7 +51,7 @@ async function handleRegister() {
   try {
     const opts = mode.value === "new"
       ? { org_name: orgName.value }
-      : { invite_code: inviteCode.value };
+      : { invite_code: inviteCode.value.trim().toLowerCase() };
     await auth.register(email.value, password.value, fullName.value, phone.value, opts);
     ui.notify("ลงทะเบียนสำเร็จ", "success");
     router.push("/dashboard");

@@ -10,7 +10,10 @@ import { sendResetCodeSms } from "../services/sms";
 const USER_ROLE: UserRole = "DRILLER";
 
 export async function register(req: Request, res: Response) {
-  const { email, password, full_name, phone, org_name, invite_code } = req.body;
+  const { email, password, full_name, phone, org_name } = req.body;
+  const inviteCode = typeof req.body.invite_code === "string"
+    ? req.body.invite_code.trim().toLowerCase()
+    : "";
   if (!email || !password || !full_name || !phone) {
     return res.status(400).json({ error: "ต้องระบุ email, password, ชื่อ-นามสกุล และเบอร์โทรศัพท์" });
   }
@@ -37,9 +40,9 @@ export async function register(req: Request, res: Response) {
 
     let orgId: string;
 
-    if (invite_code) {
+    if (inviteCode) {
       const { rows: orgRows } = await client.query(
-        "SELECT org_id FROM organizations WHERE invite_code = $1", [invite_code]
+        "SELECT org_id FROM organizations WHERE invite_code = $1", [inviteCode]
       );
       if (!orgRows.length) {
         await client.query("ROLLBACK");

@@ -9,7 +9,7 @@ vi.mock("../config/db", () => ({
   pool: { query: mocks.poolQuery },
 }));
 
-import { magicResourceAuth } from "./upload";
+import { magicAuth, magicResourceAuth } from "./upload";
 
 function createRes() {
   const res: any = {};
@@ -50,5 +50,21 @@ describe("magicResourceAuth", () => {
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(next).not.toHaveBeenCalled();
+  });
+});
+
+describe("magicAuth", () => {
+  it("accepts a token from the magic-link path", async () => {
+    mocks.poolQuery.mockResolvedValueOnce({ rows: [{ id: "job-1" }] });
+    const next = vi.fn() as unknown as NextFunction;
+    const res = createRes();
+    const req = {
+      params: { token: "token-1" }, query: {}, headers: {}, body: {},
+    } as unknown as Request;
+
+    await magicAuth(req, res, next);
+
+    expect(mocks.poolQuery).toHaveBeenCalledWith(expect.stringContaining("magic_link_token = $1"), ["token-1", "token-1"]);
+    expect(next).toHaveBeenCalledOnce();
   });
 });

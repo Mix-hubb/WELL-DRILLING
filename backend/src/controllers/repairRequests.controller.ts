@@ -460,6 +460,10 @@ export async function remove(req: Request, res: Response) {
     [req.params.id, ...params]
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้อง" });
+  await pool.query(
+    "DELETE FROM quotations WHERE kind = 'REPAIR' AND repair_request_id = $1",
+    [req.params.id]
+  );
   await pool.query("DELETE FROM repair_requests WHERE repair_id = $1", [req.params.id]);
   broadcast({ type: "REPAIR_REQUEST_DELETED", data: { repair_id: Number(req.params.id) }, orgId: req.user?.orgId });
   res.status(204).end();

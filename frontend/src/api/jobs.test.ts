@@ -2,14 +2,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockApi = vi.hoisted(() => ({
   get: vi.fn().mockResolvedValue({ data: null }),
+  publicGet: vi.fn().mockResolvedValue({ data: null }),
   post: vi.fn().mockResolvedValue({ data: null }),
   put: vi.fn().mockResolvedValue({ data: null }),
   patch: vi.fn().mockResolvedValue({ data: null }),
+  publicPatch: vi.fn().mockResolvedValue({ data: null }),
   del: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("./client", () => ({
   api: mockApi,
+  publicApi: { get: mockApi.publicGet, patch: mockApi.publicPatch },
 }));
 
 import { jobsApi } from "./jobs";
@@ -83,17 +86,17 @@ describe("jobsApi", () => {
   });
 
   it("getByMagicToken calls GET /jobs/magic/:token", async () => {
-    mockApi.get.mockResolvedValueOnce({ data: { id: 1 } });
+    mockApi.publicGet.mockResolvedValueOnce({ data: { id: 1 } });
     const result = await jobsApi.getByMagicToken("mytoken");
-    expect(mockApi.get).toHaveBeenCalledWith("/jobs/magic/mytoken");
+    expect(mockApi.publicGet).toHaveBeenCalledWith("/jobs/magic/mytoken");
     expect(result).toEqual({ data: { id: 1 } });
   });
 
   it("completeWell calls PATCH /jobs/:id/well with data", async () => {
     const data = { depth: 100 };
-    mockApi.patch.mockResolvedValueOnce({ data: { id: 5, ...data } });
+    mockApi.publicPatch.mockResolvedValueOnce({ data: { id: 5, ...data } });
     const result = await jobsApi.completeWell(5, data);
-    expect(mockApi.patch).toHaveBeenCalledWith("/jobs/5/well", data);
+    expect(mockApi.publicPatch).toHaveBeenCalledWith("/jobs/5/well", data);
     expect(result).toEqual({ data: { id: 5, ...data } });
   });
 });
