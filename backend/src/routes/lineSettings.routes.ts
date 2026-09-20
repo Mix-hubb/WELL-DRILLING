@@ -161,8 +161,8 @@ router.put(
             newBotUserId = botInfo.userId || null;
             if (newBotUserId) {
               await client.query(
-                "UPDATE organizations SET line_bot_user_id = NULL WHERE line_bot_user_id = $1 AND org_id != $2",
-                [newBotUserId, orgId]
+                "UPDATE organizations SET line_bot_user_id = NULL WHERE line_bot_user_id = $1",
+                [newBotUserId]
               );
               updates.push(`line_bot_user_id = $${idx++}`);
               params.push(newBotUserId);
