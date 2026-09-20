@@ -177,7 +177,7 @@ export async function remove(req: Request, res: Response) {
 }
 
 export async function createFromPublicForm(req: Request, res: Response) {
-  const { name, phone, address, requested_depth_m, appointment_date, notes, line_user_id, line_display_name, line_picture_url, org_id, liff_id } = req.body;
+  const { name, phone, address, requested_depth_m, appointment_date, notes, line_user_id, line_display_name, line_picture_url, liff_id } = req.body;
   if (!name || !phone) {
     return res.status(400).json({ error: "ต้องระบุชื่อและเบอร์โทร" });
   }
@@ -186,7 +186,11 @@ export async function createFromPublicForm(req: Request, res: Response) {
   try {
     await client.query("BEGIN");
 
-    const resolvedOrgId = await resolveOrgId(client, liff_id, org_id);
+    const resolvedOrgId = await resolveOrgId(client, liff_id, "drilling");
+    if (!resolvedOrgId) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "LIFF นี้ไม่ได้ผูกกับองค์กรสำหรับแจ้งเจาะ" });
+    }
 
     let customerId: number;
 
@@ -197,10 +201,7 @@ export async function createFromPublicForm(req: Request, res: Response) {
             "SELECT customer_id FROM customers WHERE line_user_id = $1 AND org_id = $2 LIMIT 1",
             [line_user_id, resolvedOrgId]
           )
-        : await client.query(
-            "SELECT customer_id FROM customers WHERE line_user_id = $1 LIMIT 1",
-            [line_user_id]
-          );
+        : null;
     }
     if (!existing?.rows.length) {
       existing = resolvedOrgId
@@ -208,10 +209,7 @@ export async function createFromPublicForm(req: Request, res: Response) {
             "SELECT customer_id FROM customers WHERE phone = $1 AND org_id = $2 LIMIT 1",
             [phone, resolvedOrgId]
           )
-        : await client.query(
-            "SELECT customer_id FROM customers WHERE phone = $1 LIMIT 1",
-            [phone]
-          );
+        : null;
     }
 
     if (existing?.rows.length) {

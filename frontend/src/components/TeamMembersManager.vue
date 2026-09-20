@@ -48,6 +48,17 @@ async function copyInviteCode() {
   }
 }
 
+async function rotateInviteCode() {
+  if (!isAdmin.value) return;
+  try {
+    const result = await orgApi.rotateInviteCode();
+    if (orgInfo.value) orgInfo.value.invite_code = result.invite_code;
+    ui.notify("สร้างรหัสเชิญใหม่แล้ว รหัสเดิมใช้ไม่ได้อีกต่อไป", "success");
+  } catch (e) {
+    ui.notifyError(e);
+  }
+}
+
 async function toggleRole(member: OrgMember) {
   if (!isAdmin.value) return;
   const newRole = member.role === "ADMIN" ? "DRILLER" : "ADMIN";
@@ -108,6 +119,15 @@ async function handleRemove() {
             @click="copyInviteCode"
           >
             คัดลอกรหัสเชิญ
+          </v-btn>
+          <v-btn
+            v-if="isAdmin"
+            color="warning"
+            variant="tonal"
+            prepend-icon="mdi-refresh"
+            @click="rotateInviteCode"
+          >
+            สร้างรหัสใหม่
           </v-btn>
         </div>
       </div>

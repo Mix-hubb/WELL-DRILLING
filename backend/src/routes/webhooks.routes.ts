@@ -17,32 +17,13 @@ interface OrgLineConfig {
 }
 
 async function getOrgByBotUserId(destination: string, rawBody: Buffer, signature: string): Promise<OrgLineConfig | null> {
-  // วิธีที่ 1: หาองค์กรด้วย line_bot_user_id (ตรงกับ body.destination)
   const { rows } = await pool.query(
     `SELECT org_id, line_channel_secret, line_channel_access_token,
             line_liff_id_drilling, line_liff_id_repair
      FROM organizations WHERE line_bot_user_id = $1`,
     [destination]
   );
-  if (rows[0]) return rows[0];
-
-  // วิธีที่ 2 (fallback): สแกนทุก org แล้วตรวจลายเซ็น ใช้สำหรับองค์กรที่ยังไม่ได้ตั้งค่า bot_user_id
-  if (rawBody && signature) {
-    const { rows: allOrgs } = await pool.query(
-      `SELECT org_id, line_channel_secret, line_channel_access_token,
-              line_liff_id_drilling, line_liff_id_repair
-       FROM organizations WHERE line_channel_access_token IS NOT NULL AND line_bot_user_id IS NULL`
-    );
-    for (const org of allOrgs) {
-      if (org.line_channel_secret && verifySignature(rawBody, signature, org.line_channel_secret)) {
-        // พบองค์กร บันทึก bot_user_id ไว้เพื่อใช้ครั้งต่อไป
-        pool.query("UPDATE organizations SET line_bot_user_id = $1 WHERE org_id = $2", [destination, org.org_id]).catch(() => {});
-        console.log(`[webhook] Mapped destination ${destination} -> org ${org.org_id} via signature scan`);
-        return org;
-      }
-    }
-  }
-  return null;
+  return rows[0] || null;
 }
 
 function verifySignature(rawBody: Buffer, signature: string, channelSecret: string): boolean {
@@ -238,22 +219,16 @@ function buildRepairHistoryFlex(repairs: any[]) {
   return { type: "carousel", contents: bubbles };
 }
 
-async function findOrCreateCustomerByLine(userId: string, profile: any, orgId: string | null): Promise<number> {
+async function findOrCreateCustomerByLine(userId: string, profile: any, orgId: string): Promise<number> {
   const { rows } = await pool.query(
-    "SELECT customer_id, org_id FROM customers WHERE line_user_id = $1",
-    [userId]
+    "SELECT customer_id FROM customers WHERE line_user_id = $1 AND org_id = $2",
+    [userId, orgId]
   );
   if (rows.length) {
     if (profile?.displayName) {
       await pool.query(
         "UPDATE customers SET line_display_name = COALESCE($1, line_display_name), line_picture_url = COALESCE($2, line_picture_url) WHERE customer_id = $3",
         [profile.displayName, profile.pictureUrl || null, rows[0].customer_id]
-      );
-    }
-    if (orgId && (!rows[0].org_id || rows[0].org_id !== orgId)) {
-      await pool.query(
-        "UPDATE customers SET org_id = $1 WHERE customer_id = $2",
-        [orgId, rows[0].customer_id]
       );
     }
     return rows[0].customer_id;
@@ -270,8 +245,8 @@ async function findOrCreateCustomerByLine(userId: string, profile: any, orgId: s
 
 async function handleText(userId: string, text: string, replyToken: string, org: OrgLineConfig, baseUrl: string = "") {
   const custResult = await pool.query(
-    "SELECT customer_id, customer_name FROM customers WHERE line_user_id = $1",
-    [userId]
+    "SELECT customer_id, customer_name FROM customers WHERE line_user_id = $1 AND org_id = $2",
+    [userId, org.org_id]
   );
 
   if (/แจ้งเจาะ|ขุดเจาะ|เจาะบ่อ/.test(text)) {
@@ -399,8 +374,8 @@ async function handleText(userId: string, text: string, replyToken: string, org:
 
 async function handleImage(userId: string, messageId: string, org: OrgLineConfig, replyToken?: string) {
   const custResult = await pool.query(
-    "SELECT customer_id FROM customers WHERE line_user_id = $1",
-    [userId]
+    "SELECT customer_id FROM customers WHERE line_user_id = $1 AND org_id = $2",
+    [userId, org.org_id]
   );
   if (!custResult.rows.length) {
     if (replyToken) reply(org.line_channel_access_token, replyToken, "ไม่พบข้อมูลลูกค้าในระบบ กรุณาแจ้งเจาะก่อนครับ").catch(() => {});
@@ -410,10 +385,11 @@ async function handleImage(userId: string, messageId: string, org: OrgLineConfig
 
   // หา repair_request ล่าสุดที่สถานะเป็น CLOSED (รอชำระเงิน)
   const repairResult = await pool.query(
-    `SELECT repair_id FROM repair_requests
-     WHERE customer_id = $1 AND status = 'CLOSED'
+    `SELECT r.repair_id FROM repair_requests r
+     JOIN customers c ON c.customer_id = r.customer_id AND c.org_id = $2
+     WHERE r.customer_id = $1 AND r.status = 'CLOSED'
      ORDER BY updated_at DESC LIMIT 1`,
-    [customerId]
+    [customerId, org.org_id]
   );
 
   if (!repairResult.rows.length) {
@@ -455,8 +431,8 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
   console.log(`[postback] Processing: userId=${userId} data="${data}" org=${org.org_id}`);
 
   const custResult = await pool.query(
-    "SELECT customer_id, customer_name, org_id FROM customers WHERE line_user_id = $1",
-    [userId]
+    "SELECT customer_id, customer_name, org_id FROM customers WHERE line_user_id = $1 AND org_id = $2",
+    [userId, org.org_id]
   );
   if (!custResult.rows.length) {
     console.warn(`[postback] No customer found for line_user_id=${userId}`);
@@ -465,12 +441,6 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
   }
   const customerId = custResult.rows[0].customer_id;
   console.log(`[postback] Found customer: id=${customerId} name=${custResult.rows[0].customer_name} org_id=${custResult.rows[0].org_id}`);
-
-  if (!custResult.rows[0].org_id) {
-    await pool.query("UPDATE customers SET org_id = $1 WHERE customer_id = $2", [org.org_id, customerId]);
-  } else if (custResult.rows[0].org_id !== org.org_id) {
-    console.warn(`[postback] Customer ${customerId} org_id=${custResult.rows[0].org_id} but webhook org=${org.org_id}, processing anyway`);
-  }
 
   const acceptDrillMatch = data.match(/^accept_drill_(.+)$/);
   const rejectDrillMatch = data.match(/^reject_drill_(.+)$/);
@@ -483,7 +453,9 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     const requestId = acceptDrillMatch[1];
     console.log(`[postback] Accepting drilling request ${requestId}`);
     const existing = await pool.query(
-      "SELECT status, customer_id FROM drilling_requests WHERE request_id = $1", [requestId]
+      `SELECT r.status, r.customer_id FROM drilling_requests r
+       JOIN customers c ON c.customer_id = r.customer_id AND c.org_id = $3
+       WHERE r.request_id = $1 AND r.customer_id = $2`, [requestId, customerId, org.org_id]
     );
     if (!existing.rows.length) { console.warn(`[postback] Drilling request ${requestId} not found`); return; }
     if (existing.rows[0].customer_id !== customerId) { console.warn(`[postback] Customer mismatch: request owner=${existing.rows[0].customer_id} presser=${customerId}`); return; }
@@ -515,7 +487,9 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
   } else if (rejectDrillMatch) {
     const requestId = rejectDrillMatch[1];
     const existing = await pool.query(
-      "SELECT status, customer_id FROM drilling_requests WHERE request_id = $1", [requestId]
+      `SELECT r.status, r.customer_id FROM drilling_requests r
+       JOIN customers c ON c.customer_id = r.customer_id AND c.org_id = $3
+       WHERE r.request_id = $1 AND r.customer_id = $2`, [requestId, customerId, org.org_id]
     );
     if (!existing.rows.length) return;
     if (existing.rows[0].customer_id !== customerId) return;
@@ -535,7 +509,9 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
   } else if (acceptRepairMatch) {
     const repairId = acceptRepairMatch[1];
     const existing = await pool.query(
-      "SELECT status, customer_id FROM repair_requests WHERE repair_id = $1", [repairId]
+      `SELECT r.status, r.customer_id FROM repair_requests r
+       JOIN customers c ON c.customer_id = r.customer_id AND c.org_id = $3
+       WHERE r.repair_id = $1 AND r.customer_id = $2`, [repairId, customerId, org.org_id]
     );
     if (!existing.rows.length) return;
     if (existing.rows[0].customer_id !== customerId) return;
@@ -561,7 +537,9 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
   } else if (rejectRepairMatch) {
     const repairId = rejectRepairMatch[1];
     const existing = await pool.query(
-      "SELECT status, customer_id FROM repair_requests WHERE repair_id = $1", [repairId]
+      `SELECT r.status, r.customer_id FROM repair_requests r
+       JOIN customers c ON c.customer_id = r.customer_id AND c.org_id = $3
+       WHERE r.repair_id = $1 AND r.customer_id = $2`, [repairId, customerId, org.org_id]
     );
     if (!existing.rows.length) return;
     if (existing.rows[0].customer_id !== customerId) return;

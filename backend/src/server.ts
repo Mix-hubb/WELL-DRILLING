@@ -165,11 +165,17 @@ app.get("/api/public/liff-info", publicLimiter, asyncHandler(async (req: any, re
 }));
 app.get("/api/public/customer-by-line", publicLimiter, asyncHandler(async (req: any, res: any) => {
   const { line_user_id } = req.query;
-  if (!line_user_id) return res.status(400).json({ error: "ต้องระบุ line_user_id" });
+  const { liff_id } = req.query;
+  if (!line_user_id || !liff_id) return res.status(400).json({ error: "ต้องระบุ line_user_id และ liff_id" });
   const { pool } = await import("./config/db.js");
   const result = await pool.query(
-    "SELECT customer_id, customer_name, phone, address FROM customers WHERE line_user_id = $1 LIMIT 1",
-    [line_user_id]
+    `SELECT c.customer_id, c.customer_name, c.phone, c.address
+     FROM customers c
+     JOIN organizations o ON o.org_id = c.org_id
+     WHERE c.line_user_id = $1
+       AND (o.line_liff_id_drilling = $2 OR o.line_liff_id_repair = $2)
+     LIMIT 1`,
+    [line_user_id, liff_id]
   );
   if (!result.rows.length) return res.json({ found: false });
   const c = result.rows[0];

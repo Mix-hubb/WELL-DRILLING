@@ -8,14 +8,34 @@ export async function getOrgInfo(req: Request, res: Response) {
   }
 
   const { rows } = await pool.query(
-    "SELECT org_id, name, slug, invite_code, created_at FROM organizations WHERE org_id = $1",
-    [orgId]
+    `SELECT org_id, name, slug,
+        CASE WHEN $2 = 'ADMIN' THEN invite_code ELSE NULL END AS invite_code,
+        created_at
+     FROM organizations WHERE org_id = $1`,
+    [orgId, req.user?.role]
   );
   if (!rows.length) {
     return res.status(404).json({ error: "ไม่พบข้อมูลองค์กร" });
   }
 
   res.json(rows[0]);
+}
+
+export async function rotateInviteCode(req: Request, res: Response) {
+  const orgId = req.user?.orgId;
+  if (!orgId) {
+    return res.status(400).json({ error: "ผู้ใช้ไม่ได้สังกัดองค์กรใด" });
+  }
+
+  const { rows } = await pool.query(
+    `UPDATE organizations
+     SET invite_code = substr(gen_random_uuid()::text, 1, 8)
+     WHERE org_id = $1
+     RETURNING invite_code`,
+    [orgId]
+  );
+  if (!rows.length) return res.status(404).json({ error: "ไม่พบข้อมูลองค์กร" });
+  res.json({ invite_code: rows[0].invite_code });
 }
 
 export async function getMembers(req: Request, res: Response) {

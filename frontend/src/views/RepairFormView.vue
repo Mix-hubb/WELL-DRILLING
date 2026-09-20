@@ -214,7 +214,7 @@ async function checkExistingCustomer() {
   checkingExisting.value = true;
   try {
     const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4001/api";
-    const res = await fetch(`${BASE_URL}/public/customer-by-line?line_user_id=${encodeURIComponent(lineUserId.value)}`);
+    const res = await fetch(`${BASE_URL}/public/customer-by-line?line_user_id=${encodeURIComponent(lineUserId.value)}&liff_id=${encodeURIComponent(actualLiffId.value || "")}`);
     if (!res.ok) return;
     const data = await res.json();
     if (data.found && data.customer && data.customer.phone) {

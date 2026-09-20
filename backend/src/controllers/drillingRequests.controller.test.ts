@@ -301,6 +301,7 @@ describe("createFromPublicForm", () => {
   it("creates customer + request in a transaction and broadcasts", async () => {
     client.query.mockImplementation(async (sql: string) => {
       if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") return { rows: [] };
+      if (sql.includes("SELECT org_id FROM organizations")) return { rows: [{ org_id: "org-1" }] };
       if (sql.includes("SELECT customer_id FROM customers")) return { rows: [] };
       if (sql.includes("INSERT INTO customers")) return { rows: [{ customer_id: 10 }] };
       if (sql.includes("INSERT INTO drilling_requests")) return { rows: [{ request_id: 5 }] };
@@ -309,7 +310,7 @@ describe("createFromPublicForm", () => {
 
     const res = createRes();
     await drillingRequests.createFromPublicForm(
-      createReq({ body: { name: "นายทดสอบ", phone: "0811111111", address: "กรุงเทพ" } }),
+      createReq({ body: { name: "นายทดสอบ", phone: "0811111111", address: "กรุงเทพ", liff_id: "liff-drill" } }),
       res
     );
 
@@ -319,10 +320,27 @@ describe("createFromPublicForm", () => {
     expect(mocks.broadcast).toHaveBeenCalledWith({
       type: "DRILLING_REQUEST_CREATED",
       data: { request_id: 5 },
-      orgId: null,
+      orgId: "org-1",
     });
-    expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(10, expect.any(String), "STATUS", null);
+    expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(10, expect.any(String), "STATUS", "org-1");
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({ request_id: 5, customer_id: 10 });
+  });
+
+  it("rejects a public form without an organization-bound LIFF", async () => {
+    client.query.mockImplementation(async (sql: string) => {
+      if (sql === "BEGIN" || sql === "ROLLBACK") return { rows: [] };
+      if (sql.includes("SELECT org_id FROM organizations")) return { rows: [] };
+      return { rows: [] };
+    });
+
+    const res = createRes();
+    await drillingRequests.createFromPublicForm(
+      createReq({ body: { name: "นายทดสอบ", phone: "0811111111", address: "กรุงเทพ" } }),
+      res
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: "LIFF นี้ไม่ได้ผูกกับองค์กรสำหรับแจ้งเจาะ" });
   });
 });

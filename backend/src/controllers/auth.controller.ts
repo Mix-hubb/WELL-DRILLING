@@ -116,7 +116,8 @@ export async function login(req: Request, res: Response) {
 export async function me(req: Request, res: Response) {
   const { rows } = await pool.query(
     `SELECT u.user_id, u.email, u.full_name, u.role, u.org_id,
-            o.name AS org_name, o.slug AS org_slug, o.invite_code,
+            o.name AS org_name, o.slug AS org_slug,
+            CASE WHEN u.role = 'ADMIN' THEN o.invite_code ELSE NULL END AS invite_code,
             o.line_channel_secret IS NOT NULL AS line_configured
      FROM users u
      LEFT JOIN organizations o ON u.org_id = o.org_id

@@ -9,7 +9,8 @@ router.get(
   "/",
   asyncHandler(async (req: Request, res: Response) => {
     const { rows } = await pool.query(
-      `SELECT o.org_id, o.name, o.slug, o.invite_code,
+            `SELECT o.org_id, o.name, o.slug,
+              CASE WHEN u.role = 'ADMIN' THEN o.invite_code ELSE NULL END AS invite_code,
               o.line_channel_id,
               o.line_channel_secret,
               o.line_channel_access_token, o.line_liff_id_drilling, o.line_liff_id_repair,

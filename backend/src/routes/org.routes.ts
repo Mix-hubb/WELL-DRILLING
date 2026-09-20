@@ -8,6 +8,7 @@ router.use(authMiddleware);
 
 router.get("/info", asyncHandler(c.getOrgInfo));
 router.get("/members", asyncHandler(c.getMembers));
+router.post("/invite-code/rotate", adminMiddleware, asyncHandler(c.rotateInviteCode));
 router.patch("/members/:id/role", adminMiddleware, asyncHandler(c.updateMemberRole));
 router.delete("/members/:id", adminMiddleware, asyncHandler(c.removeMember));
 

@@ -42,7 +42,7 @@ export function buildLineNoticeFlex(text: string, title = "แจ้งเตื
 
 async function getAccessTokenForCustomer(customerId: number, fallbackOrgId?: string | null): Promise<string | null> {
   const { rows } = await pool.query(
-    `SELECT o.line_channel_access_token
+    `SELECT c.org_id, o.line_channel_access_token
      FROM customers c
      JOIN organizations o ON c.org_id = o.org_id
      WHERE c.customer_id = $1`,
@@ -50,13 +50,12 @@ async function getAccessTokenForCustomer(customerId: number, fallbackOrgId?: str
   );
   if (rows[0]?.line_channel_access_token) return rows[0].line_channel_access_token;
 
-  if (fallbackOrgId) {
+  if (fallbackOrgId && rows[0]?.org_id === fallbackOrgId) {
     const { rows: orgRows } = await pool.query(
       "SELECT line_channel_access_token FROM organizations WHERE org_id = $1",
       [fallbackOrgId]
     );
     if (orgRows[0]?.line_channel_access_token) {
-      await pool.query("UPDATE customers SET org_id = $1 WHERE customer_id = $2 AND org_id IS NULL", [fallbackOrgId, customerId]);
       return orgRows[0].line_channel_access_token;
     }
   }
