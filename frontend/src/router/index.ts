@@ -1,7 +1,7 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHistory, type RouteLocationGeneric, type RouteRecordRaw } from "vue-router";
 import { sanitizeLiffId } from "@/utils/liffId";
 
-const routes = [
+const routes: RouteRecordRaw[] = [
   { path: "/login", name: "login", component: () => import("@/views/LoginView.vue"), meta: { public: true } },
   { path: "/register", name: "register", component: () => import("@/views/RegisterView.vue"), meta: { public: true } },
   { path: "/forgot-password", name: "forgot-password", component: () => import("@/views/ForgotPasswordView.vue"), meta: { public: true } },
@@ -72,7 +72,7 @@ const routes = [
   },
   {
     path: "/request-drill/:pathMatch(.*)*",
-    redirect: (to) => ({ path: "/request-drill", query: to.query }),
+    redirect: (to: RouteLocationGeneric) => ({ path: "/request-drill", query: to.query }),
   },
   {
     path: "/repair-form",
@@ -82,7 +82,7 @@ const routes = [
   },
   {
     path: "/repair-form/:pathMatch(.*)*",
-    redirect: (to) => ({ path: "/repair-form", query: to.query }),
+    redirect: (to: RouteLocationGeneric) => ({ path: "/repair-form", query: to.query }),
   },
   // ===== ช่าง (magic link, public) =====
   {
