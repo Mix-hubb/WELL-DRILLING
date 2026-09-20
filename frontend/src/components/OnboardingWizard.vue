@@ -209,5 +209,7 @@ function copyText(text: string) {
   padding: 1px 6px;
   border-radius: 4px;
   font-size: 13px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 </style>

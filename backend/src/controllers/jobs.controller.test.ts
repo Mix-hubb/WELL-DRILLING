@@ -306,5 +306,8 @@ describe("remove / generateMagicLink", () => {
     expect(call[0]).toContain("UPDATE drilling_jobs SET magic_link_token");
     expect(String(call[1][0])).toMatch(/^drill-[0-9a-f]{32}$/);
     expect(res.json).toHaveBeenCalledWith({ token: expect.any(String) });
+    expect(mocks.broadcast).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "JOB_MAGIC_LINK_CHANGED", orgId: "org-1" })
+    );
   });
 });

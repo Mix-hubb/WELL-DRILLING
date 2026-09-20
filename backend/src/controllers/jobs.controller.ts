@@ -412,5 +412,6 @@ export async function generateMagicLink(req: Request, res: Response) {
     "UPDATE drilling_jobs SET magic_link_token = $1, magic_link_expires_at = NOW() + INTERVAL '7 days' WHERE job_id = $2",
     [token, id]
   );
+  broadcast({ type: "JOB_MAGIC_LINK_CHANGED", data: { job_id: Number(id), token }, orgId: req.user?.orgId });
   res.json({ token });
 }

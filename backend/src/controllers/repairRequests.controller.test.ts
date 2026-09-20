@@ -437,6 +437,9 @@ describe("generateMagicLink", () => {
     expect(updateCall).toBeDefined();
     expect(String(updateCall![1][0])).toMatch(/^repair-[0-9a-f]{32}$/);
     expect(res.json).toHaveBeenCalledWith({ token: expect.any(String) });
+    expect(mocks.broadcast).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "REPAIR_MAGIC_LINK_CHANGED", orgId: "org-1" })
+    );
   });
 });
 

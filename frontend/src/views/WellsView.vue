@@ -29,6 +29,7 @@ async function refresh() {
 useSSERefresh(refresh, [
   "WELL_CREATED",
   "WELL_UPDATED",
+  "WELL_DELETED",
   "JOB_STATUS_CHANGED",
   "DRILLING_REQUEST_CHANGED",
   "REPAIR_REQUEST_CHANGED",
@@ -112,6 +113,7 @@ async function handleDelete() {
         hide-details
         prepend-inner-icon="mdi-magnify"
         placeholder="ค้นหาจากชื่อลูกค้า หรือเบอร์โทร..."
+        class="page-head-search"
         style="max-width: 360px"
       />
       <v-btn

@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useRepairRequestsStore } from "@/stores/repairRequests";
 import { useUiStore } from "@/stores/ui";
 import { useSSERefresh } from "@/composables/useSSERefresh";
+import { useSSE }        from "@/composables/useSSE";
 import { quotationsApi } from "@/api/quotations";
 import { repairRequestsApi } from "@/api/repairRequests";
 import { fmtDate } from "@/utils/date";
@@ -25,11 +26,18 @@ useSSERefresh(refreshData, [
   "REPAIR_REQUEST_CHANGED",
   "REPAIR_REQUEST_DELETED",
   "REPAIR_RECORD_ADDED",
+  "REPAIR_RECORD_UPDATED",
   "QUOTATION_CREATED",
   "QUOTATION_CHANGED",
   "QUOTATION_DELETED",
   "REPAIR_RECORD_DELETED",
 ]);
+
+const { on } = useSSE();
+on("REPAIR_MAGIC_LINK_CHANGED", (data) => {
+  const r = requests.requests.find((x) => x.repair_id === Number(data.repair_id));
+  if (r) r.magic_link_token = data.token;
+});
 
 const search   = ref("");
 const quoteDlg = ref(false);
@@ -196,6 +204,7 @@ async function doDelete() {
         v-model="search" density="compact" variant="outlined" hide-details
         prepend-inner-icon="mdi-magnify"
         placeholder="ค้นหาลูกค้า, เบอร์, บ่อ..."
+        class="page-head-search"
         style="max-width:280px" clearable
       />
     </div>

@@ -244,6 +244,58 @@ html, body {
   .text-h6 { font-size: 1.05rem !important; }
 }
 
+/* ---------- Horizontal overflow guard ---------- */
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* ---------- Main content container (responsive width cap) ---------- */
+.page-container {
+  width: 100%;
+  max-width: 1600px;
+  margin-inline: auto;
+}
+
+/* ---------- List-page search inputs fill the row on phones ---------- */
+@media (max-width: 600px) {
+  .page-head-search {
+    width: 100%;
+    max-width: 100% !important;
+    flex-basis: 100%;
+  }
+}
+
+/* ---------- FABs clear the fixed bottom nav on phones/tablets ---------- */
+@media (max-width: 959.98px) {
+  .fab-wrapper {
+    bottom: calc(80px + var(--safe-bottom, 0px)) !important;
+  }
+  .link-fab-wrapper {
+    bottom: calc(152px + var(--safe-bottom, 0px)) !important;
+  }
+  .page-container {
+    padding-bottom: 104px !important;
+  }
+}
+
+/* ---------- Wide tables scroll horizontally on small screens ---------- */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-wrap > .v-table {
+  min-width: 360px;
+}
+
+/* ---------- Dialog form fields stack full-width on phones ---------- */
+@media (max-width: 600px) {
+  .v-dialog .v-row > .v-col:not([class*="v-col-sm-"]):not([class*="v-col-md-"]):not([class*="v-col-lg-"]):not([class*="v-col-xl-"]) {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+}
+
 /* ---------- Scrollbar (Webkit) ---------- */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--color-stone); border-radius: 3px; }

@@ -205,6 +205,7 @@ async function reject(r: any) {
         v-model="search" density="compact" variant="outlined" hide-details
         prepend-inner-icon="mdi-magnify"
         placeholder="ค้นหาชื่อ, เบอร์, ที่อยู่..."
+        class="page-head-search"
         style="max-width:280px" clearable
       />
     </div>
@@ -335,16 +336,18 @@ async function reject(r: any) {
         <template v-slot:activator="{ props }">
           <v-btn icon="mdi-link-variant" color="primary" v-bind="props" elevation="4" />
         </template>
-        <v-card min-width="340" class="pa-4">
+        <v-card class="pa-4" max-width="360" min-width="260">
           <div class="text-body-2 font-weight-bold mb-1">ลิงค์แจ้งเจาะสำหรับลูกค้า</div>
           <div class="text-caption text-medium-emphasis mb-3">ส่งลิงค์นี้ให้ลูกค้าเพื่อกรอกคำร้องแจ้งเจาะ</div>
-          <div class="d-flex align-center ga-2">
-            <v-icon icon="mdi-link-variant" size="16" color="primary" />
-            <span class="text-caption text-medium-emphasis text-truncate" style="max-width:200px">{{ formLink }}</span>
-            <v-btn size="x-small" variant="tonal" prepend-icon="mdi-content-copy" @click="copyLink">
+          <div class="d-flex align-center ga-2 mb-3" style="min-width:0">
+            <v-icon icon="mdi-link-variant" size="16" color="primary" class="flex-shrink-0" />
+            <div class="text-caption text-medium-emphasis text-truncate" style="min-width:0;flex:1 1 auto">{{ formLink }}</div>
+          </div>
+          <div class="d-flex flex-wrap ga-2">
+            <v-btn size="small" variant="tonal" prepend-icon="mdi-content-copy" @click="copyLink">
               {{ copied ? 'คัดลอกแล้ว' : 'copy' }}
             </v-btn>
-            <v-btn size="x-small" variant="tonal" prepend-icon="mdi-refresh" @click="copyLink">
+            <v-btn size="small" variant="tonal" prepend-icon="mdi-refresh" @click="copyLink">
               สร้างใหม่
             </v-btn>
           </div>

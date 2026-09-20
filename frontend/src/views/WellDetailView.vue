@@ -5,6 +5,7 @@ import { useWellsStore } from "@/stores/wells";
 import { useUiStore } from "@/stores/ui";
 import { api } from "@/api/client";
 import { useSSERefresh } from "@/composables/useSSERefresh";
+import { useSSE } from "@/composables/useSSE";
 import { fmtDate } from "@/utils/date";
 import { PIPE_MATERIAL, PIPE_TYPE, PUMP_TYPE, LITHOLOGY_TYPE, PROTECTION_TYPE } from "@/constants";
 import StrataColumn from "@/components/StrataColumn.vue";
@@ -36,6 +37,11 @@ async function refresh() {
 useSSERefresh(refresh, [
   { event: "WELL_UPDATED", filter: (data) => data.well_id === wellId() },
 ]);
+
+const { on } = useSSE();
+on("WELL_DELETED", (data) => {
+  if (String(data.well_id) === wellId()) router.push("/wells");
+});
 
 async function addStrata(form: any) {
   try { await store.addStrata(wellId(), form); showStrata.value = false; ui.notify("เพิ่มชั้นดิน/หินแล้ว", "success"); }
@@ -82,9 +88,9 @@ function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
 </script>
 
 <template>
-  <div v-if="store.current" style="max-width:900px">
+  <div v-if="store.current" class="mx-auto" style="max-width:900px">
     <!-- Back + Actions -->
-    <div class="d-flex align-center justify-space-between mb-3">
+    <div class="d-flex align-center justify-space-between flex-wrap ga-2 mb-3">
       <v-btn variant="text" prepend-icon="mdi-arrow-left" class="ml-n3" @click="router.push('/wells')">
         บ่อบาดาล
       </v-btn>

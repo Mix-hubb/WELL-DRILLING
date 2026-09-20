@@ -4,10 +4,13 @@ import { pool } from "../config/db";
 import { signToken } from "../middleware/auth";
 import { UserRole } from "../types";
 import { generateCode, hashCode, verifyCode, getCodeExpiry, isCodeExpired } from "../services/resetCode";
+import { createUniqueInviteCode } from "../services/inviteCode";
 import { sendResetCodeEmail } from "../services/email";
 import { sendResetCodeSms } from "../services/sms";
+import { broadcast } from "../services/sse";
 
 const USER_ROLE: UserRole = "DRILLER";
+const OWNER_ROLE: UserRole = "ADMIN";
 
 export async function register(req: Request, res: Response) {
   const { email, password, full_name, phone, org_name } = req.body;
@@ -42,7 +45,7 @@ export async function register(req: Request, res: Response) {
 
     if (inviteCode) {
       const { rows: orgRows } = await client.query(
-        "SELECT org_id FROM organizations WHERE invite_code = $1", [inviteCode]
+        "SELECT org_id FROM organizations WHERE LOWER(invite_code) = $1", [inviteCode]
       );
       if (!orgRows.length) {
         await client.query("ROLLBACK");
@@ -55,9 +58,10 @@ export async function register(req: Request, res: Response) {
         return res.status(400).json({ error: "ต้องระบุ org_name สำหรับสร้างบริษัทใหม่" });
       }
       const slug = org_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const newInviteCode = await createUniqueInviteCode((sql, params) => client.query(sql, params));
       const { rows: orgRows } = await client.query(
-        "INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING org_id",
-        [org_name, slug]
+        "INSERT INTO organizations (name, slug, invite_code) VALUES ($1, $2, $3) RETURNING org_id",
+        [org_name, slug, newInviteCode]
       );
       orgId = orgRows[0].org_id;
     }
@@ -65,13 +69,17 @@ export async function register(req: Request, res: Response) {
     const password_hash = await bcrypt.hash(password, 10);
     const cleanPhone = phone.replace(/[-\s]/g, "");
 
+    const USER_ROLE: UserRole = inviteCode ? "DRILLER" : "ADMIN";
+
     const { rows } = await client.query(
-      "INSERT INTO users (user_id, email, password_hash, full_name, phone, role, org_id) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6) RETURNING user_id",
+      "INSERT INTO users (email, password_hash, full_name, phone, role, org_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id",
       [email, password_hash, full_name, cleanPhone, USER_ROLE, orgId]
     );
 
     const newUserId = rows[0].user_id;
     await client.query("COMMIT");
+
+    if (inviteCode) broadcast({ type: "ORG_MEMBERS_CHANGED", data: {}, orgId });
 
     const token = signToken({ userId: newUserId, email, role: USER_ROLE, orgId });
     res.status(201).json({

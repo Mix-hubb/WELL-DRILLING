@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, computed } from "vue";
 import { orgApi, type OrgInfo, type OrgMember } from "@/api/org";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
+import { useSSERefresh } from "@/composables/useSSERefresh";
 import { fmtDate } from "@/utils/date";
+import { copyText } from "@/utils/clipboard";
 
 const auth = useAuthStore();
 const ui = useUiStore();
@@ -12,10 +14,19 @@ const orgInfo = ref<OrgInfo | null>(null);
 const members = ref<OrgMember[]>([]);
 const loading = ref(true);
 
+const inviteCodeInput = ref("");
+const codeDirty = ref(false);
+const savingCode = ref(false);
+const rotating = ref(false);
+
 const deleteConfirmDialog = ref(false);
 const memberToDelete = ref<OrgMember | null>(null);
 
 const isAdmin = computed(() => auth.user?.role === "ADMIN");
+
+const displayCode = computed(() =>
+  (orgInfo.value?.invite_code || auth.user?.invite_code || "").toUpperCase()
+);
 
 async function load() {
   try {
@@ -24,7 +35,11 @@ async function load() {
       orgApi.getInfo().catch(() => null),
       orgApi.getMembers(),
     ]);
-    if (info) orgInfo.value = info;
+    if (info) {
+      orgInfo.value = info;
+      inviteCodeInput.value = info.invite_code || auth.user?.invite_code || "";
+      codeDirty.value = false;
+    }
     members.value = memberList;
   } catch (e) {
     ui.notifyError(e);
@@ -33,29 +48,72 @@ async function load() {
   }
 }
 
-onMounted(() => {
-  load();
-});
+useSSERefresh(load, ["ORG_MEMBERS_CHANGED"]);
 
 async function copyInviteCode() {
-  const code = orgInfo.value?.invite_code || auth.user?.invite_code;
-  if (!code) return;
-  try {
-    await navigator.clipboard.writeText(code);
-    ui.notify("คัดลอกรหัสเชิญแล้ว: " + code, "success");
-  } catch {
-    ui.notify("รหัสเชิญ: " + code, "info");
+  const code = displayCode.value.trim();
+  if (!code) {
+    if (isAdmin.value) {
+      await rotateInviteCode();
+      return;
+    }
+    ui.notify("ยังไม่มีรหัสเชิญสำหรับองค์กรนี้", "warning");
+    return;
+  }
+  const ok = await copyText(code);
+  if (ok) {
+    ui.notify("คัดลอกรหัสเชิญสำเร็จ: " + code, "success");
+  } else {
+    ui.notify("คัดลอกไม่สำเร็จ กรุณาลองใหม่", "error");
   }
 }
 
 async function rotateInviteCode() {
   if (!isAdmin.value) return;
+  rotating.value = true;
   try {
     const result = await orgApi.rotateInviteCode();
-    if (orgInfo.value) orgInfo.value.invite_code = result.invite_code;
+    if (orgInfo.value) {
+      orgInfo.value.invite_code = result.invite_code;
+    } else {
+      orgInfo.value = {
+        org_id: "",
+        name: auth.user?.org_name || "",
+        slug: auth.user?.org_slug || "",
+        invite_code: result.invite_code,
+        created_at: "",
+      };
+    }
+    if (auth.user) auth.user.invite_code = result.invite_code;
+    inviteCodeInput.value = result.invite_code;
+    codeDirty.value = false;
     ui.notify("สร้างรหัสเชิญใหม่แล้ว รหัสเดิมใช้ไม่ได้อีกต่อไป", "success");
   } catch (e) {
     ui.notifyError(e);
+  } finally {
+    rotating.value = false;
+  }
+}
+
+async function saveInviteCode() {
+  if (!isAdmin.value) return;
+  const code = inviteCodeInput.value.trim().toUpperCase();
+  if (!/^[A-Z0-9]{4,16}$/.test(code)) {
+    ui.notify("รหัสเชิญต้องเป็นตัวอักษร/ตัวเลข 4-16 หลัก ไม่มีเว้นวรรค", "warning");
+    return;
+  }
+  savingCode.value = true;
+  try {
+    const result = await orgApi.updateInviteCode(code);
+    if (orgInfo.value) orgInfo.value.invite_code = result.invite_code;
+    if (auth.user) auth.user.invite_code = result.invite_code;
+    inviteCodeInput.value = result.invite_code;
+    codeDirty.value = false;
+    ui.notify("บันทึกรหัสเชิญแล้ว: " + result.invite_code, "success");
+  } catch (e) {
+    ui.notifyError(e);
+  } finally {
+    savingCode.value = false;
   }
 }
 
@@ -105,30 +163,57 @@ async function handleRemove() {
           </div>
         </div>
 
-        <div class="d-flex align-center ga-3">
+        <div class="d-flex flex-column ga-2 invite-code-panel" style="min-width: 260px">
+          <v-text-field
+            v-if="isAdmin"
+            v-model="inviteCodeInput"
+            label="Invite Code"
+            hint="พิมพ์รหัสเชิญเองได้ ตัวอักษร/ตัวเลข 4-16 หลัก"
+            persistent-hint
+            variant="solo"
+            density="compact"
+            prepend-inner-icon="mdi-key-outline"
+            :readonly="savingCode"
+            @update:model-value="codeDirty = true"
+          />
           <div
+            v-else
             class="px-4 py-2 rounded font-weight-bold font-display"
             style="background: rgba(var(--v-theme-surface), 0.9); font-size: 1.25rem; letter-spacing: 2px; border: 1px dashed currentColor"
           >
-            {{ orgInfo?.invite_code || auth.user?.invite_code || "—" }}
+            {{ displayCode || "—" }}
           </div>
-          <v-btn
-            color="primary"
-            variant="flat"
-            prepend-icon="mdi-content-copy"
-            @click="copyInviteCode"
-          >
-            คัดลอกรหัสเชิญ
-          </v-btn>
-          <v-btn
-            v-if="isAdmin"
-            color="warning"
-            variant="tonal"
-            prepend-icon="mdi-refresh"
-            @click="rotateInviteCode"
-          >
-            สร้างรหัสใหม่
-          </v-btn>
+          <div class="d-flex align-center ga-2 flex-wrap">
+            <v-btn
+              color="primary"
+              variant="flat"
+              prepend-icon="mdi-content-copy"
+              @click="copyInviteCode"
+            >
+              คัดลอกรหัสเชิญ
+            </v-btn>
+            <v-btn
+              v-if="isAdmin"
+              color="warning"
+              variant="tonal"
+              prepend-icon="mdi-refresh"
+              :loading="rotating"
+              @click="rotateInviteCode"
+            >
+              สร้างรหัสใหม่
+            </v-btn>
+            <v-btn
+              v-if="isAdmin"
+              color="success"
+              variant="flat"
+              prepend-icon="mdi-content-save"
+              :disabled="!codeDirty || savingCode"
+              :loading="savingCode"
+              @click="saveInviteCode"
+            >
+              บันทึก
+            </v-btn>
+          </div>
         </div>
       </div>
     </v-card>
@@ -231,3 +316,13 @@ async function handleRemove() {
     </v-dialog>
   </div>
 </template>
+
+<style scoped>
+@media (max-width: 600px) {
+  .invite-code-panel {
+    flex-basis: 100%;
+    min-width: 0;
+    width: 100%;
+  }
+}
+</style>

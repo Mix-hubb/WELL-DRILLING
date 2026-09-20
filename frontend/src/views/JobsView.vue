@@ -5,6 +5,7 @@ import { useJobsStore }      from "@/stores/jobs";
 import { useCustomersStore } from "@/stores/customers";
 import { useUiStore }        from "@/stores/ui";
 import { useSSERefresh }     from "@/composables/useSSERefresh";
+import { useSSE }            from "@/composables/useSSE";
 import { fmtShortDate as fmtDate } from "@/utils/date";
 import { jobsApi }           from "@/api/jobs";
 import type { DrillingJob }  from "@/types";
@@ -27,6 +28,12 @@ useSSERefresh(refreshData, [
   "JOB_DELETED",
   "JOB_STATUS_CHANGED",
 ]);
+
+const { on } = useSSE();
+on("JOB_MAGIC_LINK_CHANGED", (data) => {
+  const j = jobsStore.jobs.find((x) => x.job_id === Number(data.job_id));
+  if (j) j.magic_link_token = data.token;
+});
 
 const tab      = ref("ALL");
 const search   = ref("");
@@ -136,6 +143,7 @@ async function doDelete() {
         v-model="search" density="compact" variant="outlined" hide-details
         prepend-inner-icon="mdi-magnify"
         placeholder="ค้นหาคิวงาน, ลูกค้า, จังหวัด..."
+        class="page-head-search"
         style="max-width:280px"
         clearable
       />

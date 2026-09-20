@@ -80,7 +80,7 @@ const pageTitle = computed(() => (route.meta.label as string) || "ระบบ�
     </template>
 
     <v-main>
-      <v-container fluid :class="isAuthPage ? '' : 'pa-4 pa-md-6'" :style="isAuthPage ? 'background: transparent' : ''">
+      <v-container fluid :class="isAuthPage ? '' : 'pa-4 pa-md-6 page-container'" :style="isAuthPage ? 'background: transparent' : ''">
         <router-view v-slot="{ Component }">
           <transition name="page" mode="out-in">
             <component :is="Component" :key="route.path" />

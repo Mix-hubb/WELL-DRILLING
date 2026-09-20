@@ -7,6 +7,7 @@ import { api }           from "@/api/client";
 import { useUiStore }    from "@/stores/ui";
 
 import { useSSERefresh } from "@/composables/useSSERefresh";
+import { useSSE }        from "@/composables/useSSE";
 import { fmtDate }       from "@/utils/date";
 import type { DrillingJob, DrillingJobStatus } from "@/types";
 import { JOB_STATUS } from "@/constants";
@@ -39,6 +40,11 @@ useSSERefresh(load, [
   { event: "JOB_STATUS_CHANGED", filter: (data) => data.job_id === Number(route.params.id) },
   "WELL_CREATED",
 ]);
+
+const { on } = useSSE();
+on("JOB_MAGIC_LINK_CHANGED", (data) => {
+  if (job.value && Number(data.job_id) === job.value.job_id) job.value.magic_link_token = data.token;
+});
 
 async function setStatus(status: DrillingJobStatus) {
   if (!job.value) return;
@@ -81,7 +87,7 @@ async function regenerateMagicLink() {
 </script>
 
 <template>
-  <div v-if="job" style="max-width:720px">
+  <div v-if="job" class="mx-auto" style="max-width:720px">
     <v-btn variant="text" prepend-icon="mdi-arrow-left" class="mb-2 ml-n3" @click="router.push('/jobs')">
       คิวงาน
     </v-btn>
@@ -131,11 +137,11 @@ async function regenerateMagicLink() {
     <!-- Status Stepper -->
     <v-card class="pa-5 mb-4">
       <div class="text-caption text-uppercase text-medium-emphasis font-weight-bold mb-3">ความคืบหน้า</div>
-      <div class="d-flex align-center">
+      <div class="d-flex align-center stepper-scroll">
         <template v-for="(s, i) in STEPS" :key="s">
           <div
             class="d-flex flex-column align-center"
-            style="min-width:70px"
+            style="min-width:68px"
           >
             <v-avatar :color="i <= currentStepIndex ? JOB_STATUS[s].color || 'primary' : 'surface-variant'" size="30">
               <v-icon :icon="i < currentStepIndex ? 'mdi-check' : 'mdi-circle-medium'" color="white" size="16" />
@@ -202,3 +208,11 @@ async function regenerateMagicLink() {
     <v-progress-circular indeterminate color="primary" class="mb-3" /><br />กำลังโหลด...
   </div>
 </template>
+
+<style scoped>
+.stepper-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+</style>

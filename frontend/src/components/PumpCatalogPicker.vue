@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch } from "vue";
 import { pumpCatalogApi } from "@/api/pumpCatalog";
+import { useSSERefresh } from "@/composables/useSSERefresh";
 import type { PumpCatalogModel } from "@/types";
 
 const props = withDefaults(defineProps<{
@@ -60,7 +61,8 @@ watch(modelId, (v) => {
   emit("update:modelValue", v ? modelOptions.value.find((m) => m.model_id === v) || null : null);
 });
 
-onMounted(async () => {
+async function refreshCatalog() {
+  catalogPromise = null;
   loading.value = true;
   try {
     models.value = await loadCatalog();
@@ -69,7 +71,13 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-});
+}
+
+useSSERefresh(refreshCatalog, [
+  "PUMP_CATALOG_CREATED",
+  "PUMP_CATALOG_UPDATED",
+  "PUMP_CATALOG_DELETED",
+]);
 
 function fmt(n: number | null | undefined): string {
   return n == null ? "" : `${new Intl.NumberFormat("th-TH").format(n)} บาท`;
@@ -79,7 +87,7 @@ function fmt(n: number | null | undefined): string {
 <template>
   <div>
     <v-row dense>
-      <v-col cols="6">
+      <v-col cols="12" sm="6">
         <v-autocomplete
           v-model="brand"
           :items="brandOptions"
@@ -93,7 +101,7 @@ function fmt(n: number | null | undefined): string {
           hide-details="auto"
         />
       </v-col>
-      <v-col cols="6">
+      <v-col cols="12" sm="6">
         <v-autocomplete
           v-model="modelId"
           :items="modelOptions"

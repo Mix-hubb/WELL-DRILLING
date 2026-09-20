@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   sendResetCodeEmail: vi.fn(),
   sendResetCodeSms: vi.fn(),
   consoleError: vi.spyOn(console, "error").mockImplementation(() => {}),
+  broadcast: vi.fn(),
 }));
 
 const client = { query: vi.fn(), release: vi.fn() };
@@ -35,6 +36,7 @@ vi.mock("../services/resetCode", () => ({
 }));
 vi.mock("../services/email", () => ({ sendResetCodeEmail: mocks.sendResetCodeEmail }));
 vi.mock("../services/sms", () => ({ sendResetCodeSms: mocks.sendResetCodeSms }));
+vi.mock("../services/sse", () => ({ broadcast: mocks.broadcast }));
 
 import * as auth from "./auth.controller";
 
@@ -64,6 +66,7 @@ beforeEach(() => {
   mocks.isCodeExpired.mockReset();
   mocks.sendResetCodeEmail.mockReset();
   mocks.sendResetCodeSms.mockReset();
+  mocks.broadcast.mockReset();
 
   client.query.mockReset();
   client.query.mockImplementation(async (sql: string) => {
@@ -157,20 +160,48 @@ describe("register", () => {
 
     expect(mocks.poolConnect).toHaveBeenCalled();
     expect(client.query).toHaveBeenCalledWith("BEGIN");
-    expect(client.query).toHaveBeenCalledWith(
-      expect.stringContaining("INSERT INTO organizations"),
-      ["My Company", "my-company"]
+    const orgInsertCall = client.query.mock.calls.find((c) =>
+      String(c[0]).includes("INSERT INTO organizations")
     );
+    expect(orgInsertCall).toBeDefined();
+    expect(orgInsertCall![1][0]).toBe("My Company");
+    expect(orgInsertCall![1][1]).toBe("my-company");
+    expect(typeof orgInsertCall![1][2]).toBe("string");
+    expect(orgInsertCall![1][2].length).toBeGreaterThanOrEqual(4);
     expect(mocks.bcryptHash).toHaveBeenCalledWith("secret123", 10);
     expect(client.query).toHaveBeenCalledWith("COMMIT");
     expect(client.release).toHaveBeenCalled();
+    expect(mocks.broadcast).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(201);
+    const userInsertCall = client.query.mock.calls.find((c) =>
+      String(c[0]).includes("INSERT INTO users")
+    );
+    expect(userInsertCall![1][4]).toBe("ADMIN");
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         token: "token",
-        user: expect.objectContaining({ user_id: "u-1", email: "user@example.com" }),
+        user: expect.objectContaining({ user_id: "u-1", email: "user@example.com", role: "ADMIN" }),
       })
     );
+  });
+
+  it("broadcasts ORG_MEMBERS_CHANGED when joining via invite code", async () => {
+    mocks.poolQuery.mockResolvedValueOnce({ rows: [] });
+    mocks.bcryptHash.mockResolvedValueOnce("hash");
+    mocks.signToken.mockReturnValueOnce("token");
+    client.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("SELECT org_id FROM organizations")) return { rows: [{ org_id: "org-1" }] };
+      if (sql.includes("INSERT INTO users")) return { rows: [{ user_id: "u-1" }] };
+      return { rows: [] };
+    });
+    const res = createRes();
+    await auth.register(createReq({ ...validBody, invite_code: "joinme12" }), res);
+
+    expect(client.query).toHaveBeenCalledWith("COMMIT");
+    expect(mocks.broadcast).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "ORG_MEMBERS_CHANGED", orgId: "org-1" })
+    );
+    expect(res.status).toHaveBeenCalledWith(201);
   });
 
   it("throws and rolls back when the transaction fails", async () => {

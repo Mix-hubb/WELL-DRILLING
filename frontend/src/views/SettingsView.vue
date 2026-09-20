@@ -2,9 +2,11 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
+import { useSSERefresh } from "@/composables/useSSERefresh";
 import { api } from "@/api/client";
 import TeamMembersManager from "@/components/TeamMembersManager.vue";
 import PumpCatalogManager from "@/components/PumpCatalogManager.vue";
+import { copyText } from "@/utils/clipboard";
 
 const auth = useAuthStore();
 const ui = useUiStore();
@@ -112,6 +114,11 @@ async function loadSettings() {
 
 onMounted(loadSettings);
 
+useSSERefresh(loadSettings, [
+  "LINE_SETTINGS_CHANGED",
+  "ORG_MEMBERS_CHANGED",
+]);
+
 onUnmounted(() => {
   if (checkDrillTimer) clearTimeout(checkDrillTimer);
   if (checkRepairTimer) clearTimeout(checkRepairTimer);
@@ -166,16 +173,27 @@ async function handleSave() {
   }
 }
 
-function copyInviteCode() {
-  if (settings.value?.invite_code) {
-    navigator.clipboard.writeText(settings.value.invite_code);
-    ui.notify("คัดลอก Invite Code แล้ว", "success");
+async function copyInviteCode() {
+  const code = settings.value?.invite_code || "";
+  if (!code) {
+    ui.notify("ยังไม่มี Invite Code สำหรับองค์กรนี้", "warning");
+    return;
+  }
+  const ok = await copyText(code);
+  if (ok) {
+    ui.notify("คัดลอก Invite Code สำเร็จ", "success");
+  } else {
+    ui.notify("คัดลอก Invite Code ไม่สำเร็จ กรุณาลองใหม่", "error");
   }
 }
 
-function copyToClipboard(text: string, label: string) {
-  navigator.clipboard.writeText(text);
-  ui.notify(`คัดลอก ${label} แล้ว`, "success");
+async function copyToClipboard(text: string, label: string) {
+  const ok = await copyText(text);
+  if (ok) {
+    ui.notify(`คัดลอก ${label} แล้ว`, "success");
+  } else {
+    ui.notify(`คัดลอก ${label} ไม่สำเร็จ กรุณาลองใหม่`, "error");
+  }
 }
 </script>
 
@@ -212,7 +230,7 @@ function copyToClipboard(text: string, label: string) {
                 prepend-inner-icon="mdi-domain"
                 class="mb-2"
               />
-              <div class="d-flex align-center gap-2 mb-2">
+              <div class="d-flex align-center ga-2 mb-2">
                 <v-text-field
                   :model-value="settings.invite_code"
                   label="Invite Code"

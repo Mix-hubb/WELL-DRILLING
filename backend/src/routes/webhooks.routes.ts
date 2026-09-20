@@ -383,17 +383,27 @@ async function handleImage(userId: string, messageId: string, org: OrgLineConfig
   }
   const customerId = custResult.rows[0].customer_id;
 
-  // หา repair_request ล่าสุดที่สถานะเป็น CLOSED (รอชำระเงิน)
+  // หา repair_request ล่าสุดที่รอชำระเงิน
+  // CLOSED   = รอสลิปโอนเงิน (ทีมงานกดปิดงานแล้ว)
+  // COMPLETED = ซ่อมเสร็จแล้ว รอชำระเงิน (ทีมงานยังไม่กดปิดงาน แต่ลูกค้าส่งสลิปมาแล้ว)
   const repairResult = await pool.query(
     `SELECT r.repair_id FROM repair_requests r
      JOIN customers c ON c.customer_id = r.customer_id AND c.org_id = $2
-     WHERE r.customer_id = $1 AND r.status = 'CLOSED'
+     WHERE r.customer_id = $1 AND r.status IN ('CLOSED', 'COMPLETED')
      ORDER BY updated_at DESC LIMIT 1`,
     [customerId, org.org_id]
   );
 
   if (!repairResult.rows.length) {
-    // ไม่มีงานที่รอชำระ อาจเป็นรูปทั่วไป ไม่ต้องตอบกลับ
+    console.log(`[webhook] Image from ${userId} ignored: no payable (CLOSED/COMPLETED) repair found`);
+    if (replyToken) {
+      reply(
+        org.line_channel_access_token,
+        replyToken,
+        "ขอบคุณครับ แต่ยังไม่พบงานที่ต้องชำระเงินในขณะนี้ หากเป็นสลิปโอนเงิน กรุณาตรวจสอบว่างานนั้นถูก" +
+        "ปิดงานเพื่อรอชำระในระบบของทีมงานแล้ว หรือพิมพ์ \"เมนู\" เพื่อดูบริการอื่นครับ"
+      ).catch(() => {});
+    }
     return;
   }
   const repairId = repairResult.rows[0].repair_id;

@@ -202,7 +202,7 @@ export async function remove(req: Request, res: Response) {
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบบ่อ" });
   await pool.query("DELETE FROM wells WHERE well_id = $1", [req.params.id]);
-  broadcast({ type: "WELL_UPDATED", data: { well_id: Number(req.params.id) }, orgId: req.user?.orgId });
+  broadcast({ type: "WELL_DELETED", data: { well_id: Number(req.params.id) }, orgId: req.user?.orgId });
   res.status(204).end();
 }
 

@@ -3,11 +3,13 @@ import type { Request, Response } from "express";
 
 const mocks = vi.hoisted(() => ({
   poolQuery: vi.fn(),
+  broadcast: vi.fn(),
 }));
 
 vi.mock("../config/db", () => ({
   pool: { query: mocks.poolQuery },
 }));
+vi.mock("../services/sse", () => ({ broadcast: mocks.broadcast }));
 
 import * as orgCtrl from "./org.controller";
 
@@ -114,6 +116,125 @@ describe("org.controller", () => {
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ message: "อัปเดตบทบาทสำเร็จ", role: "ADMIN" })
       );
+      expect(mocks.broadcast).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "ORG_MEMBERS_CHANGED", orgId: "org-1" })
+      );
+    });
+  });
+
+  describe("getInfo", () => {
+    it("should auto-generate an invite code for an admin org missing one", async () => {
+      const req = {
+        user: { userId: "u-1", orgId: "org-1", role: "ADMIN" },
+      } as unknown as Request;
+      const res = createRes();
+
+      mocks.poolQuery
+        .mockResolvedValueOnce({
+          rows: [{ org_id: "org-1", name: "My Co", slug: "my-co", invite_code: null, created_at: "2026-01-01" }],
+        })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      await orgCtrl.getOrgInfo(req, res);
+
+      const update = mocks.poolQuery.mock.calls.find((c) =>
+        String(c[0]).includes("UPDATE organizations SET invite_code")
+      );
+      expect(update).toBeDefined();
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ org_id: "org-1", invite_code: expect.stringMatching(/^[A-Z0-9]{8}$/) })
+      );
+    });
+  });
+
+  describe("rotateInviteCode", () => {
+    it("should rotate the invite code", async () => {
+      const req = {
+        user: { userId: "u-1", orgId: "org-1", role: "ADMIN" },
+      } as unknown as Request;
+      const res = createRes();
+
+      mocks.poolQuery
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ invite_code: "NEWCODE1" }] });
+
+      await orgCtrl.rotateInviteCode(req, res);
+
+      const update = mocks.poolQuery.mock.calls.find((c) =>
+        String(c[0]).includes("UPDATE organizations")
+      );
+      expect(update).toBeDefined();
+      expect(update![1][1]).toBe("org-1");
+      expect(update![1][0]).toMatch(/^[A-Z0-9]{8}$/);
+      expect(res.json).toHaveBeenCalledWith({ invite_code: "NEWCODE1" });
+      expect(mocks.broadcast).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "ORG_MEMBERS_CHANGED", orgId: "org-1" })
+      );
+    });
+
+    it("should return 400 when the user has no org", async () => {
+      const req = { user: { role: "ADMIN" } } as unknown as Request;
+      const res = createRes();
+
+      await orgCtrl.rotateInviteCode(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+  });
+
+  describe("updateInviteCode", () => {
+    it("should reject an invalid custom code", async () => {
+      const req = {
+        user: { orgId: "org-1", role: "ADMIN" },
+        body: { invite_code: "แค่ข้อความ!" },
+      } as unknown as Request;
+      const res = createRes();
+
+      await orgCtrl.updateInviteCode(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    it("should reject a code used by another org", async () => {
+      const req = {
+        user: { orgId: "org-1", role: "ADMIN" },
+        body: { invite_code: "takencode" },
+      } as unknown as Request;
+      const res = createRes();
+
+      mocks.poolQuery.mockResolvedValueOnce({ rows: [{ org_id: "org-2" }] });
+
+      await orgCtrl.updateInviteCode(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: expect.stringContaining("ถูกใช้โดยองค์กรอื่น") })
+      );
+    });
+
+    it("should save a custom invite code", async () => {
+      const req = {
+        user: { orgId: "org-1", role: "ADMIN" },
+        body: { invite_code: "mycode123" },
+      } as unknown as Request;
+      const res = createRes();
+
+      mocks.poolQuery
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ invite_code: "MYCODE123" }] });
+
+      await orgCtrl.updateInviteCode(req, res);
+
+      expect(mocks.poolQuery).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE organizations"),
+        ["MYCODE123", "org-1"]
+      );
+      expect(res.json).toHaveBeenCalledWith({ invite_code: "MYCODE123" });
+      expect(mocks.broadcast).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "ORG_MEMBERS_CHANGED", orgId: "org-1" })
+      );
     });
   });
 
@@ -149,6 +270,9 @@ describe("org.controller", () => {
       await orgCtrl.removeMember(req, res);
 
       expect(res.status).toHaveBeenCalledWith(204);
+      expect(mocks.broadcast).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "ORG_MEMBERS_CHANGED", orgId: "org-1" })
+      );
     });
   });
 });

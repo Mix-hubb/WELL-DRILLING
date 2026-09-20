@@ -84,6 +84,11 @@ onMounted(async () => {
   on("REPAIR_RECORD_UPDATED", (data) => {
     if (data.repair_id === Number(route.params.id)) reload();
   });
+  on("REPAIR_MAGIC_LINK_CHANGED", (data) => {
+    if (request.value && Number(data.repair_id) === request.value.repair_id) {
+      request.value.magic_link_token = data.token;
+    }
+  });
   on("QUOTATION_CREATED", (data) => {
     if (data.kind === "REPAIR") reload();
   });
@@ -500,19 +505,21 @@ async function handleSendReceipt() {
               </div>
             </div>
 
-            <v-table v-if="rec.parts?.length" density="compact" class="mb-2">
-              <thead>
-                <tr><th>อะไหล่/รายการ</th><th class="text-right">จำนวน</th><th class="text-right">ราคา/ชิ้น</th><th class="text-right">รวม</th></tr>
-              </thead>
-              <tbody>
-                <tr v-for="p in rec.parts" :key="p.name">
-                  <td>{{ p.name }}</td>
-                  <td class="text-right">{{ p.qty }}</td>
-                  <td class="text-right">{{ money(p.unit_price) }}</td>
-                  <td class="text-right">{{ money(p.qty * p.unit_price) }}</td>
-                </tr>
-              </tbody>
-            </v-table>
+            <div class="table-wrap mb-2">
+              <v-table v-if="rec.parts?.length" density="compact">
+                <thead>
+                  <tr><th>อะไหล่/รายการ</th><th class="text-right">จำนวน</th><th class="text-right">ราคา/ชิ้น</th><th class="text-right">รวม</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="p in rec.parts" :key="p.name">
+                    <td>{{ p.name }}</td>
+                    <td class="text-right">{{ p.qty }}</td>
+                    <td class="text-right">{{ money(p.unit_price) }}</td>
+                    <td class="text-right">{{ money(p.qty * p.unit_price) }}</td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </div>
           </v-card>
         </div>
         <div v-else class="text-caption text-medium-emphasis">ยังไม่มีบันทึกการซ่อม (ช่างกรอกผ่านลิงก์)</div>

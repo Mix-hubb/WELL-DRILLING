@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
 import { PumpCatalogModel } from "../types";
+import { broadcast } from "../services/sse";
 
 export async function list(req: Request, res: Response) {
   const { brand, includeInactive } = req.query;
@@ -88,6 +89,11 @@ export async function create(req: Request, res: Response) {
     ]
   );
 
+  broadcast({
+    type: "PUMP_CATALOG_CREATED",
+    data: { model_id: rows[0].model_id, brand: rows[0].brand, model: rows[0].model },
+  });
+
   res.status(201).json(rows[0]);
 }
 
@@ -162,6 +168,11 @@ export async function update(req: Request, res: Response) {
     return res.status(404).json({ error: "ไม่พบรุ่นปั๊มน้ำ" });
   }
 
+  broadcast({
+    type: "PUMP_CATALOG_UPDATED",
+    data: { model_id: rows[0].model_id, brand: rows[0].brand, model: rows[0].model },
+  });
+
   res.json(rows[0]);
 }
 
@@ -174,6 +185,7 @@ export async function remove(req: Request, res: Response) {
   if (!rowCount) {
     return res.status(404).json({ error: "ไม่พบรุ่นปั๊มน้ำ" });
   }
+  broadcast({ type: "PUMP_CATALOG_DELETED", data: { model_id: Number(id) } });
   res.status(204).end();
 }
 

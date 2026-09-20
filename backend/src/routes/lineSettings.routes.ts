@@ -2,6 +2,8 @@ import { Router, Request, Response } from "express";
 import { pool } from "../config/db";
 import { asyncHandler } from "../utils/asyncHandler";
 import { adminMiddleware } from "../middleware/auth";
+import { createUniqueInviteCode } from "../services/inviteCode";
+import { broadcast } from "../services/sse";
 
 const router = Router();
 
@@ -24,6 +26,11 @@ router.get(
       return res.status(404).json({ error: "ไม่พบองค์กร" });
     }
     const org = rows[0];
+    if (req.user!.role === "ADMIN" && !org.invite_code) {
+      const code = await createUniqueInviteCode((sql, params) => pool.query(sql, params));
+      await pool.query("UPDATE organizations SET invite_code = $1 WHERE org_id = $2", [code, org.org_id]);
+      org.invite_code = code;
+    }
     res.json({
       ...org,
       line_channel_secret: org.line_channel_secret ? "••••••••" : null,
@@ -174,6 +181,8 @@ router.put(
       `UPDATE organizations SET ${updates.join(", ")} WHERE org_id = $${idx}`,
       params
     );
+
+    broadcast({ type: "LINE_SETTINGS_CHANGED", data: {}, orgId });
 
     res.json({ ok: true, message: "บันทึกสำเร็จ", bot_user_id: newBotUserId || undefined });
   })

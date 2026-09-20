@@ -3,11 +3,13 @@ import type { Request, Response } from "express";
 
 const mocks = vi.hoisted(() => ({
   poolQuery: vi.fn(),
+  broadcast: vi.fn(),
 }));
 
 vi.mock("../config/db", () => ({
   pool: { query: mocks.poolQuery },
 }));
+vi.mock("../services/sse", () => ({ broadcast: mocks.broadcast }));
 
 import * as pumpCatalog from "./pumpCatalog.controller";
 
@@ -83,6 +85,10 @@ describe("pumpCatalog.controller", () => {
 
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ model_id: 2 }));
+      expect(mocks.broadcast).toHaveBeenCalledWith({
+        type: "PUMP_CATALOG_CREATED",
+        data: { model_id: 2, brand: "TORISHIMA", model: "SP-100" },
+      });
     });
   });
 
@@ -115,6 +121,10 @@ describe("pumpCatalog.controller", () => {
       await pumpCatalog.update(req, res);
 
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ model: "SP-200" }));
+      expect(mocks.broadcast).toHaveBeenCalledWith({
+        type: "PUMP_CATALOG_UPDATED",
+        data: { model_id: 2, brand: "TORISHIMA", model: "SP-200" },
+      });
     });
   });
 
@@ -139,6 +149,10 @@ describe("pumpCatalog.controller", () => {
       await pumpCatalog.remove(req, res);
 
       expect(res.status).toHaveBeenCalledWith(204);
+      expect(mocks.broadcast).toHaveBeenCalledWith({
+        type: "PUMP_CATALOG_DELETED",
+        data: { model_id: 2 },
+      });
     });
   });
 });

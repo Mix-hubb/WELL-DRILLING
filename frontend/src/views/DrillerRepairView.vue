@@ -50,10 +50,10 @@ const { request, loading, submitting, saved, form, addPart, removePart, submit }
         <v-btn size="x-small" variant="tonal" prepend-icon="mdi-plus" @click="addPart">เพิ่ม</v-btn>
       </div>
       <v-row v-for="(p, i) in form.parts" :key="i" dense align="center" class="mb-1">
-        <v-col cols="5"><v-text-field v-model="p.name" label="ชื่ออะไหล่" density="compact" hide-details /></v-col>
-        <v-col cols="3"><v-text-field v-model="p.qty" type="number" label="จำนวน" density="compact" hide-details /></v-col>
-        <v-col cols="3"><v-text-field v-model="p.unit_price" type="number" label="ราคา/ชิ้น" density="compact" hide-details /></v-col>
-        <v-col cols="1">
+        <v-col cols="6" sm="5"><v-text-field v-model="p.name" label="ชื่ออะไหล่" density="compact" hide-details /></v-col>
+        <v-col cols="3" sm="2"><v-text-field v-model="p.qty" type="number" label="จำนวน" density="compact" hide-details /></v-col>
+        <v-col cols="3" sm="3"><v-text-field v-model="p.unit_price" type="number" label="ราคา/ชิ้น" density="compact" hide-details /></v-col>
+        <v-col cols="12" sm="2" class="d-flex align-center justify-sm-end justify-start">
           <v-btn v-if="form.parts.length > 1" icon="mdi-close" size="x-small" variant="text" @click="removePart(i)" />
         </v-col>
       </v-row>

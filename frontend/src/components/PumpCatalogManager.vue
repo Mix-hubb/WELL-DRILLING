@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { pumpCatalogApi } from "@/api/pumpCatalog";
 import { useUiStore } from "@/stores/ui";
+import { useSSERefresh } from "@/composables/useSSERefresh";
 import { money } from "@/constants";
 import type { PumpCatalogModel } from "@/types";
 
@@ -70,9 +71,11 @@ async function load() {
   }
 }
 
-onMounted(() => {
-  load();
-});
+useSSERefresh(load, [
+  "PUMP_CATALOG_CREATED",
+  "PUMP_CATALOG_UPDATED",
+  "PUMP_CATALOG_DELETED",
+]);
 
 function openAddDialog() {
   editingModel.value = null;

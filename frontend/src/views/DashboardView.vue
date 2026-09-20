@@ -88,7 +88,7 @@ const todayLabel = new Date().toLocaleDateString("th-TH", {
 
     <template v-else-if="stats">
       <!-- ===== Hero header ===== -->
-      <div class="d-flex align-center justify-space-between mb-4 px-1 fade-up">
+      <div class="d-flex flex-wrap align-center justify-space-between ga-2 mb-4 px-1 fade-up">
         <div>
           <div class="text-h5 font-display font-weight-bold">
             ภาพรวมงาน <span class="gradient-text">วันนี้</span>

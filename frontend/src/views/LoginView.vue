@@ -267,4 +267,9 @@ async function handleLogin() {
 @media (max-width: 959px) {
   .login-form-col { min-height: 100vh; }
 }
+@media (max-width: 600px) {
+  .login-card {
+    border-radius: 24px;
+  }
+}
 </style>
