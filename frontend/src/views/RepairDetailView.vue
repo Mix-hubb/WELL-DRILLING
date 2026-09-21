@@ -33,6 +33,11 @@ const scheduleDate = ref("");
 const slips = ref<PaymentSlip[]>([]);
 const slipsLoading = ref(false);
 const previewImage = ref<string | null>(null);
+const photoPreview = ref<string | null>(null);
+const photoPreviewDlg = computed({
+  get: () => !!photoPreview.value,
+  set: (val) => { if (!val) photoPreview.value = null; },
+});
 const uploadingSlip = ref(false);
 const slipFileInput = ref<HTMLInputElement | null>(null);
 const previewDlg = computed({
@@ -375,9 +380,17 @@ async function handleSendReceipt() {
         </div>
         <div v-if="request.detail" class="text-body-2 mb-2">{{ request.detail }}</div>
         <div v-if="request.photos?.length" class="d-flex flex-wrap ga-2 mt-2">
-          <a v-for="p in request.photos" :key="p" :href="api.fileUrl(p)" target="_blank">
-            <v-img :src="api.fileUrl(p)" width="96" height="96" cover rounded="8" />
-          </a>
+          <v-img
+            v-for="p in request.photos"
+            :key="p"
+            :src="api.fileUrl(p)"
+            width="96"
+            height="96"
+            cover
+            rounded="8"
+            style="cursor: pointer;"
+            @click="photoPreview = p"
+          />
         </div>
       </v-card>
 
@@ -670,6 +683,14 @@ async function handleSendReceipt() {
         <v-card class="pa-2 text-center" v-if="previewImage">
           <img :src="api.fileUrl(previewImage)" style="max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 4px;" />
           <v-btn class="mt-2" variant="tonal" size="small" @click="previewImage = null">ปิด</v-btn>
+        </v-card>
+      </v-dialog>
+
+      <!-- Repair Photo Preview Dialog -->
+      <v-dialog v-model="photoPreviewDlg" max-width="600">
+        <v-card class="pa-2 text-center" v-if="photoPreview">
+          <img :src="api.fileUrl(photoPreview)" style="max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 4px;" />
+          <v-btn class="mt-2" variant="tonal" size="small" @click="photoPreview = null">ปิด</v-btn>
         </v-card>
       </v-dialog>
 
