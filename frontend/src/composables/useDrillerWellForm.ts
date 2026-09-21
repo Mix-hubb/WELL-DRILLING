@@ -75,8 +75,7 @@ export function useDrillerWellForm(token: string) {
 
   const form = ref({
     well_name: "", driller_name: "", result: "SUCCESS", failure_reason: "",
-    total_depth_m: "", water_quantity_m3hr: "", yield_lpm: "",
-    static_water_level_m: "", pumping_water_level_m: "",
+    total_depth_m: "", water_quantity_m3hr: "",
     completion_date: today(),
     drilling_method: "ROTARY", formation_water_type: "FRESH", notes: "",
     strata: [] as StrataEntry[], pipes: [] as PipeEntry[], pumps: [] as PumpEntry[],
@@ -222,9 +221,6 @@ export function useDrillerWellForm(token: string) {
       failure_reason: form.value.result === "FAIL" ? (form.value.failure_reason || null) : null,
       total_depth_m: Number(form.value.total_depth_m),
       water_quantity_m3hr: form.value.water_quantity_m3hr ? Number(form.value.water_quantity_m3hr) : null,
-      yield_lpm: form.value.yield_lpm ? Number(form.value.yield_lpm) : null,
-      static_water_level_m: form.value.static_water_level_m ? Number(form.value.static_water_level_m) : null,
-      pumping_water_level_m: form.value.pumping_water_level_m ? Number(form.value.pumping_water_level_m) : null,
       completion_date: form.value.completion_date,
       drilling_method: form.value.drilling_method || null,
       formation_water_type: form.value.formation_water_type || null,
