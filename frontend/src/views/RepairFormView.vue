@@ -3,6 +3,8 @@ import { ref, computed, onMounted } from "vue";
 import { allowOnlyDigits, cleanPhoneNumber, validThaiPhone, requiredField } from "@/utils/validation";
 import { sanitizeLiffId } from "@/utils/liffId";
 
+let liffInstance: any = null;
+
 const form = ref({
   name: "",
   phone: "",
@@ -161,6 +163,9 @@ async function submit() {
       throw new Error(body.error || `HTTP ${res.status}`);
     }
     success.value = true;
+    if (isLiffEnv.value && liffInstance) {
+      setTimeout(() => { liffInstance.closeWindow(); }, 3000);
+    }
   } catch (e: any) {
     error.value = e.message || "เกิดข้อผิดพลาด";
   } finally {
@@ -185,6 +190,7 @@ onMounted(async () => {
   try {
     const liffModule = await import("@line/liff");
     liff = liffModule.default;
+    liffInstance = liff;
     await liff.init({ liffId });
   } catch (e) {
     console.warn("LIFF init error:", e);
