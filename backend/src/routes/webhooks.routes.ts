@@ -381,11 +381,14 @@ async function handleText(userId: string, text: string, replyToken: string, org:
 }
 
 async function handleImage(userId: string, messageId: string, org: OrgLineConfig, replyToken?: string) {
+  console.log(`[handleImage] userId=${userId} messageId=${messageId} org=${org.org_id}`);
+
   const custResult = await pool.query(
     "SELECT customer_id FROM customers WHERE line_user_id = $1 AND org_id = $2",
     [userId, org.org_id]
   );
   if (!custResult.rows.length) {
+    console.warn(`[handleImage] No customer found for userId=${userId} org=${org.org_id}`);
     if (replyToken) reply(org.line_channel_access_token, replyToken, "ไม่พบข้อมูลลูกค้าในระบบ กรุณาแจ้งเจาะก่อนครับ").catch(() => {});
     return;
   }
@@ -403,6 +406,7 @@ async function handleImage(userId: string, messageId: string, org: OrgLineConfig
   );
 
   if (!repairResult.rows.length) {
+    console.warn(`[handleImage] No CLOSED/COMPLETED repair for customer=${customerId}`);
     if (replyToken) {
       reply(
         org.line_channel_access_token,
@@ -414,6 +418,7 @@ async function handleImage(userId: string, messageId: string, org: OrgLineConfig
     return;
   }
   const repairId = repairResult.rows[0].repair_id;
+  console.log(`[handleImage] Found repair=${repairId} for customer=${customerId}`);
 
   // ดึงรูปจาก LINE Content API
   let imageUrl: string | null = null;
@@ -424,16 +429,33 @@ async function handleImage(userId: string, messageId: string, org: OrgLineConfig
     if (contentRes.ok) {
       const buffer = Buffer.from(await contentRes.arrayBuffer());
       imageUrl = `data:image/jpeg;base64,${buffer.toString("base64")}`;
+      console.log(`[handleImage] Image fetched OK, size=${buffer.length} bytes`);
+    } else {
+      console.error(`[handleImage] LINE Content API returned ${contentRes.status} ${contentRes.statusText}`);
+      if (replyToken) {
+        reply(org.line_channel_access_token, replyToken,
+          "ไม่สามารถดึงรูปภาพได้ กรุณาส่งรูปสลิปอีกครั้งครับ"
+        ).catch(() => {});
+      }
+      return;
     }
   } catch (err) {
-    console.error("[webhook] Failed to fetch image content:", err);
+    console.error("[handleImage] Failed to fetch image content:", err);
+    if (replyToken) {
+      reply(org.line_channel_access_token, replyToken,
+        "เกิดข้อผิดพลาดในการดึงรูปภาพ กรุณาส่งรูปสลิปอีกครั้งครับ"
+      ).catch(() => {});
+    }
+    return;
   }
 
-  await pool.query(
+  const insertResult = await pool.query(
     `INSERT INTO payment_slips (repair_id, customer_id, image_url, line_message_id, status)
-     VALUES ($1, $2, $3, $4, 'PENDING')`,
+     VALUES ($1, $2, $3, $4, 'PENDING')
+     RETURNING slip_id`,
     [repairId, customerId, imageUrl, messageId]
   );
+  console.log(`[handleImage] Payment slip created: slip_id=${insertResult.rows[0].slip_id} repair=${repairId}`);
 
   broadcast({ type: "PAYMENT_SLIP_RECEIVED", data: { repair_id: repairId }, orgId: org.org_id });
 
