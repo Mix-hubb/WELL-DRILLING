@@ -137,7 +137,7 @@ export async function create(req: Request, res: Response) {
 }
 
 export async function createFromPublicForm(req: Request, res: Response) {
-  const { name, phone, address, well_name, problems, detail, photos, scheduled_date, line_user_id, line_display_name, line_picture_url, liff_id } = req.body;
+  const { name, phone, address, well_id, well_name, problems, detail, photos, scheduled_date, line_user_id, line_display_name, line_picture_url, liff_id } = req.body;
   if (!name || !phone || !problems?.length) {
     return res.status(400).json({ error: "ต้องระบุชื่อ, เบอร์โทร และปัญหาที่พบ" });
   }
@@ -216,9 +216,13 @@ export async function createFromPublicForm(req: Request, res: Response) {
       customerId = c.rows[0].customer_id;
     }
 
-    const wells = await client.query(
-      "SELECT well_id FROM wells WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 1", [customerId]
-    );
+    let selectedWellId = well_id || null;
+    if (!selectedWellId) {
+      const wells = await client.query(
+        "SELECT well_id FROM wells WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 1", [customerId]
+      );
+      selectedWellId = wells.rows.length ? wells.rows[0].well_id : null;
+    }
 
     const combinedDetail = well_name
       ? `บ่อ: ${well_name}${detail ? `\n${detail}` : ""}`
@@ -228,7 +232,7 @@ export async function createFromPublicForm(req: Request, res: Response) {
       `INSERT INTO repair_requests (customer_id, well_id, problems, detail, photos, scheduled_date, magic_link_token, magic_link_expires_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW() + INTERVAL '7 days')
        RETURNING repair_id`,
-      [customerId, wells.rows.length ? wells.rows[0].well_id : null, JSON.stringify(problems), combinedDetail, photos?.length ? JSON.stringify(photos) : null, scheduled_date || null, generateMagicToken()]
+      [customerId, selectedWellId, JSON.stringify(problems), combinedDetail, photos?.length ? JSON.stringify(photos) : null, scheduled_date || null, generateMagicToken()]
     );
 
     await client.query("COMMIT");
@@ -350,6 +354,13 @@ export async function updateStatus(req: Request, res: Response) {
       });
       sendFlexToCustomer(customerId, "ใบเสร็จรับเงินการซ่อมบำรุง", flex, "STATUS", req.user?.orgId).catch(() => {});
     }
+  }
+
+  if (customerId && status === "REJECTED") {
+    sendTextToCustomer(customerId, "ขออภัยครับ คำร้องซ่อมบำรุงของคุณไม่สามารถดำเนินการได้ในขณะนี้ เนื่องจากเงื่อนไขไม่เหมาะสม กรุณาติดต่อสอบถามข้อมูลเพิ่มเติม", "STATUS", req.user?.orgId).catch(() => {});
+  }
+  if (customerId && status === "CANCELLED") {
+    sendTextToCustomer(customerId, "คำร้องซ่อมบำรุงของคุณได้ถูกยกเลิกแล้ว หากต้องการแจ้งซ่อมใหม่ กรุณาส่งคำร้องอีกครั้ง", "STATUS", req.user?.orgId).catch(() => {});
   }
 
   broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(id), status }, orgId: req.user?.orgId });

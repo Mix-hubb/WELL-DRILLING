@@ -150,7 +150,7 @@ export async function updateStatus(req: Request, res: Response) {
 
   const { sql, params } = userFilter(req, "c", 1);
   const existing = await pool.query(
-    `SELECT r.request_id, r.status, j.job_id
+    `SELECT r.request_id, r.status, r.customer_id, j.job_id, c.line_user_id
      FROM drilling_requests r
      JOIN customers c ON c.customer_id = r.customer_id
      LEFT JOIN drilling_jobs j ON j.request_id = r.request_id
@@ -164,6 +164,17 @@ export async function updateStatus(req: Request, res: Response) {
   }
 
   await pool.query("UPDATE drilling_requests SET status = $1 WHERE request_id = $2", [status, id]);
+
+  const statusMessages: Record<string, string> = {
+    REJECTED: "ขออภัยครับ คำร้องแจ้งเจาะของคุณไม่สามารถดำเนินการได้ในขณะนี้ เนื่องจากพื้นที่หรือเงื่อนไขไม่เหมาะสม กรุณาติดต่อสอบถามข้อมูลเพิ่มเติม",
+    ACCEPTED: "ยินดีด้วยครับ คำร้องแจ้งเจาะของคุณได้รับการอนุมัติแล้ว ทีมงานจะติดต่อนัดหมายเข้าดำเนินการโดยเร็ว",
+    CANCELLED: "คำร้องแจ้งเจาะของคุณได้ถูกยกเลิกแล้ว หากต้องการแจ้งเจาะใหม่ กรุณาส่งคำร้องอีกครั้ง",
+    QUOTED: "ทางเราได้ส่งใบเสนอราคาให้您แล้ว กรุณาตรวจสอบและยืนยันเพื่อดำเนินการต่อ",
+  };
+  const lineMsg = statusMessages[status];
+  if (lineMsg && existing.rows[0].customer_id) {
+    sendTextToCustomer(existing.rows[0].customer_id, lineMsg, "STATUS", req.user?.orgId).catch(() => {});
+  }
 
   const { rows } = await pool.query(
     `${REQUEST_SELECT} WHERE r.request_id = $1`, [id]
@@ -283,6 +294,15 @@ export async function createFromPublicForm(req: Request, res: Response) {
       return res.status(409).json({ error: "มีคำร้องแจ้งเจาะข้อมูลเดียวกันอยู่แล้ว ไม่สร้างคำร้องซ้ำ" });
     }
 
+    const wellCountResult = await client.query(
+      `SELECT COUNT(*) as cnt FROM wells WHERE customer_id = $1`,
+      [customerId]
+    );
+    const wellCount = parseInt(wellCountResult.rows[0].cnt, 10) || 0;
+    const suggestedWellName = wellCount > 0
+      ? `${name} บ่อที่${wellCount + 1}`
+      : name;
+
     const r = await client.query(
       `INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m, appointment_date, notes)
        VALUES ($1, 'LINE', $2, $3, $4, $5, $6, $7) RETURNING request_id`,
@@ -294,7 +314,7 @@ export async function createFromPublicForm(req: Request, res: Response) {
     broadcast({ type: "DRILLING_REQUEST_CREATED", data: { request_id: r.rows[0].request_id }, orgId: resolvedOrgId });
     sendTextToCustomer(customerId, "เตรียมพร้อมสำหรับวันนัดหมายครับ ทีมงานจะตรวจสอบและติดต่อกลับโดยเร็ว", "STATUS", resolvedOrgId).catch(() => {});
 
-    res.status(201).json({ request_id: r.rows[0].request_id, customer_id: customerId });
+    res.status(201).json({ request_id: r.rows[0].request_id, customer_id: customerId, suggested_well_name: suggestedWellName });
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;

@@ -188,6 +188,27 @@ app.get("/api/public/customer-by-line", publicLimiter, asyncHandler(async (req: 
   );
   res.json({ found: true, customer: c, lastRequest: requests.rows[0] || null });
 }));
+app.get("/api/public/wells-by-customer", publicLimiter, asyncHandler(async (req: any, res: any) => {
+  const { phone, liff_id } = req.query;
+  if (!phone || !liff_id) return res.status(400).json({ error: "ต้องระบุ phone และ liff_id" });
+  const cleanId = sanitizeLiffId(liff_id);
+  if (!cleanId) return res.status(400).json({ error: "ต้องระบุ liff_id" });
+  const { pool } = await import("./config/db.js");
+  const { rows: customers } = await pool.query(
+    `SELECT c.customer_id FROM customers c
+     JOIN organizations o ON o.org_id = c.org_id
+     WHERE c.phone = $1 AND (o.line_liff_id_drilling = $2 OR o.line_liff_id_repair = $2)
+     LIMIT 1`,
+    [phone, cleanId]
+  );
+  if (!customers.length) return res.json({ wells: [] });
+  const { rows: wells } = await pool.query(
+    `SELECT w.well_id, w.well_name, w.total_depth_m, w.address, w.completion_date, w.result
+     FROM wells w WHERE w.customer_id = $1 ORDER BY w.created_at DESC`,
+    [customers[0].customer_id]
+  );
+  res.json({ wells });
+}));
 app.get("/api/public/wells/:id/report.pdf", publicLimiter, asyncHandler(wellsCtrl.exportReport));
 app.get("/api/public/repairs/:id/receipt.pdf", publicLimiter, asyncHandler(repairCtrl.exportReceipt));
 app.get("/api/jobs/magic/:token", publicLimiter, magicAuth, asyncHandler(jobsCtrl.getByMagicToken));

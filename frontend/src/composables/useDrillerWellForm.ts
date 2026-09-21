@@ -1,4 +1,4 @@
-import { onMounted, ref } from "vue";
+import { onMounted, ref, computed } from "vue";
 import { jobsApi } from "@/api/jobs";
 import { useUiStore } from "@/stores/ui";
 import type { DrillingJob, PumpCatalogModel } from "@/types";
@@ -75,11 +75,16 @@ export function useDrillerWellForm(token: string) {
 
   const form = ref({
     well_name: "", driller_name: "", result: "SUCCESS", failure_reason: "",
-    total_depth_m: "", water_quantity_m3hr: "", yield_lpm: "",
-    static_water_level_m: "", pumping_water_level_m: "", completion_date: today(),
+    total_depth_m: "", water_quantity_m3hr: "",
+    completion_date: today(),
     drilling_method: "ROTARY", formation_water_type: "FRESH", notes: "",
     strata: [] as StrataEntry[], pipes: [] as PipeEntry[], pumps: [] as PumpEntry[],
     control_boxes: [] as ControlBoxEntry[],
+  });
+
+  const maxDepth = computed(() => {
+    const v = Number(form.value.total_depth_m);
+    return isNaN(v) || v <= 0 ? Infinity : v;
   });
 
   onMounted(async () => {
@@ -101,6 +106,29 @@ export function useDrillerWellForm(token: string) {
   function removePipe(index: number) { form.value.pipes.splice(index, 1); }
   function removePump(index: number) { form.value.pumps.splice(index, 1); }
   function removeControlBox(index: number) { form.value.control_boxes.splice(index, 1); }
+
+  function clampDepth(value: string): string {
+    const num = Number(value);
+    if (isNaN(num) || num < 0) return value;
+    return String(Math.min(num, maxDepth.value));
+  }
+
+  const strataDepthError = computed(() => {
+    if (maxDepth.value === Infinity) return "";
+    for (const s of form.value.strata) {
+      const from = Number(s.depth_from_m);
+      const to = Number(s.depth_to_m);
+      if (!isNaN(from) && from > maxDepth.value) {
+        return `ชั้นที่ ${form.value.strata.indexOf(s) + 1}: ความลึกเริ่ม (${from} ม.) เกินความลึกรวมของบ่อ (${maxDepth.value} ม.)`;
+      }
+      if (!isNaN(to) && to > maxDepth.value) {
+        return `ชั้นที่ ${form.value.strata.indexOf(s) + 1}: ความลึกสิ้นสุด (${to} ม.) เกินความลึกรวมของบ่อ (${maxDepth.value} ม.)`;
+      }
+    }
+    return "";
+  });
+
+  const hasStrataDepthError = computed(() => !!strataDepthError.value);
 
   function onStrataTypeChange(strata: StrataEntry, value: string | null | undefined) {
     const type = (value || "") as keyof typeof LITHOLOGY_TYPE;
@@ -193,15 +221,13 @@ export function useDrillerWellForm(token: string) {
       failure_reason: form.value.result === "FAIL" ? (form.value.failure_reason || null) : null,
       total_depth_m: Number(form.value.total_depth_m),
       water_quantity_m3hr: form.value.water_quantity_m3hr ? Number(form.value.water_quantity_m3hr) : null,
-      yield_lpm: form.value.yield_lpm ? Number(form.value.yield_lpm) : null,
-      static_water_level_m: form.value.static_water_level_m ? Number(form.value.static_water_level_m) : null,
-      pumping_water_level_m: form.value.pumping_water_level_m ? Number(form.value.pumping_water_level_m) : null,
       completion_date: form.value.completion_date,
       drilling_method: form.value.drilling_method || null,
       formation_water_type: form.value.formation_water_type || null,
       notes: form.value.notes || null,
       strata: form.value.strata.filter((entry) => entry.depth_from_m !== "" && entry.depth_to_m !== "").map((entry) => ({
-        depth_from_m: Number(entry.depth_from_m), depth_to_m: Number(entry.depth_to_m),
+        depth_from_m: Number(entry.depth_from_m),
+        depth_to_m: Number(entry.depth_to_m),
         lithology_name: entry.lithology_name || null, color_hex: entry.color_hex || null,
         hardness: entry.hardness || null, water_bearing: entry.water_bearing ? 1 : 0,
         description: entry.description || null,
@@ -246,7 +272,7 @@ export function useDrillerWellForm(token: string) {
   }
 
   return {
-    job, loading, submitting, saved, form,
+    job, loading, submitting, saved, form, maxDepth, strataDepthError, hasStrataDepthError,
     methodOptions, waterOptions, hardnessOptions, lithologyOptions,
     materialOptions, pipeTypeOptions, protectionOptions, PIPE_SIZE_OPTIONS,
     addStrata, addPipe, addPump, addControlBox,

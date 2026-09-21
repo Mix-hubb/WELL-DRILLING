@@ -40,8 +40,6 @@ const quoteDiameter = ref<string>("");
 const quotePrice  = ref<string>("");
 const quoteLoading = ref(false);
 const quoteNotes  = ref("");
-const linkMenu = ref(false);
-const copied = ref(false);
 
 // Edit / Delete
 const editDlg = ref(false);
@@ -52,22 +50,6 @@ const deleteTarget = ref<DrillingRequest | null>(null);
 const fabOpen = ref(false);
 const selectDlg = ref(false);
 const selectMode = ref<"edit" | "delete">("edit");
-
-const formLink = computed(() => {
-  const base = import.meta.env.VITE_APP_URL || window.location.origin;
-  return `${base}/request-drill`;
-});
-
-async function copyLink() {
-  try {
-    await navigator.clipboard.writeText(formLink.value);
-    copied.value = true;
-    ui.notify("คัดลอกลิงค์แล้ว", "success");
-    setTimeout(() => { copied.value = false; }, 2000);
-  } catch {
-    ui.notify("ไม่สามารถคัดลอกได้", "error");
-  }
-}
 
 function openEdit(r: DrillingRequest) {
   editTarget.value = r;
@@ -242,9 +224,16 @@ async function reject(r: any) {
 
           <template v-if="r.status === 'QUOTED' && r.quotation">
             <v-divider class="my-2" />
-            <div class="text-caption text-medium-emphasis">
-              ใบราคา {{ money(r.quotation.price) }} บาท
+            <div v-if="r.quotation.requested_depth_m" class="text-caption text-medium-emphasis mb-1 d-flex align-center ga-1">
+              <v-icon icon="mdi-ruler" size="14" /> ความลึกที่ขอ {{ r.quotation.requested_depth_m }} ม.
             </div>
+            <div v-if="r.quotation.requested_diameter_m" class="text-caption text-medium-emphasis mb-1 d-flex align-center ga-1">
+              <v-icon icon="mdi-circle-outline" size="14" /> เส้นผ่านศูนย์กลาง {{ r.quotation.requested_diameter_m }} นิ้ว
+            </div>
+            <div class="text-caption text-medium-emphasis mb-1 d-flex align-center ga-1">
+              <v-icon icon="mdi-cash" size="14" /> ใบราคา {{ money(r.quotation.price) }} บาท
+            </div>
+            <div v-if="r.quotation.notes" class="text-caption text-medium-emphasis">{{ r.quotation.notes }}</div>
           </template>
 
           <v-divider class="my-2" />
@@ -329,31 +318,6 @@ async function reject(r: any) {
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <!-- Floating Link Menu -->
-    <div class="link-fab-wrapper">
-      <v-menu v-model="linkMenu" :close-on-content-click="false" location="top">
-        <template v-slot:activator="{ props }">
-          <v-btn icon="mdi-link-variant" color="primary" v-bind="props" elevation="4" />
-        </template>
-        <v-card class="pa-4" max-width="360" min-width="260">
-          <div class="text-body-2 font-weight-bold mb-1">ลิงค์แจ้งเจาะสำหรับลูกค้า</div>
-          <div class="text-caption text-medium-emphasis mb-3">ส่งลิงค์นี้ให้ลูกค้าเพื่อกรอกคำร้องแจ้งเจาะ</div>
-          <div class="d-flex align-center ga-2 mb-3" style="min-width:0">
-            <v-icon icon="mdi-link-variant" size="16" color="primary" class="flex-shrink-0" />
-            <div class="text-caption text-medium-emphasis text-truncate" style="min-width:0;flex:1 1 auto">{{ formLink }}</div>
-          </div>
-          <div class="d-flex flex-wrap ga-2">
-            <v-btn size="small" variant="tonal" prepend-icon="mdi-content-copy" @click="copyLink">
-              {{ copied ? 'คัดลอกแล้ว' : 'copy' }}
-            </v-btn>
-            <v-btn size="small" variant="tonal" prepend-icon="mdi-refresh" @click="copyLink">
-              สร้างใหม่
-            </v-btn>
-          </div>
-        </v-card>
-      </v-menu>
-    </div>
 
     <!-- FAB Management Menu -->
     <div class="fab-wrapper">
@@ -462,13 +426,6 @@ async function reject(r: any) {
 </template>
 
 <style scoped>
-.link-fab-wrapper {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 100;
-}
-
 .fab-wrapper {
   position: fixed;
   bottom: 80px;

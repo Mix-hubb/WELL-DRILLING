@@ -22,6 +22,12 @@ const job          = ref<DrillingJob | null>(null);
 const wellId       = ref<number | null>(null);
 const showWellForm = ref(false);
 
+const suggestedWellName = computed(() => {
+  const notes = job.value?.request?.notes || "";
+  const match = notes.match(/\[SUGGESTED_WELL_NAME\]\s*(.+)/);
+  return match ? match[1].trim() : "";
+});
+
 const STEPS: DrillingJobStatus[] = ["QUEUED", "DRILLING", "SUCCESS", "FAILED", "CLOSED"];
 const currentStepIndex = computed(() => (job.value ? STEPS.indexOf(job.value.status as DrillingJobStatus) : 0));
 
@@ -167,22 +173,26 @@ async function regenerateMagicLink() {
             @click="setStatus('FAILED')">เจาะไม่สำเร็จ</v-btn>
         </template>
 
-        <v-btn v-if="job.status === 'SUCCESS' || job.status === 'FAILED'" variant="tonal" prepend-icon="mdi-archive"
+        <v-btn v-if="job.status === 'SUCCESS'" variant="tonal" prepend-icon="mdi-archive"
           @click="setStatus('CLOSED')">ปิดคิว</v-btn>
       </div>
     </v-card>
 
     <!-- Well Log link -->
     <v-card
-      v-if="job.status === 'SUCCESS'"
-      variant="tonal" color="primary"
+      v-if="job.status === 'SUCCESS' || job.status === 'FAILED'"
+      variant="tonal"
+      :color="job.status === 'SUCCESS' ? 'primary' : 'red-darken-2'"
       class="pa-5 cursor-pointer"
       @click="wellId ? router.push(`/wells/${wellId}`) : (showWellForm = true)"
     >
       <div class="d-flex align-center justify-space-between flex-wrap ga-2">
         <span class="font-weight-bold d-flex align-center ga-2">
-          <v-icon icon="mdi-layers-outline" />
-          {{ wellId ? "ดูประวัติบ่อบาดาล" : "+ บันทึกประวัติบ่อบาดาล (เริ่มประกัน 2 ปี)" }}
+          <v-icon :icon="job.status === 'SUCCESS' ? 'mdi-layers-outline' : 'mdi-alert-circle-outline'" />
+          {{ job.status === 'SUCCESS'
+            ? (wellId ? "ดูประวัติบ่อบาดาล" : "+ บันทึกประวัติบ่อบาดาล (เริ่มประกัน 2 ปี)")
+            : (wellId ? "ดูประวัติบ่อบาดาล (เจาะไม่สำเร็จ)" : "+ บันทึกประวัติบ่อบาดาล (เจาะไม่สำเร็จ)")
+          }}
         </span>
         <div class="d-flex align-center ga-2">
           <v-btn
@@ -200,7 +210,7 @@ async function regenerateMagicLink() {
       </div>
     </v-card>
 
-    <WellLogFormDialog v-model="showWellForm" @submit="createWellLog" />
+    <WellLogFormDialog v-model="showWellForm" :job-status="job.status" :default-name="suggestedWellName" @submit="createWellLog" />
   </div>
 
 

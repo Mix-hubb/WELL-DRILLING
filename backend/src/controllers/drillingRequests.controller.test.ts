@@ -308,6 +308,7 @@ describe("createFromPublicForm", () => {
       if (sql.includes("SELECT org_id FROM organizations")) return { rows: [{ org_id: "org-1" }] };
       if (sql.includes("SELECT customer_id FROM customers")) return { rows: [] };
       if (sql.includes("INSERT INTO customers")) return { rows: [{ customer_id: 10 }] };
+      if (sql.includes("COUNT(*)")) return { rows: [{ cnt: "0" }] };
       if (sql.includes("INSERT INTO drilling_requests")) return { rows: [{ request_id: 5 }] };
       return { rows: [] };
     });
@@ -328,7 +329,7 @@ describe("createFromPublicForm", () => {
     });
     expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(10, expect.any(String), "STATUS", "org-1");
     expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith({ request_id: 5, customer_id: 10 });
+    expect(res.json).toHaveBeenCalledWith({ request_id: 5, customer_id: 10, suggested_well_name: "นายทดสอบ" });
   });
 
   it("rejects a public form without an organization-bound LIFF", async () => {

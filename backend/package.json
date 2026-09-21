@@ -23,6 +23,7 @@
     "nodemailer": "^10.0.10",
     "pdfkit": "^0.15.0",
     "pg": "^8.23.0",
+    "resend": "^6.28.1",
     "twilio": "^5.0.0"
   },
   "devDependencies": {

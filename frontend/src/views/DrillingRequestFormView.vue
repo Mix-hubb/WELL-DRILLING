@@ -24,6 +24,7 @@ const actualLiffId = ref<string | null>(null);
 
 const existingCustomer = ref(false);
 const checkingExisting = ref(false);
+const suggestedWellName = ref("");
 
 onMounted(async () => {
   const liffId = sanitizeLiffId(
@@ -123,6 +124,8 @@ async function submit() {
       const body = await res.json().catch(() => ({}));
       throw new Error(body.error || `HTTP ${res.status}`);
     }
+    const result = await res.json();
+    suggestedWellName.value = result.suggested_well_name || "";
     success.value = true;
     if (isLiffEnv.value && liffInstance) {
       setTimeout(() => { liffInstance.closeWindow(); }, 3000);
@@ -152,6 +155,9 @@ async function submit() {
           <v-icon icon="mdi-check-circle" size="64" color="success" />
         </div>
         <div class="text-h6 font-weight-bold mb-2" style="color: #2E2418;">ส่งคำร้องสำเร็จ</div>
+        <div v-if="suggestedWellName" class="text-body-2 font-weight-bold mb-2" style="color: #2E2418;">
+          ชื่อบ่อที่แนะนำ: {{ suggestedWellName }}
+        </div>
         <div class="text-body-2" style="color: #6A7A8A;">
           เราได้รับคำร้องของคุณแล้ว<br />
           ทีมงานจะติดต่อกลับเพื่อนัดหมายโดยเร็ว

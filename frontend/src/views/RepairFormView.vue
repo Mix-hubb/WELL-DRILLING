@@ -9,6 +9,7 @@ const form = ref({
   name: "",
   phone: "",
   address: "",
+  well_id: null as number | null,
   problem_types: [] as string[],
   detail: "",
   scheduled_date: "",
@@ -27,6 +28,9 @@ const customerFound = ref(false);
 const editInfo = ref(false);
 const checkingExisting = ref(false);
 const actualLiffId = ref<string | null>(null);
+
+const customerWells = ref<{ well_id: number; well_name: string; address?: string | null; total_depth_m?: number | null; result?: string | null }[]>([]);
+const wellsLoading = ref(false);
 
 const photos = ref<File[]>([]);
 const photoPreview = ref<string[]>([]);
@@ -148,6 +152,7 @@ async function submit() {
         name: form.value.name,
         phone: form.value.phone,
         address: form.value.address || null,
+        well_id: form.value.well_id,
         problems: form.value.problem_types,
         detail: form.value.detail || null,
         photos: photoData.length > 0 ? photoData : null,
@@ -230,6 +235,7 @@ async function checkExistingCustomer() {
       form.value.name = data.customer.customer_name || profileName.value;
       form.value.phone = data.customer.phone || "";
       form.value.address = data.customer.address || "";
+      await fetchWells(data.customer.phone);
     } else {
       form.value.name = profileName.value;
     }
@@ -237,6 +243,22 @@ async function checkExistingCustomer() {
     form.value.name = profileName.value;
   } finally {
     checkingExisting.value = false;
+  }
+}
+
+async function fetchWells(phone: string) {
+  if (!phone || !actualLiffId.value) return;
+  wellsLoading.value = true;
+  try {
+    const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+    const res = await fetch(`${BASE_URL}/public/wells-by-customer?phone=${encodeURIComponent(phone)}&liff_id=${encodeURIComponent(actualLiffId.value)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    customerWells.value = data.wells || [];
+  } catch {
+    customerWells.value = [];
+  } finally {
+    wellsLoading.value = false;
   }
 }
 </script>
@@ -358,6 +380,49 @@ async function checkExistingCustomer() {
               class="field-input"
             />
           </div>
+        </div>
+
+        <!-- เลือกบ่อบาดาลที่มีปัญหา -->
+        <div v-if="customerFound && !editInfo && (customerWells.length > 0 || wellsLoading)" class="mb-4 pa-3 rounded-lg" style="background: #FDFBF7; border: 1px solid #E2D9CC;">
+          <div class="text-subtitle-2 font-weight-bold mb-2" style="color: #2E2418;">
+            <v-icon icon="mdi-water-well" size="18" class="mr-1" />
+            เลือกบ่อบาดาลที่มีปัญหา
+          </div>
+          <div v-if="wellsLoading" class="text-center py-2">
+            <v-progress-circular indeterminate color="primary" size="24" />
+          </div>
+          <v-select
+            v-else-if="customerWells.length > 0"
+            v-model="form.well_id"
+            :items="customerWells"
+            item-title="well_name"
+            item-value="well_id"
+            label="เลือกบ่อที่มีปัญหา"
+            variant="outlined"
+            density="comfortable"
+            rounded="lg"
+            clearable
+            hide-details
+            class="field-input"
+            :hint="form.well_id ? customerWells.find(w => w.well_id === form.well_id)?.address || '' : 'เว้นว่างถ้าไม่แน่ใจ'"
+            persistent-hint
+          >
+            <template #item="{ item, props }">
+              <v-list-item v-bind="props">
+                <template #title>
+                  <span class="font-weight-bold">{{ (item as any).raw?.well_name || `บ่อ ${item.value}` }}</span>
+                </template>
+                <template #subtitle>
+                  <span class="text-caption">
+                    {{ (item as any).raw?.address || 'ไม่ระบุที่อยู่' }}
+                    <template v-if="(item as any).raw?.total_depth_m"> · ลึก {{ (item as any).raw?.total_depth_m }} ม.</template>
+                    <template v-if="(item as any).raw?.result === 'FAIL'"> · <span class="text-error">เจาะไม่สำเร็จ</span></template>
+                  </span>
+                </template>
+              </v-list-item>
+            </template>
+          </v-select>
+          <div v-else class="text-caption text-medium-emphasis">ไม่พบบ่อบาดาลในระบบ</div>
         </div>
 
         <v-form @submit.prevent="submit">
