@@ -9,7 +9,7 @@
 - JWT authentication พร้อมสมัครสมาชิกและ reset password ผ่าน email/SMS
 - Dashboard สำหรับงานเจาะ งานซ่อม ลูกค้า บ่อ และสถิติ
 - จัดการคำร้องเจาะบ่อ ใบเสนอราคา คิวงาน และสถานะงาน
-- จัดการคำร้องซ่อม ใบเสนอราคา นัดหมาย ประวัติซ่อม และสลิปโอนเงิน
+- จัดการคำร้องซ่อม ใบเสนอราคา นัดหมาย และประวัติซ่อม
 - บันทึกรายละเอียดบ่อ: ชั้นดิน/หิน โปรแกรมท่อ ปั๊ม และตู้ควบคุม
 - สร้างรายงานบ่อเป็น PDF
 - หน้า Driller สำหรับกรอกผลเจาะและบันทึกงานซ่อมผ่าน magic link
@@ -45,6 +45,12 @@ render.yaml    Render deployment configuration
 0002_well_detail_and_pump_catalog.sql
 0003_password_reset.sql
 0004_payment_slips_and_line_bot_user_id.sql
+0005_line_org_isolation.sql
+0006_invite_code_backfill.sql
+0007_promote_org_creators.sql
+0008_organizations.sql
+0009_drop_stale_well_water_columns.sql
+0010_drop_payment_slips.sql
 ```
 
 สามารถใช้ Supabase SQL Editor หรือ PostgreSQL client ได้
@@ -141,7 +147,6 @@ LINE webhook รองรับ:
 - ข้อความ `ประกัน` แสดงสถานะประกันเป็น Flex card
 - ข้อความ `ประวัติซ่อม` แสดงประวัติเป็น Flex card
 - ข้อความ `แจ้งเจาะ` และ `แจ้งซ่อม` ส่งลิงก์ LIFF
-- รูปภาพจากลูกค้าใช้รับสลิปโอนเงินสำหรับงานซ่อม
 
 ตั้ง webhook URL เป็น:
 

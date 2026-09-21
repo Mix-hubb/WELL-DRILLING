@@ -334,7 +334,6 @@ create table public.repair_records (
   work_details      text,
   parts             jsonb,
   pump              jsonb,
-  payment_slip_url  text,
   is_warranty_claim boolean not null default false,
   completed_at      timestamptz,
   created_at        timestamptz not null default now()

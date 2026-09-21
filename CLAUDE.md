@@ -83,7 +83,7 @@ See the "Multi-tenancy pattern" note above — only `organizations`/`users`/`cus
 
 ### LINE integration
 
-`services/line.ts` sends messages/Flex cards through an org's LINE channel access token (looked up from `organizations`, not a single global token — the app supports multiple orgs each with their own LINE channel). `routes/webhooks.routes.ts` receives inbound LINE events (text keywords like "ข้อมูลบ่อ"/"ประกัน"/"ประวัติซ่อม", image uploads used as payment slips, postback actions for accept/reject on drilling requests). LIFF forms (`VITE_LIFF_ID_DRILLING`/`VITE_LIFF_ID_REPAIR` or per-org LIFF IDs from `organizations`) submit to the public `/api/public/*` endpoints, resolving the org via `utils/resolveOrg.ts`.
+`services/line.ts` sends messages/Flex cards through an org's LINE channel access token (looked up from `organizations`, not a single global token — the app supports multiple orgs each with their own LINE channel). `routes/webhooks.routes.ts` receives inbound LINE events (text keywords like "ข้อมูลบ่อ"/"ประกัน"/"ประวัติซ่อม", postback actions for accept/reject on drilling requests). LIFF forms (`VITE_LIFF_ID_DRILLING`/`VITE_LIFF_ID_REPAIR` or per-org LIFF IDs from `organizations`) submit to the public `/api/public/*` endpoints, resolving the org via `utils/resolveOrg.ts`.
 
 ## Conventions to follow
 

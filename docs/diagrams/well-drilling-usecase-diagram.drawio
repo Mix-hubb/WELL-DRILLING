@@ -1,0 +1,268 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Use Case Diagram - Well-Drilling" id="usecase-well-drilling">
+    <mxGraphModel dx="412" dy="225" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="1300" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="boundary" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontStyle=1;fontSize=14;align=center;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;spacingTop=8;" value="ระบบจัดการบ่อบาดาล (Well-Drilling Management System)" vertex="1">
+          <mxGeometry height="2110" width="1320" x="330" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="uc1" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="เข้าสู่ระบบ" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="1162.5" as="geometry" />
+        </mxCell>
+        <mxCell id="uc2" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="ลงทะเบียน / เข้าร่วมองค์กร ด้วย Invite Code" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="1235" as="geometry" />
+        </mxCell>
+        <mxCell id="uc3" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="ลืมรหัสผ่าน / รีเซ็ตรหัสผ่าน" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="1310" as="geometry" />
+        </mxCell>
+        <mxCell id="uc4" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="ดูแดชบอร์ดและสถิติภาพรวม" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="1380" as="geometry" />
+        </mxCell>
+        <mxCell id="uc5" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="จัดการข้อมูลลูกค้า" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="uc6" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="แจ้งเจาะบ่อบาดาล (ผ่าน LINE LIFF)" vertex="1">
+          <mxGeometry height="70" width="340" x="825" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="uc7" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="จัดการคำร้องแจ้งเจาะ" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="1523" as="geometry" />
+        </mxCell>
+        <mxCell id="uc8" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="สร้างใบเสนอราคาขุดเจาะ" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="1593" as="geometry" />
+        </mxCell>
+        <mxCell id="uc9" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="ยอมรับ / ปฏิเสธใบเสนอราคา (ผ่าน LINE)" vertex="1">
+          <mxGeometry height="70" width="340" x="810" y="1663" as="geometry" />
+        </mxCell>
+        <mxCell id="uc10" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="จัดการคิวงานเจาะ" vertex="1">
+          <mxGeometry height="70" width="340" x="810" y="1733" as="geometry" />
+        </mxCell>
+        <mxCell id="uc11" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="บันทึกผลการเจาะและ ข้อมูลบ่อ (Magic Link)" vertex="1">
+          <mxGeometry height="70" width="340" x="810" y="1803" as="geometry" />
+        </mxCell>
+        <mxCell id="uc12" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="บันทึกชั้นดิน / ชั้นหิน" vertex="1">
+          <mxGeometry height="70" width="340" x="1250" y="1310" as="geometry" />
+        </mxCell>
+        <mxCell id="uc13" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="บันทึกโปรแกรมท่อบ่อ" vertex="1">
+          <mxGeometry height="70" width="340" x="1260" y="1380" as="geometry" />
+        </mxCell>
+        <mxCell id="uc14" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="บันทึกข้อมูลปั๊มน้ำ (เลือกจากแคตตาล็อก)" vertex="1">
+          <mxGeometry height="70" width="340" x="1260" y="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="uc15" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="บันทึกข้อมูลตู้คอนโทรล" vertex="1">
+          <mxGeometry height="70" width="340" x="1260" y="1520" as="geometry" />
+        </mxCell>
+        <mxCell id="uc16" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="แจ้งซ่อมบ่อบาดาล (เลือกบ่อ ผ่าน LINE LIFF)" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="uc17" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="จัดการคำร้องแจ้งซ่อม" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="740" as="geometry" />
+        </mxCell>
+        <mxCell id="uc18" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="สร้างใบเสนอราคาซ่อม" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="810" as="geometry" />
+        </mxCell>
+        <mxCell id="uc19" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="นัดหมายวันซ่อม" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="880" as="geometry" />
+        </mxCell>
+        <mxCell id="uc20" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="บันทึกผลการซ่อม (Magic Link)" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="950" as="geometry" />
+        </mxCell>
+        <mxCell id="uc22" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="ส่งใบเสร็จให้ลูกค้าผ่าน LINE" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="1092.5" as="geometry" />
+        </mxCell>
+        <mxCell id="uc23" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="ดูประวัติบ่อบาดาลทั้งหมด" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="670" as="geometry" />
+        </mxCell>
+        <mxCell id="uc24" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="ออกรายงานบ่อเป็น PDF" vertex="1">
+          <mxGeometry height="70" width="340" x="825" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="uc25" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="ตรวจสอบสถานะประกันบ่อ (ผ่านแชท LINE)" vertex="1">
+          <mxGeometry height="70" width="340" x="825" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="uc26" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="สอบถามข้อมูลบ่อผ่านแชท LINE" vertex="1">
+          <mxGeometry height="70" width="340" x="825" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="uc27" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="สอบถามประวัติการซ่อม ผ่านแชท LINE" vertex="1">
+          <mxGeometry height="70" width="340" x="825" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="uc28" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="ส่งการแจ้งเตือนสถานะงาน อัตโนมัติ" vertex="1">
+          <mxGeometry height="70" width="340" x="825" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="uc29" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="ตั้งค่าเชื่อมต่อ LINE Official Account" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="1873" as="geometry" />
+        </mxCell>
+        <mxCell id="uc30" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="จัดการสมาชิกในทีม / Invite Code" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="1943" as="geometry" />
+        </mxCell>
+        <mxCell id="uc31" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="จัดการแคตตาล็อกปั๊มน้ำ" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="2013" as="geometry" />
+        </mxCell>
+        <mxCell id="actor_admin" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=12;fontStyle=1;" value="ผู้ดูแลระบบ (Admin)" vertex="1">
+          <mxGeometry height="80" width="50" x="1730" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="actor_driller" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=12;fontStyle=1;" value="ช่างเจาะ / ช่างซ่อม (Driller)" vertex="1">
+          <mxGeometry height="80" width="50" x="1730" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="actor_customer" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=12;fontStyle=1;" value="ลูกค้า (Customer)" vertex="1">
+          <mxGeometry height="80" width="50" x="150" y="740" as="geometry" />
+        </mxCell>
+        <mxCell id="actor_system" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=12;fontStyle=1;" value="ระบบ LINE Bot / Webhook (System)" vertex="1">
+          <mxGeometry height="80" width="50" x="150" y="970" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_1" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_2" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_3" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_4" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_5" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_6" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_7" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_8" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_9" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_10" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_11" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_12" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_13" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_14" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_15" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_16" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_17" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc29">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_18" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc30">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_19" edge="1" parent="1" source="actor_admin" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_20" edge="1" parent="1" source="actor_driller" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_21" edge="1" parent="1" source="actor_driller" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_22" edge="1" parent="1" source="actor_driller" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_23" edge="1" parent="1" source="actor_driller" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_24" edge="1" parent="1" source="actor_driller" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_25" edge="1" parent="1" source="actor_driller" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_26" edge="1" parent="1" source="actor_driller" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_27" edge="1" parent="1" source="actor_driller" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_28" edge="1" parent="1" source="actor_driller" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_29" edge="1" parent="1" source="actor_customer" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="uc6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_30" edge="1" parent="1" source="actor_customer" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_31" edge="1" parent="1" source="actor_customer" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="uc16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_32" edge="1" parent="1" source="actor_customer" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;entryX=0.001;entryY=0.586;entryDx=0;entryDy=0;entryPerimeter=0;" target="uc24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_33" edge="1" parent="1" source="actor_customer" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="uc25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_34" edge="1" parent="1" source="actor_customer" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="uc26">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_35" edge="1" parent="1" source="actor_customer" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="uc27">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_36" edge="1" parent="1" source="actor_customer" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="uc28">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_37" edge="1" parent="1" source="actor_system" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_38" edge="1" parent="1" source="actor_system" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_39" edge="1" parent="1" source="actor_system" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="uc25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_40" edge="1" parent="1" source="actor_system" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="uc26">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="assoc_42" edge="1" parent="1" source="actor_system" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="uc28">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="include_1" edge="1" parent="1" source="uc7" style="edgeStyle=none;html=1;endArrow=open;dashed=1;startArrow=none;rounded=0;strokeColor=#d79b00;fontColor=#d79b00;fontSize=10;" target="uc8" value="&lt;&lt;include&gt;&gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="include_2" edge="1" parent="1" source="uc17" style="edgeStyle=none;html=1;endArrow=open;dashed=1;startArrow=none;rounded=0;strokeColor=#d79b00;fontColor=#d79b00;fontSize=10;" target="uc18" value="&lt;&lt;include&gt;&gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="include_3" edge="1" parent="1" source="uc11" style="edgeStyle=none;html=1;endArrow=open;dashed=1;startArrow=none;rounded=0;strokeColor=#d79b00;fontColor=#d79b00;fontSize=10;" target="uc12" value="&lt;&lt;include&gt;&gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="include_4" edge="1" parent="1" source="uc11" style="edgeStyle=none;html=1;endArrow=open;dashed=1;startArrow=none;rounded=0;strokeColor=#d79b00;fontColor=#d79b00;fontSize=10;" target="uc13" value="&lt;&lt;include&gt;&gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="include_5" edge="1" parent="1" source="uc11" style="edgeStyle=none;html=1;endArrow=open;dashed=1;startArrow=none;rounded=0;strokeColor=#d79b00;fontColor=#d79b00;fontSize=10;" target="uc14" value="&lt;&lt;include&gt;&gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="include_6" edge="1" parent="1" source="uc11" style="edgeStyle=none;html=1;endArrow=open;dashed=1;startArrow=none;rounded=0;strokeColor=#d79b00;fontColor=#d79b00;fontSize=10;" target="uc15" value="&lt;&lt;include&gt;&gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="include_7" edge="1" parent="1" source="uc21" style="edgeStyle=none;html=1;endArrow=open;dashed=1;startArrow=none;rounded=0;strokeColor=#d79b00;fontColor=#d79b00;fontSize=10;" target="uc22" value="&lt;&lt;include&gt;&gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m988lwbqWkgw8LiVKGKU-1" edge="1" parent="1" source="actor_system" style="edgeStyle=none;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#666666;strokeWidth=1;" target="uc21" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1760" y="1183" as="sourcePoint" />
+            <mxPoint x="558" y="349" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="uc21" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="ออกใบเสร็จรับเงินซ่อม (PDF)" vertex="1">
+          <mxGeometry height="70" width="340" x="820" y="1020" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
