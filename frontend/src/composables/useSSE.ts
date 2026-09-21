@@ -1,5 +1,6 @@
 import { ref, onUnmounted } from "vue";
 import { supabase } from "@/lib/supabase";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 type EventCallback = (data: any) => void;
 
@@ -7,8 +8,8 @@ const TOKEN_KEY = "welldrill-token";
 const listeners = new Map<string, Set<EventCallback>>();
 const connected = ref(false);
 
-let orgChannel: ReturnType<typeof supabase.channel> | null = null;
-let globalChannel: ReturnType<typeof supabase.channel> | null = null;
+let orgChannel: RealtimeChannel | null = null;
+let globalChannel: RealtimeChannel | null = null;
 
 function getOrgId(): string | null {
   const token = localStorage.getItem(TOKEN_KEY);
@@ -33,6 +34,9 @@ function isOrgEvent(eventType: string): boolean {
 export function connectSSE() {
   if (!supabase) return;
   if (orgChannel || globalChannel) return;
+
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return;
 
   const orgId = getOrgId();
 
