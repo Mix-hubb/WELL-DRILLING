@@ -276,6 +276,12 @@ async function handleText(userId: string, text: string, replyToken: string, org:
   }
   const customer = custResult.rows[0];
 
+  broadcast({
+    type: "LINE_MESSAGE_RECEIVED",
+    data: { customer_id: customer.customer_id, customer_name: customer.customer_name, message: text.slice(0, 100) },
+    orgId: org.org_id,
+  });
+
   const wells = await pool.query(
     `SELECT
        w.well_id, w.well_name, w.total_depth_m, w.water_quantity_m3hr, w.yield_lpm,

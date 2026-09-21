@@ -27,10 +27,6 @@ function dispatchEvent(eventType: string, payload: any) {
   if (cbs) cbs.forEach((cb) => cb(payload));
 }
 
-function isOrgEvent(eventType: string): boolean {
-  return !eventType.startsWith("PUMP_CATALOG_");
-}
-
 export function connectSSE() {
   if (!supabase) return;
   if (orgChannel || globalChannel) return;
