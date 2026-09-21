@@ -1,4 +1,4 @@
-import { Response } from "express";
+import { supabase } from "../config/supabase";
 
 export interface SSEEvent {
   type: string;
@@ -6,100 +6,28 @@ export interface SSEEvent {
   orgId?: string | null;
 }
 
-const MAX_CLIENTS = 50;
-const HEARTBEAT_INTERVAL = 30_000;
-
-const clients = new Map<Response, { userId?: string; orgId?: string | null; lastPing: number }>();
-let heartbeatTimer: NodeJS.Timeout | null = null;
-
-function startHeartbeat() {
-  if (heartbeatTimer) return;
-  heartbeatTimer = setInterval(() => {
-    const now = Date.now();
-    for (const [res, meta] of clients) {
-      if (now - meta.lastPing > HEARTBEAT_INTERVAL * 2) {
-        removeClient(res);
-        continue;
-      }
-      try {
-        res.write(": heartbeat\n\n");
-        flush(res);
-        meta.lastPing = now;
-      } catch {
-        removeClient(res);
-      }
-    }
-  }, HEARTBEAT_INTERVAL);
-}
-
-function stopHeartbeat() {
-  if (clients.size === 0 && heartbeatTimer) {
-    clearInterval(heartbeatTimer);
-    heartbeatTimer = null;
-  }
-}
-
-function flush(res: Response) {
-  const fn = (res as any).flush;
-  if (typeof fn === "function") fn.call(res);
-}
-
-export function addClient(res: Response, userId?: string, orgId?: string | null): boolean {
-  if (clients.size >= MAX_CLIENTS) {
-    res.status(429).json({ error: "เชื่อมต่อจำนวนสูงสุดแล้ว" });
-    return false;
-  }
-
-  res.writeHead(200, {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
-    "X-Accel-Buffering": "no",
-  });
-
-  res.write(": connected\n\n");
-  flush(res);
-
-  clients.set(res, { userId, orgId, lastPing: Date.now() });
-
-  res.on("close", () => {
-    removeClient(res);
-  });
-
-  startHeartbeat();
-  return true;
-}
-
-export function removeClient(res: Response) {
-  clients.delete(res);
-  stopHeartbeat();
+function getChannel(orgId?: string | null) {
+  if (!supabase) return null;
+  const name = orgId ? `org:${orgId}` : "global";
+  return supabase.channel(name);
 }
 
 export function broadcast(event: SSEEvent) {
-  const payload = `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`;
-  if (event.orgId) {
-    for (const [res, meta] of clients) {
-      if (meta.orgId === event.orgId) {
-        try {
-          res.write(payload);
-          flush(res);
-        } catch {
-          removeClient(res);
-        }
-      }
-    }
-  } else {
-    for (const [res] of clients) {
-      try {
-        res.write(payload);
-        flush(res);
-      } catch {
-        removeClient(res);
-      }
-    }
-  }
+  const ch = getChannel(event.orgId);
+  if (!ch) return;
+  ch.send({
+    type: "broadcast",
+    event: event.type,
+    payload: event.data,
+  });
 }
 
 export function clientCount(): number {
-  return clients.size;
+  return 0;
 }
+
+export function addClient(): boolean {
+  return true;
+}
+
+export function removeClient(): void {}

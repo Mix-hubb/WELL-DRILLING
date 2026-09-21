@@ -6,7 +6,7 @@ export type SSESubscription =
   | string
   | { event: string; filter?: (data: any) => boolean };
 
-const POLL_INTERVAL = 10_000;
+const POLL_INTERVAL = 30_000;
 
 export function useSSERefresh(
   refresh: () => void | Promise<void>,
@@ -43,15 +43,13 @@ export function useSSERefresh(
       });
     }
 
-    if (!connected.value) startPolling();
-
     watch(connected, (isConnected) => {
       if (isConnected) {
         stopPolling();
       } else {
         startPolling();
       }
-    });
+    }, { immediate: true });
   });
 
   onUnmounted(() => {

@@ -44,6 +44,7 @@ const rejectNotes = ref("");
 const canQuote = computed(() => request.value && !request.value.quotation && request.value.status === "NEW");
 
 async function reload() {
+  if (!route.params.id) return;
   try {
     request.value = await repairRequestsApi.getOne(route.params.id as string);
   } catch (e) {
@@ -106,6 +107,8 @@ onMounted(async () => {
     }
   });
 
+  if (!route.params.id) return;
+
   if (!connected.value) startPolling();
 
   watch(connected, (isConnected) => {
@@ -117,12 +120,13 @@ onMounted(async () => {
   });
 });
 
-const POLL_INTERVAL = 10_000;
+const POLL_INTERVAL = 30_000;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 function startPolling() {
   if (pollTimer) return;
   pollTimer = setInterval(() => {
+    if (!route.params.id) return;
     reload();
     loadSlips();
   }, POLL_INTERVAL);

@@ -1,105 +1,48 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import type { Response } from "express";
-import { addClient, removeClient, broadcast, clientCount } from "./sse";
+import { describe, it, expect, vi } from "vitest";
 
-function createRes() {
-  const res: any = {};
-  res.write = vi.fn(() => true);
-  res.writeHead = vi.fn();
-  res.status = vi.fn().mockReturnValue(res);
-  res.json = vi.fn().mockReturnValue(res);
-  res.on = vi.fn();
-  return res;
-}
+const { mockSend, mockChannel } = vi.hoisted(() => ({
+  mockSend: vi.fn(),
+  mockChannel: vi.fn(() => ({ send: mockSend })),
+}));
 
-const created: Response[] = [];
+vi.mock("../config/supabase", () => ({
+  supabase: { channel: mockChannel },
+}));
 
-function makeClient(orgId?: string | null): Response {
-  const res = createRes();
-  created.push(res);
-  addClient(res, "user-1", orgId ?? null);
-  return res;
-}
+import { broadcast, clientCount, addClient, removeClient } from "./sse";
 
-afterEach(() => {
-  for (const res of [...created]) {
-    removeClient(res);
-  }
-  created.length = 0;
-});
-
-describe("sse", () => {
-  it("starts at zero clients", () => {
-    expect(clientCount()).toBe(0);
-  });
-
-  it("addClient writes SSE headers and wire handshake", () => {
-    const res = createRes();
-    created.push(res);
-    expect(addClient(res, "user-1", "org-1")).toBe(true);
-    expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({
-      "Content-Type": "text/event-stream",
-    }));
-    expect(res.write).toHaveBeenCalledWith(": connected\n\n");
-    expect(clientCount()).toBe(1);
-  });
-
-  it("registers a close handler to remove the client", () => {
-    const res = createRes();
-    created.push(res);
-    addClient(res, "user-1", "org-1");
-    const closeHandler = (res.on as any).mock.calls.find((c: any[]) => c[0] === "close")?.[1];
-    expect(typeof closeHandler).toBe("function");
-    closeHandler();
-    expect(clientCount()).toBe(0);
-  });
-
-  it("broadcasts to all clients when no org is specified", () => {
-    const a = makeClient();
-    const b = makeClient();
-    broadcast({ type: "JOB_CREATED", data: { job_id: 1 } });
-    expect(a.write).toHaveBeenCalledWith('event: JOB_CREATED\ndata: {"job_id":1}\n\n');
-    expect(b.write).toHaveBeenCalledWith('event: JOB_CREATED\ndata: {"job_id":1}\n\n');
-  });
-
-  it("broadcasts only to clients in the target org", () => {
-    const target = makeClient("org-a");
-    const other = makeClient("org-b");
-    const none = makeClient(null);
-    broadcast({ type: "WELL_UPDATED", data: { well_id: 5 }, orgId: "org-a" });
-    const payload = "event: WELL_UPDATED\ndata: {\"well_id\":5}\n\n";
-    expect(target.write).toHaveBeenCalledWith(payload);
-    expect(other.write).not.toHaveBeenCalledWith(payload);
-    expect(other.write).not.toHaveBeenCalledWith(expect.stringContaining("WELL_UPDATED"));
-    expect(none.write).not.toHaveBeenCalledWith(payload);
-  });
-
-  it("removes a client whose write throws during broadcast", () => {
-    const good = makeClient();
-    const bad = createRes();
-    created.push(bad);
-    addClient(bad, "user-2", null);
-    bad.write = vi.fn(() => {
-      throw new Error("closed");
+describe("sse (supabase realtime)", () => {
+  it("broadcast sends to org channel when orgId is provided", () => {
+    broadcast({ type: "JOB_CREATED", data: { job_id: 1 }, orgId: "org-123" });
+    expect(mockChannel).toHaveBeenCalledWith("org:org-123");
+    expect(mockSend).toHaveBeenCalledWith({
+      type: "broadcast",
+      event: "JOB_CREATED",
+      payload: { job_id: 1 },
     });
-    broadcast({ type: "WELL_UPDATED", data: {} });
-    expect(good.write).toHaveBeenCalled();
-    expect(clientCount()).toBe(1);
   });
 
-  it("refuses new clients beyond the capacity", () => {
-    const max = 50;
-    const many: Response[] = [];
-    for (let i = 0; i < max; i++) {
-      const res = createRes();
-      created.push(res);
-      addClient(res, `u${i}`, null);
-    }
-    const extra = createRes();
-    created.push(extra);
-    const ok = addClient(extra, "overflow", null);
-    expect(ok).toBe(false);
-    expect(extra.status).toHaveBeenCalledWith(429);
-    expect(clientCount()).toBe(max);
+  it("broadcast sends to global channel when no orgId", () => {
+    mockSend.mockClear();
+    mockChannel.mockClear();
+    broadcast({ type: "PUMP_CATALOG_CREATED", data: { model_id: 1 } });
+    expect(mockChannel).toHaveBeenCalledWith("global");
+    expect(mockSend).toHaveBeenCalledWith({
+      type: "broadcast",
+      event: "PUMP_CATALOG_CREATED",
+      payload: { model_id: 1 },
+    });
+  });
+
+  it("clientCount returns 0", () => {
+    expect(clientCount()).toBe(0);
+  });
+
+  it("addClient returns true", () => {
+    expect(addClient()).toBe(true);
+  });
+
+  it("removeClient is a no-op", () => {
+    expect(() => removeClient()).not.toThrow();
   });
 });

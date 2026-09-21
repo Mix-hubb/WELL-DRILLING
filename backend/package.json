@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
     "@types/multer": "^2.2.0",
     "@types/pg": "^8.23.1",
     "bcryptjs": "^3.0.3",

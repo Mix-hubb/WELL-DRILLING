@@ -1,102 +1,58 @@
 import { ref, onUnmounted } from "vue";
+import { supabase } from "@/lib/supabase";
 
 type EventCallback = (data: any) => void;
 
-const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:4001/api").replace(/\/api\/?$/, "");
 const TOKEN_KEY = "welldrill-token";
-
-let eventSource: EventSource | null = null;
 const listeners = new Map<string, Set<EventCallback>>();
 const connected = ref(false);
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-let reconnectDelay = 1000;
-let intentionalClose = false;
 
-const MAX_RECONNECT_DELAY = 30_000;
+let orgChannel: ReturnType<typeof supabase.channel> | null = null;
+let globalChannel: ReturnType<typeof supabase.channel> | null = null;
 
-function hasListeners(): boolean {
-  for (const set of listeners.values()) {
-    if (set.size > 0) return true;
+function getOrgId(): string | null {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.orgId || null;
+  } catch {
+    return null;
   }
-  return false;
 }
 
-function scheduleReconnect() {
-  if (intentionalClose) return;
-  if (reconnectTimer) return;
-  reconnectTimer = setTimeout(() => {
-    reconnectTimer = null;
-    connectSSE();
-  }, reconnectDelay);
-  reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
+function dispatchEvent(eventType: string, payload: any) {
+  const cbs = listeners.get(eventType);
+  if (cbs) cbs.forEach((cb) => cb(payload));
+}
+
+function isOrgEvent(eventType: string): boolean {
+  return !eventType.startsWith("PUMP_CATALOG_");
 }
 
 export function connectSSE() {
-  if (eventSource) return;
+  if (!supabase) return;
+  if (orgChannel || globalChannel) return;
 
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (!token) return;
+  const orgId = getOrgId();
 
-  intentionalClose = false;
-  const url = `${BASE_URL}/api/events?token=${encodeURIComponent(token)}`;
-  eventSource = new EventSource(url);
-
-  eventSource.onopen = () => {
-    connected.value = true;
-    reconnectDelay = 1000;
-  };
-
-  eventSource.onerror = () => {
-    connected.value = false;
-    eventSource?.close();
-    eventSource = null;
-    scheduleReconnect();
-  };
-
-  const customEvents = [
-    "JOB_CREATED",
-    "JOB_UPDATED",
-    "JOB_DELETED",
-    "JOB_STATUS_CHANGED",
-    "DRILLING_REQUEST_CREATED",
-    "DRILLING_REQUEST_UPDATED",
-    "DRILLING_REQUEST_CHANGED",
-    "DRILLING_REQUEST_DELETED",
-    "REPAIR_REQUEST_CREATED",
-    "REPAIR_REQUEST_UPDATED",
-    "REPAIR_REQUEST_CHANGED",
-    "REPAIR_REQUEST_DELETED",
-    "REPAIR_RECORD_ADDED",
-    "REPAIR_RECORD_UPDATED",
-    "REPAIR_RECORD_DELETED",
-    "PAYMENT_SLIP_RECEIVED",
-    "PAYMENT_SLIP_VERIFIED",
-    "WELL_CREATED",
-    "WELL_UPDATED",
-    "WELL_DELETED",
-    "CUSTOMER_CREATED",
-    "CUSTOMER_UPDATED",
-    "CUSTOMER_DELETED",
-    "QUOTATION_CREATED",
-    "QUOTATION_CHANGED",
-    "QUOTATION_DELETED",
-    "PUMP_CATALOG_CREATED",
-    "PUMP_CATALOG_UPDATED",
-    "PUMP_CATALOG_DELETED",
-    "ORG_MEMBERS_CHANGED",
-    "LINE_SETTINGS_CHANGED",
-    "JOB_MAGIC_LINK_CHANGED",
-    "REPAIR_MAGIC_LINK_CHANGED",
-  ];
-  for (const eventType of customEvents) {
-    eventSource.addEventListener(eventType, ((e: MessageEvent) => {
-      try {
-        const data = JSON.parse(e.data);
-        const cbs = listeners.get(eventType);
-        if (cbs) cbs.forEach((cb) => cb(data));
-      } catch { /* ignore parse error */ }
-    }) as EventListener);
+  if (orgId) {
+    orgChannel = supabase
+      .channel(`org:${orgId}`)
+      .on("broadcast", { event: "*" }, ({ event, payload }) => {
+        dispatchEvent(event, payload);
+      })
+      .subscribe((status) => {
+        connected.value = status === "SUBSCRIBED";
+      });
   }
+
+  globalChannel = supabase
+    .channel("global")
+    .on("broadcast", { event: "*" }, ({ event, payload }) => {
+      dispatchEvent(event, payload);
+    })
+    .subscribe();
 }
 
 function on(event: string, callback: EventCallback) {
@@ -108,17 +64,24 @@ function off(event: string, callback: EventCallback) {
   listeners.get(event)?.delete(callback);
 }
 
-export function disconnectSSE() {
-  intentionalClose = true;
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
+function hasListeners(): boolean {
+  for (const set of listeners.values()) {
+    if (set.size > 0) return true;
   }
-  eventSource?.close();
-  eventSource = null;
+  return false;
+}
+
+export function disconnectSSE() {
+  if (orgChannel) {
+    supabase?.removeChannel(orgChannel);
+    orgChannel = null;
+  }
+  if (globalChannel) {
+    supabase?.removeChannel(globalChannel);
+    globalChannel = null;
+  }
   connected.value = false;
   listeners.clear();
-  reconnectDelay = 1000;
 }
 
 export { connected };

@@ -22,8 +22,6 @@ import { magicAuth, magicResourceAuth } from "./middleware/upload";
 import { asyncHandler }      from "./utils/asyncHandler";
 import { sanitizeLiffId }    from "./utils/liffId";
 
-import { verifyToken }       from "./middleware/auth";
-import { addClient, clientCount } from "./services/sse";
 import { requestContext, logError } from "./middleware/observability";
 import { apiLimiter, authLimiter, publicLimiter } from "./middleware/rateLimit";
 import * as jobsCtrl         from "./controllers/jobs.controller";
@@ -199,28 +197,6 @@ app.post("/api/repair-requests/:id/records", publicLimiter, magicResourceAuth("r
 app.use("/api/pump-catalog", publicLimiter, pumpCatalogRoutes);
 app.use("/api/upload", publicLimiter, uploadRoutes);
 app.use("/api/webhooks", publicLimiter, webhookRoutes);
-
-// SSE endpoint — real-time dashboard updates (cap at 50 concurrent)
-const MAX_SSE_CLIENTS = 50;
-app.get("/api/events", apiLimiter, (req, res) => {
-  if (clientCount() >= MAX_SSE_CLIENTS) {
-    return res.status(429).json({ error: "Too many SSE connections" });
-  }
-  const token = req.query.token as string;
-  if (!token) {
-    return res.status(401).json({ error: "ต้องระบุ token" });
-  }
-  let orgId: string | null | undefined;
-  try {
-    const decoded = verifyToken(token);
-    orgId = decoded.orgId;
-  } catch {
-    return res.status(401).json({ error: "Token ไม่ถูกต้องหรือหมดอายุ" });
-  }
-  const ok = addClient(res, undefined, orgId);
-  if (!ok) return;
-  req.on("close", () => {});
-});
 
 // Protected routes (rate limit: 60 req/min)
 app.use("/api/customers",         authMiddleware, apiLimiter, customersRoutes);
