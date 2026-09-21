@@ -197,10 +197,10 @@ function finish() {
 .step-list li {
   font-size: 14px;
   line-height: 1.6;
-  color: #333;
+  color: rgb(var(--v-theme-on-surface));
 }
 .step-list code {
-  background: #f0f0f0;
+  background: rgb(var(--v-theme-surface-variant));
   padding: 1px 6px;
   border-radius: 4px;
   font-size: 13px;

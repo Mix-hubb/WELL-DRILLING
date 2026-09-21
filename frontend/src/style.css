@@ -139,6 +139,13 @@ html, body {
   border-top: 1px solid rgb(var(--v-theme-surface-variant));
 }
 
+/* Popover/menu lists ("เพิ่มเติม" bottom-nav menu, gear FAB menus): solid
+   background (not the transparent v-list default) and floats above page content */
+.popover-list {
+  background: rgb(var(--v-theme-surface-bright)) !important;
+  z-index: 3000 !important;
+}
+
 /* Brand tile (drawer / app bar) */
 .brand-tile {
   background: linear-gradient(135deg, rgb(var(--v-theme-primary)), rgb(var(--v-theme-secondary)));
@@ -270,9 +277,6 @@ html, body {
 @media (max-width: 959.98px) {
   .fab-wrapper {
     bottom: calc(80px + var(--safe-bottom, 0px)) !important;
-  }
-  .link-fab-wrapper {
-    bottom: calc(152px + var(--safe-bottom, 0px)) !important;
   }
   .page-container {
     padding-bottom: 104px !important;

@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import * as c from "../controllers/org.controller";
-import { adminMiddleware, authMiddleware } from "../middleware/auth";
+import { adminMiddleware } from "../middleware/auth";
 
+// authMiddleware ถูกใส่ไว้แล้วตอน mount "/api/org" ใน server.ts — ไม่ต้องใส่ซ้ำที่นี่
 const router = Router();
-router.use(authMiddleware);
 
 router.get("/info", asyncHandler(c.getOrgInfo));
 router.get("/members", asyncHandler(c.getMembers));

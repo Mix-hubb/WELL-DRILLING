@@ -23,3 +23,14 @@ export const publicLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many requests, please try again later" },
 });
+
+// LINE ส่ง webhook มาจาก IP ของแพลตฟอร์ม LINE เอง ซึ่งใช้ร่วมกันได้หลายองค์กรบนระบบนี้
+// (multi-tenant) จำกัดแบบ publicLimiter (20 req/min ต่อ IP) เสี่ยงทำให้ LINE ส่งข้อความ/
+// postback ของลูกค้าองค์กรอื่นไม่ผ่านเมื่อทราฟฟิกรวมสูง จึงต้องแยก limiter ที่ผ่อนปรนกว่า
+export const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later" },
+});

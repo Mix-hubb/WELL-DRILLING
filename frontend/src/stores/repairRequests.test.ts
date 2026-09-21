@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => ({
   updateStatus: vi.fn(),
   update: vi.fn(),
   remove: vi.fn(),
-  addRecord: vi.fn(),
 }));
 
 vi.mock("@/api/repairRequests", () => ({
@@ -16,7 +15,6 @@ vi.mock("@/api/repairRequests", () => ({
     updateStatus: mocks.updateStatus,
     update: mocks.update,
     remove: mocks.remove,
-    addRecord: mocks.addRecord,
   },
 }));
 
@@ -74,16 +72,5 @@ describe("repairRequests store", () => {
     store.requests = [repair, { ...repair, repair_id: 2 } as RepairRequest];
     await store.remove(1);
     expect(store.requests.map((r) => r.repair_id)).toEqual([2]);
-  });
-
-  it("addRecord replaces the request with the returned one", async () => {
-    const updated = { ...repair, records: [{ record_id: 1 }] } as RepairRequest;
-    mocks.addRecord.mockResolvedValueOnce(updated);
-    const store = useRepairRequestsStore();
-    store.requests = [repair];
-    const out = await store.addRecord(1, { final_price: 500 });
-    expect(mocks.addRecord).toHaveBeenCalledWith(1, { final_price: 500 });
-    expect(out).toBe(updated);
-    expect(store.requests[0]).toEqual(updated);
   });
 });

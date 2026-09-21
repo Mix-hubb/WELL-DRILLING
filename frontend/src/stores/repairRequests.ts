@@ -38,11 +38,5 @@ export const useRepairRequestsStore = defineStore("repairRequests", {
       await repairRequestsApi.remove(id);
       this.requests = this.requests.filter((r) => r.repair_id !== id);
     },
-    async addRecord(id: number, data: Record<string, unknown>) {
-      const updated = await repairRequestsApi.addRecord(id, data);
-      const idx = this.requests.findIndex((r) => r.repair_id === id);
-      if (idx !== -1) this.requests[idx] = updated;
-      return updated;
-    },
   },
 });

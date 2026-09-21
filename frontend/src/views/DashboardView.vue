@@ -216,7 +216,7 @@ const todayLabel = new Date().toLocaleDateString("th-TH", {
               </div>
               <v-btn size="small" variant="text" append-icon="mdi-arrow-right" to="/jobs">ดูทั้งหมด</v-btn>
             </div>
-            <v-list density="compact">
+            <v-list density="compact" bg-color="transparent">
               <v-list-item
                 v-for="j in stats.recentJobs" :key="j.job_id"
                 :title="j.job_title || `คิวงาน #${j.job_id}`"

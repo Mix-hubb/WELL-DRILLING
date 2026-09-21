@@ -18,7 +18,7 @@ function handleLogout() {
 
 <template>
   <v-navigation-drawer permanent expand-on-hover rail rail-width="72" width="220">
-    <v-list nav density="comfortable">
+    <v-list nav density="comfortable" bg-color="transparent">
       <v-list-item class="mb-2">
         <template #prepend>
           <v-avatar rounded="lg" size="34" class="brand-tile">
@@ -41,7 +41,7 @@ function handleLogout() {
 
     <template #append>
       <div class="pa-2">
-        <v-list nav density="comfortable">
+        <v-list nav density="comfortable" bg-color="transparent">
           <v-list-item prepend-icon="mdi-logout" title="ออกจากระบบ" rounded="lg" @click="handleLogout" />
         </v-list>
       </div>

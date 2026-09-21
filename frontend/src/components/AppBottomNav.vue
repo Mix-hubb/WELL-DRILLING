@@ -51,7 +51,7 @@ function goMore(to: string) {
           <span class="text-caption nav-label">เพิ่มเติม</span>
         </v-btn>
       </template>
-      <v-list density="comfortable">
+      <v-list density="comfortable" bg-color="surface-bright" elevation="8" rounded="lg" class="popover-list">
         <v-list-item
           v-for="item in more" :key="item.to"
           :prepend-icon="item.icon"

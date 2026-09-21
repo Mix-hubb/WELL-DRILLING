@@ -23,7 +23,7 @@ import { asyncHandler }      from "./utils/asyncHandler";
 import { sanitizeLiffId }    from "./utils/liffId";
 
 import { requestContext, logError } from "./middleware/observability";
-import { apiLimiter, authLimiter, publicLimiter } from "./middleware/rateLimit";
+import { apiLimiter, authLimiter, publicLimiter, webhookLimiter } from "./middleware/rateLimit";
 import * as jobsCtrl         from "./controllers/jobs.controller";
 import * as repairCtrl       from "./controllers/repairRequests.controller";
 import * as drillingReqCtrl  from "./controllers/drillingRequests.controller";
@@ -200,7 +200,7 @@ app.get("/api/repair-requests/magic/:token", publicLimiter, magicAuth, asyncHand
 app.post("/api/repair-requests/:id/records", publicLimiter, magicResourceAuth("repair"), asyncHandler(repairCtrl.addRecord));
 app.use("/api/pump-catalog", publicLimiter, pumpCatalogRoutes);
 app.use("/api/upload", publicLimiter, uploadRoutes);
-app.use("/api/webhooks", publicLimiter, webhookRoutes);
+app.use("/api/webhooks", webhookLimiter, webhookRoutes);
 
 // Protected routes (rate limit: 60 req/min)
 app.use("/api/customers",         authMiddleware, apiLimiter, customersRoutes);

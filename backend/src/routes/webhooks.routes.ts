@@ -437,7 +437,7 @@ async function handleImage(userId: string, messageId: string, org: OrgLineConfig
   }
 }
 
-async function handlePostback(userId: string, data: string, org: OrgLineConfig, replyToken?: string) {
+export async function handlePostback(userId: string, data: string, org: OrgLineConfig, replyToken?: string) {
   const custResult = await pool.query(
     "SELECT customer_id, customer_name, org_id FROM customers WHERE line_user_id = $1 AND org_id = $2",
     [userId, org.org_id]
@@ -472,15 +472,22 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     await pool.query("UPDATE quotations SET status = 'ACCEPTED' WHERE kind = 'DRILLING' AND drilling_request_id = $1", [requestId]);
 
     const reqResult = await pool.query(
-      "SELECT name, address, requested_depth_m, appointment_date FROM drilling_requests WHERE request_id = $1",
+      "SELECT name, address, requested_depth_m, appointment_date, notes FROM drilling_requests WHERE request_id = $1",
       [requestId]
     );
     const req = reqResult.rows[0];
 
+    // ลูกค้าอาจแจ้งเจาะซ้ำด้วยข้อมูลเดิมสำหรับบ่อที่ 2, 3, ... (ดู createFromPublicForm) — ถ้าไม่ดึง
+    // "บ่อที่ N" จาก notes มาใส่ใน job_title ชื่อคิวงาน/ชื่อบ่อของลูกค้าคนเดียวกันจะซ้ำกันหมด แยกไม่ออก
+    const wellLabelMatch = (req?.notes || "").match(/^บ่อที่ \d+/);
+    const jobTitle = wellLabelMatch
+      ? `เจาะบ่อ ${req?.name || ""} (${wellLabelMatch[0]})`
+      : `เจาะบ่อ ${req?.name || ""}`;
+
     await pool.query(
       `INSERT INTO drilling_jobs (request_id, customer_id, status, job_title, site_address, scheduled_date)
        VALUES ($1, $2, 'QUEUED', $3, $4, $5)`,
-      [requestId, customerId, `เจาะบ่อ ${req?.name || ""}`, req?.address || null, req?.appointment_date || null]
+      [requestId, customerId, jobTitle, req?.address || null, req?.appointment_date || null]
     );
 
     broadcast({ type: "DRILLING_REQUEST_CHANGED", data: { request_id: requestId, status: "ACCEPTED" }, orgId: org.org_id });

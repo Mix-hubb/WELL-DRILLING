@@ -93,6 +93,5 @@ export const vuetify = createVuetify({
     VSelect:    { variant: "outlined", density: "comfortable" },
     VTextarea:  { variant: "outlined", density: "comfortable" },
     VAutocomplete: { variant: "outlined", density: "comfortable" },
-    VList:      { bgColor: "transparent" },
   },
 });

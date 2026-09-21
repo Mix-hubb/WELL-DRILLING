@@ -209,7 +209,7 @@ async function doDelete() {
         <template v-slot:activator="{ props }">
           <v-btn icon="mdi-cog-outline" color="secondary" v-bind="props" elevation="4" />
         </template>
-        <v-list density="compact" class="py-1">
+        <v-list density="compact" class="py-1 popover-list" bg-color="surface-bright" elevation="8" rounded="lg">
           <v-list-item prepend-icon="mdi-pencil-outline" @click="openSelect('edit')">
             <v-list-item-title>แก้ไขคิวงาน</v-list-item-title>
           </v-list-item>
