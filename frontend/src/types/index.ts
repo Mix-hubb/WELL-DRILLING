@@ -40,6 +40,7 @@ export interface PumpCatalogModel {
   brand: string;
   series?: string | null;
   model: string;
+  brand_model?: string;
   bore_size?: string | null;
   flow_rate?: string | null;
   motor_power?: string | null;

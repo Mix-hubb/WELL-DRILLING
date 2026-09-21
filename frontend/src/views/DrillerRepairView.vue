@@ -5,13 +5,15 @@ import { repairRequestsApi } from "@/api/repairRequests";
 import { useUiStore } from "@/stores/ui";
 import { fmtDate } from "@/utils/date";
 import { REPAIR_STATUS } from "@/constants";
-import type { RepairRequest } from "@/types";
+import type { RepairRequest, RepairRecord } from "@/types";
+import RepairRecordEditDialog from "@/components/forms/RepairRecordEditDialog.vue";
 
 const route = useRoute();
 const token = route.params.token as string;
 const ui = useUiStore();
 const request = ref<RepairRequest | null>(null);
 const loading = ref(true);
+const showRecordForm = ref(false);
 
 onMounted(async () => {
   try {
@@ -22,6 +24,18 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+async function submitRecord(data: Partial<RepairRecord>) {
+  if (!request.value) return;
+  try {
+    await repairRequestsApi.addRecord(request.value.repair_id, data);
+    showRecordForm.value = false;
+    request.value = await repairRequestsApi.getByMagicToken(token);
+    ui.notify("บันทึกข้อมูลเรียบร้อยแล้ว", "success");
+  } catch (e) {
+    ui.notifyError(e);
+  }
+}
 </script>
 
 <template>
@@ -100,10 +114,15 @@ onMounted(async () => {
         </div>
       </template>
 
-      <!-- หมายเหตุ -->
-      <v-alert type="info" variant="tonal" density="compact" rounded="lg" class="mt-4">
-        <div class="text-caption">หน้านี้ใช้สำหรับดูข้อมูลเท่านั้น หากต้องการบันทึกข้อมูลกรุณาติดต่อเจ้าของระบบ</div>
-      </v-alert>
+      <!-- ปุ่มบันทึกการซ่อม -->
+      <v-btn
+        v-if="request.status === 'IN_PROGRESS' || request.status === 'SCHEDULED' || request.status === 'ACCEPTED'"
+        color="primary" variant="flat" block prepend-icon="mdi-plus"
+        class="mt-4"
+        @click="showRecordForm = true"
+      >
+        บันทึกการซ่อม
+      </v-btn>
     </v-card>
 
     <v-card v-else class="pa-6 text-center">
@@ -111,5 +130,11 @@ onMounted(async () => {
       <div class="text-h6 font-display font-weight-bold">ลิงก์ไม่ถูกต้องหรือหมดอายุ</div>
       <div class="text-caption text-medium-emphasis mt-1">กรุณาติดต่อเจ้าของระบบ</div>
     </v-card>
+
+    <RepairRecordEditDialog
+      v-model="showRecordForm"
+      mode="create"
+      @submit="submitRecord"
+    />
   </div>
 </template>

@@ -7,12 +7,15 @@ import { fmtDate } from "@/utils/date";
 import { JOB_STATUS, DRILLING_METHOD, WATER_TYPE } from "@/constants";
 import type { DrillingJob, DrillingJobStatus } from "@/types";
 import StatusChip from "@/components/StatusChip.vue";
+import WellLogFormDialog from "@/components/forms/WellLogFormDialog.vue";
 
 const route = useRoute();
 const token = route.params.token as string;
 const ui = useUiStore();
 const job = ref<DrillingJob | null>(null);
 const loading = ref(true);
+const showWellForm = ref(false);
+const wellId = ref<number | null>(null);
 
 const methodLabels = Object.fromEntries(Object.entries(DRILLING_METHOD).map(([v, t]) => [v, t]));
 const waterLabels = Object.fromEntries(Object.entries(WATER_TYPE).map(([v, t]) => [v, t]));
@@ -20,12 +23,26 @@ const waterLabels = Object.fromEntries(Object.entries(WATER_TYPE).map(([v, t]) =
 onMounted(async () => {
   try {
     job.value = await jobsApi.getByMagicToken(token);
+    wellId.value = job.value?.well_id ?? null;
   } catch (e) {
     ui.notifyError(e);
   } finally {
     loading.value = false;
   }
 });
+
+async function submitWellLog(form: any) {
+  if (!job.value) return;
+  try {
+    await jobsApi.completeWell(job.value.job_id, form);
+    showWellForm.value = false;
+    job.value = await jobsApi.getByMagicToken(token);
+    wellId.value = job.value?.well_id ?? null;
+    ui.notify("บันทึกข้อมูลเรียบร้อยแล้ว", "success");
+  } catch (e) {
+    ui.notifyError(e);
+  }
+}
 </script>
 
 <template>
@@ -102,10 +119,24 @@ onMounted(async () => {
         <div class="text-body-2">{{ job.notes }}</div>
       </div>
 
-      <!-- หมายเหตุ -->
-      <v-alert type="info" variant="tonal" density="compact" rounded="lg" class="mt-4">
-        <div class="text-caption">หน้านี้ใช้สำหรับดูข้อมูลเท่านั้น หากต้องการบันทึกข้อมูลกรุณาติดต่อเจ้าของระบบ</div>
-      </v-alert>
+      <!-- ปุ่มบันทึกประวัติบ่อบาดาล -->
+      <v-btn
+        v-if="(job.status === 'SUCCESS' || job.status === 'FAILED') && !wellId"
+        color="primary" variant="flat" block prepend-icon="mdi-plus"
+        class="mt-4"
+        @click="showWellForm = true"
+      >
+        บันทึกประวัติบ่อบาดาล
+      </v-btn>
+
+      <v-btn
+        v-if="wellId"
+        color="primary" variant="tonal" block prepend-icon="mdi-file-document-outline"
+        class="mt-4"
+        @click="ui.notify('ดูรายละเอียดได้ในระบบหลัก', 'info')"
+      >
+        ดูประวัติบ่อบาดาล
+      </v-btn>
     </v-card>
 
     <v-card v-else class="pa-6 text-center">
@@ -113,5 +144,11 @@ onMounted(async () => {
       <div class="text-h6 font-display font-weight-bold">ลิงก์ไม่ถูกต้องหรือหมดอายุ</div>
       <div class="text-caption text-medium-emphasis mt-1">กรุณาติดต่อเจ้าของระบบ</div>
     </v-card>
+
+    <WellLogFormDialog
+      v-model="showWellForm"
+      :job-status="job?.status"
+      @submit="submitWellLog"
+    />
   </div>
 </template>

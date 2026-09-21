@@ -5,12 +5,15 @@ import type { RepairRecord, RepairPart } from "@/types";
 const props = defineProps<{
   modelValue: boolean;
   record?: RepairRecord | null;
+  mode?: "create" | "edit";
 }>();
 
 const emit = defineEmits<{
   "update:modelValue": [boolean];
   submit: [Partial<RepairRecord>];
 }>();
+
+const isCreate = () => props.mode === "create" || (!props.record && props.mode !== "edit");
 
 const form = ref({
   work_details: "",
@@ -26,19 +29,32 @@ const form = ref({
 watch(
   () => props.modelValue,
   (val) => {
-    if (val && props.record) {
-      form.value = {
-        work_details: props.record.work_details || "",
-        final_price: props.record.final_price ? Number(props.record.final_price) : null,
-        is_warranty_claim: Boolean(props.record.is_warranty_claim),
-        parts: Array.isArray(props.record.parts)
-          ? JSON.parse(JSON.stringify(props.record.parts))
-          : [],
-        pump_brand: props.record.pump?.brand || "",
-        pump_model: props.record.pump?.model || "",
-        pump_power: props.record.pump?.motor_power || "",
-        pump_price: props.record.pump?.reference_price ? Number(props.record.pump.reference_price) : null,
-      };
+    if (val) {
+      if (props.record) {
+        form.value = {
+          work_details: props.record.work_details || "",
+          final_price: props.record.final_price ? Number(props.record.final_price) : null,
+          is_warranty_claim: Boolean(props.record.is_warranty_claim),
+          parts: Array.isArray(props.record.parts)
+            ? JSON.parse(JSON.stringify(props.record.parts))
+            : [],
+          pump_brand: props.record.pump?.brand || "",
+          pump_model: props.record.pump?.model || "",
+          pump_power: props.record.pump?.motor_power || "",
+          pump_price: props.record.pump?.reference_price ? Number(props.record.pump.reference_price) : null,
+        };
+      } else {
+        form.value = {
+          work_details: "",
+          final_price: null,
+          is_warranty_claim: false,
+          parts: [],
+          pump_brand: "",
+          pump_model: "",
+          pump_power: "",
+          pump_price: null,
+        };
+      }
     }
   }
 );
@@ -76,7 +92,7 @@ function submit() {
   <v-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" max-width="600">
     <v-card>
       <v-card-title class="pa-4 font-display font-weight-bold">
-        แก้ไขบันทึกการซ่อม #{{ record?.record_id }}
+        {{ isCreate() ? 'บันทึกการซ่อมใหม่' : `แก้ไขบันทึกการซ่อม #${record?.record_id}` }}
       </v-card-title>
       <v-divider />
       <v-card-text class="pa-4">
@@ -155,7 +171,7 @@ function submit() {
         <v-spacer />
         <v-btn variant="text" @click="$emit('update:modelValue', false)">ยกเลิก</v-btn>
         <v-btn color="primary" variant="flat" @click="submit">
-          บันทึกการแก้ไข
+          {{ isCreate() ? 'บันทึก' : 'บันทึกการแก้ไข' }}
         </v-btn>
       </v-card-actions>
     </v-card>

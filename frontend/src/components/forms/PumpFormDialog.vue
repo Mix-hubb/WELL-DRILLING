@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from "vue";
-import { PUMP_TYPE, PUMP_BRAND } from "@/constants";
+import { PUMP_TYPE } from "@/constants";
 import { pumpCatalogApi } from "@/api/pumpCatalog";
 import type { PumpType, PumpCatalogModel } from "@/types";
 
@@ -8,15 +8,10 @@ const props = defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{ "update:modelValue": [boolean]; submit: [Record<string, any>] }>();
 
 const typeOptions = Object.entries(PUMP_TYPE).map(([value, title]) => ({ value, title }));
-const brandOptions = Object.entries(PUMP_BRAND).map(([value, title]) => ({ value, title }));
-const phaseOptions = [
-  { value: 1, title: "1 เฟส" },
-  { value: 3, title: "3 เฟส" },
-];
 
 const catalogModels = ref<PumpCatalogModel[]>([]);
 const catalogSearch = ref("");
-const selectedCatalogId = ref<number | null>(null);
+const selectedCatalog = ref<PumpCatalogModel | null>(null);
 
 async function loadCatalog() {
   try {
@@ -29,62 +24,54 @@ onMounted(loadCatalog);
 
 const filteredCatalog = ref<PumpCatalogModel[]>([]);
 watch(catalogSearch, (q) => {
-  if (!q || q.length < 1) { filteredCatalog.value = []; return; }
+  if (!q || q.length < 1) { filteredCatalog.value = catalogModels.value.slice(0, 20); return; }
   const lower = q.toLowerCase();
   filteredCatalog.value = catalogModels.value.filter(
     (m) => m.brand.toLowerCase().includes(lower) || m.model.toLowerCase().includes(lower)
-  ).slice(0, 10);
+  ).slice(0, 20);
 });
 
 function selectCatalog(model: PumpCatalogModel) {
-  selectedCatalogId.value = model.model_id;
-  form.value.brand = model.brand || "";
-  form.value.pump_model = model.model || "";
-  form.value.horsepower = model.motor_power || "";
-  form.value.phase = model.phase?.includes("3") ? 3 : 1;
-  form.value.impeller_stages = model.impeller_stages || "";
-  form.value.rated_head_m = model.max_head_m || "";
+  selectedCatalog.value = model;
   catalogSearch.value = `${model.brand} - ${model.model}`;
   filteredCatalog.value = [];
 }
 
 const empty = () => ({
   pump_type: "AC_SUBMERSIBLE" as PumpType,
-  brand: "",
-  pump_model: "",
-  horsepower: "",
-  power_kw: "",
-  impeller_stages: "",
   installation_depth_m: "",
-  voltage: "",
-  phase: null as number | null,
-  discharge_size_mm: "",
-  rated_flow_m3hr: "",
-  rated_head_m: "",
   installed_date: new Date().toISOString().slice(0, 10),
 });
 const form = ref(empty());
 
-watch(() => props.modelValue, (v) => { if (v) { form.value = empty(); catalogSearch.value = ""; selectedCatalogId.value = null; filteredCatalog.value = []; } });
-
 function submit() {
-  if (!form.value.horsepower || !form.value.installation_depth_m) return;
+  if (!form.value.installation_depth_m || !selectedCatalog.value) return;
+  const m = selectedCatalog.value;
   emit("submit", {
     pump_type: form.value.pump_type,
-    brand: form.value.brand || null,
-    pump_model: form.value.pump_model || null,
-    horsepower: Number(form.value.horsepower),
-    power_kw: form.value.power_kw ? Number(form.value.power_kw) : null,
-    impeller_stages: Number(form.value.impeller_stages) || null,
+    brand: m.brand || null,
+    pump_model: m.model || null,
+    horsepower: m.motor_power ? Number(String(m.motor_power).match(/[\d.]+/)?.[0]) : null,
+    power_kw: null,
+    impeller_stages: m.impeller_stages ? Number(String(m.impeller_stages).match(/\d+/)?.[0]) : null,
     installation_depth_m: Number(form.value.installation_depth_m),
-    voltage: form.value.voltage || null,
-    phase: form.value.phase ?? null,
-    discharge_size_mm: form.value.discharge_size_mm ? Number(form.value.discharge_size_mm) : null,
-    rated_flow_m3hr: form.value.rated_flow_m3hr ? Number(form.value.rated_flow_m3hr) : null,
-    rated_head_m: form.value.rated_head_m ? Number(form.value.rated_head_m) : null,
+    voltage: null,
+    phase: m.phase?.includes("3") ? 3 : 1,
+    discharge_size_mm: m.discharge_size ? Number(String(m.discharge_size).match(/\d+/)?.[0]) : null,
+    rated_flow_m3hr: m.flow_rate ? Number(String(m.flow_rate).match(/[\d.]+/)?.[0]) : null,
+    rated_head_m: m.max_head_m ? Number(String(m.max_head_m).match(/[\d.]+/)?.[0]) : null,
     installed_date: form.value.installed_date || new Date().toISOString().slice(0, 10),
   });
 }
+
+watch(() => props.modelValue, (v) => {
+  if (v) {
+    form.value = empty();
+    selectedCatalog.value = null;
+    catalogSearch.value = "";
+    filteredCatalog.value = [];
+  }
+});
 </script>
 
 <template>
@@ -92,23 +79,25 @@ function submit() {
     <v-card class="pa-2">
       <v-card-title class="font-display font-weight-bold">เพิ่มข้อมูลปั๊ม</v-card-title>
       <v-card-text>
-        <v-select v-model="form.pump_type" :items="typeOptions" label="ประเภทปั๊ม" class="mb-1" />
+        <v-select v-model="form.pump_type" :items="typeOptions" label="ประเภทปั๊ม" class="mb-3" />
 
         <v-autocomplete
-          v-if="catalogModels.length"
           v-model="catalogSearch"
           :items="filteredCatalog"
           label="ค้นหาจากแคตตาล็อกปั๊ม (พิมพ์ยี่ห้อหรือรุ่น)"
           placeholder="เช่น Franklin, TORQUE"
           item-title="brand_model"
-          item-value="model_id"
+          item-value="brand_model"
           variant="outlined"
-          density="compact"
+          density="comfortable"
           clearable
           no-filter
-          return-object
           class="mb-1"
-          @update:model-value="(val: any) => { if (val && typeof val === 'object') selectCatalog(val); }"
+          @update:model-value="(val: any) => {
+            if (val && typeof val === 'object') selectCatalog(val);
+            else if (typeof val === 'string') catalogSearch = val;
+          }"
+          @click:clear="selectedCatalog = null; catalogSearch = ''; filteredCatalog = catalogModels.slice(0, 20);"
         >
           <template #item="{ item, props }">
             <v-list-item v-bind="props">
@@ -117,48 +106,36 @@ function submit() {
               </template>
               <template #subtitle>
                 <span class="text-caption">
-                  มอเตอร์: {{ (item as any).raw?.motor_power || '-' }} kW,
-                  แรงดัน: {{ (item as any).raw?.rated_voltage || '-' }} V,
-                  เฟส: {{ (item as any).raw?.phase || '-' }},
-                  ใบพัด: {{ (item as any).raw?.impeller_stages || '-' }} ชั้น
+                  <template v-if="(item as any).raw?.motor_power">มอเตอร์ {{ (item as any).raw?.motor_power }}</template>
+                  <template v-if="(item as any).raw?.phase"> · เฟส {{ (item as any).raw?.phase }}</template>
+                  <template v-if="(item as any).raw?.impeller_stages"> · ใบพัด {{ (item as any).raw?.impeller_stages }}</template>
+                  <template v-if="(item as any).raw?.max_head_m"> · เฮด {{ (item as any).raw?.max_head_m }}</template>
                 </span>
               </template>
             </v-list-item>
           </template>
         </v-autocomplete>
 
-        <v-autocomplete
-          v-model="form.brand"
-          :items="brandOptions"
-          label="ยี่ห้อปั๊ม"
-          placeholder="เลือกหรือพิมพ์ยี่ห้อ เช่น Franklin, TORQUE"
-          clearable
-          class="mb-1"
-        />
-        <v-text-field v-model="form.pump_model" label="รุ่น" class="mb-1" />
-        <v-row dense>
-          <v-col cols="6"><v-text-field v-model="form.horsepower" type="number" label="กำลัง (HP)" /></v-col>
-          <v-col cols="6"><v-text-field v-model="form.power_kw" type="number" label="กำลัง (kW)" /></v-col>
-        </v-row>
-        <v-row dense>
-          <v-col cols="6"><v-text-field v-model="form.impeller_stages" type="number" label="จำนวนใบพัด" /></v-col>
-          <v-col cols="6"><v-text-field v-model="form.installation_depth_m" type="number" label="หย่อนปั๊มที่ (ม.)" /></v-col>
-        </v-row>
-        <v-row dense>
-          <v-col cols="6"><v-text-field v-model="form.voltage" label="แรงดันไฟ (V)" /></v-col>
-          <v-col cols="6"><v-select v-model="form.phase" :items="phaseOptions" label="เฟส" clearable /></v-col>
-        </v-row>
-        <v-row dense>
-          <v-col cols="6"><v-text-field v-model="form.discharge_size_mm" type="number" label="ท่อจ่าย (มม.)" /></v-col>
-          <v-col cols="6"><v-text-field v-model="form.rated_flow_m3hr" type="number" label="อัตราการไหล (ม³/ชม.)" /></v-col>
-        </v-row>
-        <v-text-field v-model="form.rated_head_m" type="number" label="เฮดปั๊ม (ม.)" class="mb-1" />
+        <div v-if="selectedCatalog" class="mb-3 pa-3 rounded-lg" style="background: #FDFBF7; border: 1px solid #E2D9CC;">
+          <div class="text-caption font-weight-bold mb-1" style="color: #2E2418;">
+            {{ selectedCatalog.brand }} - {{ selectedCatalog.model }}
+          </div>
+          <div class="text-caption d-flex flex-wrap ga-2">
+            <template v-if="selectedCatalog.motor_power"><span>มอเตอร์ {{ selectedCatalog.motor_power }}</span></template>
+            <template v-if="selectedCatalog.phase"><span>เฟส {{ selectedCatalog.phase }}</span></template>
+            <template v-if="selectedCatalog.impeller_stages"><span>ใบพัด {{ selectedCatalog.impeller_stages }}</span></template>
+            <template v-if="selectedCatalog.max_head_m"><span>เฮด {{ selectedCatalog.max_head_m }}</span></template>
+            <template v-if="selectedCatalog.flow_rate"><span>ไหล {{ selectedCatalog.flow_rate }}</span></template>
+          </div>
+        </div>
+
+        <v-text-field v-model="form.installation_depth_m" type="number" label="หย่อนปั๊มที่ (ม.) *" class="mb-1" />
         <v-text-field v-model="form.installed_date" type="date" label="วันที่ติดตั้ง" class="mt-1" />
       </v-card-text>
       <v-card-actions>
         <v-spacer />
         <v-btn variant="text" @click="$emit('update:modelValue', false)">ยกเลิก</v-btn>
-        <v-btn color="primary" variant="flat" :disabled="!form.horsepower || !form.installation_depth_m" @click="submit">เพิ่มปั๊ม</v-btn>
+        <v-btn color="primary" variant="flat" :disabled="!form.installation_depth_m || !selectedCatalog" @click="submit">เพิ่มปั๊ม</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
