@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { repairRequestsApi, repairRecordsApi } from "@/api/repairRequests";
 import { quotationsApi } from "@/api/quotations";
 import { api } from "@/api/client";
 import { useUiStore } from "@/stores/ui";
 import { fmtDate } from "@/utils/date";
-import { useSSE } from "@/composables/useSSE";
+import { useSSE, connected } from "@/composables/useSSE";
 import type { RepairRequest, PaymentSlip, RepairRecord } from "@/types";
 import { REPAIR_STATUS, QUOTATION_STATUS, money } from "@/constants";
 import StatusChip from "@/components/StatusChip.vue";
@@ -105,6 +105,38 @@ onMounted(async () => {
       loadSlips();
     }
   });
+
+  if (!connected.value) startPolling();
+
+  watch(connected, (isConnected) => {
+    if (isConnected) {
+      stopPolling();
+    } else {
+      startPolling();
+    }
+  });
+});
+
+const POLL_INTERVAL = 10_000;
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+function startPolling() {
+  if (pollTimer) return;
+  pollTimer = setInterval(() => {
+    reload();
+    loadSlips();
+  }, POLL_INTERVAL);
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
+onUnmounted(() => {
+  stopPolling();
 });
 
 function fmtDateTime(d?: string | null) {

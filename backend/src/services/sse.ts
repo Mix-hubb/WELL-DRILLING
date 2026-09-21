@@ -23,6 +23,7 @@ function startHeartbeat() {
       }
       try {
         res.write(": heartbeat\n\n");
+        flush(res);
         meta.lastPing = now;
       } catch {
         removeClient(res);
@@ -36,6 +37,11 @@ function stopHeartbeat() {
     clearInterval(heartbeatTimer);
     heartbeatTimer = null;
   }
+}
+
+function flush(res: Response) {
+  const fn = (res as any).flush;
+  if (typeof fn === "function") fn.call(res);
 }
 
 export function addClient(res: Response, userId?: string, orgId?: string | null): boolean {
@@ -52,6 +58,7 @@ export function addClient(res: Response, userId?: string, orgId?: string | null)
   });
 
   res.write(": connected\n\n");
+  flush(res);
 
   clients.set(res, { userId, orgId, lastPing: Date.now() });
 
@@ -75,6 +82,7 @@ export function broadcast(event: SSEEvent) {
       if (meta.orgId === event.orgId) {
         try {
           res.write(payload);
+          flush(res);
         } catch {
           removeClient(res);
         }
@@ -84,6 +92,7 @@ export function broadcast(event: SSEEvent) {
     for (const [res] of clients) {
       try {
         res.write(payload);
+        flush(res);
       } catch {
         removeClient(res);
       }

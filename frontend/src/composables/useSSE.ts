@@ -8,6 +8,11 @@ const TOKEN_KEY = "welldrill-token";
 let eventSource: EventSource | null = null;
 const listeners = new Map<string, Set<EventCallback>>();
 const connected = ref(false);
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectDelay = 1000;
+let intentionalClose = false;
+
+const MAX_RECONNECT_DELAY = 30_000;
 
 function hasListeners(): boolean {
   for (const set of listeners.values()) {
@@ -16,23 +21,36 @@ function hasListeners(): boolean {
   return false;
 }
 
+function scheduleReconnect() {
+  if (intentionalClose) return;
+  if (reconnectTimer) return;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connectSSE();
+  }, reconnectDelay);
+  reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
+}
+
 export function connectSSE() {
   if (eventSource) return;
 
   const token = localStorage.getItem(TOKEN_KEY);
   if (!token) return;
 
+  intentionalClose = false;
   const url = `${BASE_URL}/api/events?token=${encodeURIComponent(token)}`;
   eventSource = new EventSource(url);
 
   eventSource.onopen = () => {
     connected.value = true;
+    reconnectDelay = 1000;
   };
 
   eventSource.onerror = () => {
     connected.value = false;
     eventSource?.close();
     eventSource = null;
+    scheduleReconnect();
   };
 
   const customEvents = [
@@ -91,11 +109,19 @@ function off(event: string, callback: EventCallback) {
 }
 
 export function disconnectSSE() {
+  intentionalClose = true;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
   eventSource?.close();
   eventSource = null;
   connected.value = false;
   listeners.clear();
+  reconnectDelay = 1000;
 }
+
+export { connected };
 
 export function useSSE() {
   const tracked: Array<[string, EventCallback]> = [];
