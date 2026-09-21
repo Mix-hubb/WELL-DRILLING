@@ -115,7 +115,6 @@ export function buildWellInfoFlex(customerName: string, wells: any[], baseUrl: s
           flexText(`รหัสบ่อ: #${well.well_id}`),
           flexText(`ความลึก: ${well.total_depth_m ?? "-"} เมตร`),
           flexText(`ปริมาณน้ำ: ${well.water_quantity_m3hr ?? "-"} ลบ.ม./ชม.`),
-          flexText(`อัตราการไหล: ${well.yield_lpm ?? "-"} ลิตร/นาที`),
           flexText(`เจาะเสร็จ: ${displayDate(well.completion_date)}`, { color: "#6B7280" }),
         ],
       },
@@ -278,7 +277,7 @@ async function handleText(userId: string, text: string, replyToken: string, org:
 
   const wells = await pool.query(
     `SELECT
-       w.well_id, w.well_name, w.total_depth_m, w.water_quantity_m3hr, w.yield_lpm,
+       w.well_id, w.well_name, w.total_depth_m, w.water_quantity_m3hr,
        w.completion_date, w.warranty_expire_date,
        wv.warranty_status, wv.days_left
      FROM wells w

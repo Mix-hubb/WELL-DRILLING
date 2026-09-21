@@ -9,9 +9,6 @@ const empty = () => ({
   well_name:          "",
   total_depth_m:      "",
   water_quantity_m3hr: "",
-  yield_lpm:          "",
-  static_water_level_m:  "",
-  pumping_water_level_m: "",
   completion_date:    new Date().toISOString().slice(0, 10),
   drilling_method:    "ROTARY",
   formation_water_type: "FRESH",
@@ -32,9 +29,6 @@ function submit() {
     well_name:            form.value.well_name,
     total_depth_m:        Number(form.value.total_depth_m),
     water_quantity_m3hr:  Number(form.value.water_quantity_m3hr) || null,
-    yield_lpm:            form.value.yield_lpm ? Number(form.value.yield_lpm) : null,
-    static_water_level_m: Number(form.value.static_water_level_m)  || null,
-    pumping_water_level_m: Number(form.value.pumping_water_level_m) || null,
     completion_date:      form.value.completion_date,
     drilling_method:      form.value.drilling_method || null,
     formation_water_type: form.value.formation_water_type || null,
@@ -61,17 +55,6 @@ function submit() {
           </v-col>
         </v-row>
         <v-row dense class="mb-1">
-          <v-col cols="6">
-            <v-text-field v-model="form.yield_lpm" type="number" label="อัตราไหล (L/min)" />
-          </v-col>
-          <v-col cols="6">
-            <v-text-field v-model="form.static_water_level_m" type="number" label="ระดับน้ำนิ่ง (ม.)" />
-          </v-col>
-        </v-row>
-        <v-row dense class="mb-1">
-          <v-col cols="6">
-            <v-text-field v-model="form.pumping_water_level_m" type="number" label="ระดับน้ำลด (ม.)" />
-          </v-col>
           <v-col cols="6">
             <v-text-field v-model="form.completion_date" type="date" label="วันที่เจาะเสร็จ *" />
           </v-col>

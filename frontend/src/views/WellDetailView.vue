@@ -7,7 +7,7 @@ import { api } from "@/api/client";
 import { useSSERefresh } from "@/composables/useSSERefresh";
 import { useSSE } from "@/composables/useSSE";
 import { fmtDate } from "@/utils/date";
-import { PIPE_MATERIAL, PIPE_TYPE, PUMP_TYPE, LITHOLOGY_TYPE, PROTECTION_TYPE } from "@/constants";
+import { PIPE_MATERIAL, PIPE_TYPE, PUMP_TYPE, LITHOLOGY_TYPE, PROTECTION_TYPE, DRILLING_METHOD } from "@/constants";
 import StrataColumn from "@/components/StrataColumn.vue";
 import SectionHeader from "@/components/SectionHeader.vue";
 import WarrantyBadge from "@/components/WarrantyBadge.vue";
@@ -85,6 +85,11 @@ function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
   if (days <= 30) return "EXPIRING_SOON";
   return "ACTIVE";
 }
+
+function methodLabel(method: string | null | undefined): string {
+  if (!method) return "-";
+  return DRILLING_METHOD[method as keyof typeof DRILLING_METHOD] || method;
+}
 </script>
 
 <template>
@@ -141,12 +146,12 @@ function alertTier(w: any): "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" {
           <div class="font-mono font-weight-bold">{{ store.current.water_quantity_m3hr }} ม³/ชม.</div>
         </v-col>
         <v-col cols="6" sm="4" md="2">
-          <div class="text-caption text-uppercase text-medium-emphasis font-weight-bold">ระดับน้ำนิ่ง</div>
-          <div class="font-mono font-weight-bold">{{ store.current.static_water_level_m }} ม.</div>
+          <div class="text-caption text-uppercase text-medium-emphasis font-weight-bold">ความลึกที่ต้องการ</div>
+          <div class="font-mono font-weight-bold">{{ store.current.requested_depth_m }} ม.</div>
         </v-col>
         <v-col cols="6" sm="4" md="2">
-          <div class="text-caption text-uppercase text-medium-emphasis font-weight-bold">ระดับน้ำลด</div>
-          <div class="font-mono font-weight-bold">{{ store.current.pumping_water_level_m }} ม.</div>
+          <div class="text-caption text-uppercase text-medium-emphasis font-weight-bold">วิธีการเจาะ</div>
+          <div class="font-mono font-weight-bold">{{ methodLabel(store.current.drilling_method) }}</div>
         </v-col>
         <v-col cols="6" sm="4" md="2">
           <div class="text-caption text-uppercase text-medium-emphasis font-weight-bold">วันเสร็จ</div>

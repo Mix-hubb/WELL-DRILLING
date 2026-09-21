@@ -218,8 +218,6 @@ export async function completeWell(req: Request, res: Response) {
     drilling_method,
     formation_water_type,
     water_quantity_m3hr,
-    static_water_level_m,
-    pumping_water_level_m,
     driller_name,
     completion_date,
     result,
@@ -252,9 +250,9 @@ export async function completeWell(req: Request, res: Response) {
       const w = await client.query(
         `INSERT INTO wells
           (customer_id, well_name, total_depth_m, requested_depth_m, drilling_method, formation_water_type,
-           water_quantity_m3hr, static_water_level_m, pumping_water_level_m, driller_name, completion_date,
+           water_quantity_m3hr, driller_name, completion_date,
            result, failure_reason, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING well_id`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING well_id`,
         [
           job.customer_id,
           well_name || `บ่อลูกค้า #${job.customer_id}`,
@@ -263,8 +261,6 @@ export async function completeWell(req: Request, res: Response) {
           drilling_method || null,
           formation_water_type || "UNKNOWN",
           water_quantity_m3hr ?? null,
-          static_water_level_m ?? null,
-          pumping_water_level_m ?? null,
           driller_name || null,
           completion_date || new Date().toISOString().slice(0, 10),
           wellResult,
@@ -283,13 +279,12 @@ export async function completeWell(req: Request, res: Response) {
       await client.query(
         `UPDATE wells SET
            well_name = $1, total_depth_m = $2, requested_depth_m = $3, drilling_method = $4, formation_water_type = $5,
-           water_quantity_m3hr = $6, static_water_level_m = $7, pumping_water_level_m = $8, driller_name = $9,
-           completion_date = $10, result = $11, failure_reason = $12, notes = $13
-         WHERE well_id = $14`,
+           water_quantity_m3hr = $6, driller_name = $7,
+           completion_date = $8, result = $9, failure_reason = $10, notes = $11
+         WHERE well_id = $12`,
         [
           well_name || null, total_depth_m ?? null, requested_depth_m ?? null, drilling_method || null,
-          formation_water_type || "UNKNOWN", water_quantity_m3hr ?? null, static_water_level_m ?? null,
-          pumping_water_level_m ?? null, driller_name || null,
+          formation_water_type || "UNKNOWN", water_quantity_m3hr ?? null, driller_name || null,
           completion_date || new Date().toISOString().slice(0, 10),
           wellResult, failure_reason || null, notes || null, wellId,
         ]

@@ -85,9 +85,6 @@ export interface Well {
   drilling_method?: DrillingMethod | null;
   formation_water_type?: WaterType | null;
   water_quantity_m3hr?: number | null;
-  yield_lpm?: number | null;
-  static_water_level_m?: number | null;
-  pumping_water_level_m?: number | null;
   driller_name?: string | null;
   completion_date?: string | null;
   warranty_expire_date?: string | null;   // GENERATED COLUMN = completion_date + 2 ปี

@@ -20,6 +20,15 @@ const PIPE_TYPE_LABEL: Record<string, string> = {
   SCREEN: "ท่อกรอง",
 };
 
+const DRILLING_METHOD_LABEL: Record<string, string> = {
+  ROTARY: "โรตารี",
+  DTH: "DTH",
+  CABLE_TOOL: "คันกระแทก",
+  AUGER: "สว่านเกลียว",
+  JETTING: "เจ็ตติ้ง",
+  OTHER: "อื่นๆ",
+};
+
 const PUMP_TYPE_LABEL: Record<string, string> = {
   AC_SUBMERSIBLE: "ปั๊มจุ่ม AC",
   DC_SOLAR_SUBMERSIBLE: "ปั๊มจุ่มโซลาร์ DC",
@@ -94,9 +103,9 @@ export function streamWellReportPdf(res: Response, well: FullWell, job: JobInfo)
   const statY = doc.y + 12;
   const stats: [string, string][] = [
     ["ความลึกรวม", well.total_depth_m != null ? `${well.total_depth_m} ม.` : "-"],
-    ["อัตราไหล", well.water_quantity_m3hr != null ? `${well.water_quantity_m3hr} ลบ.ม./ชม.` : "-"],
-    ["ระดับน้ำคงที่", well.static_water_level_m != null ? `${well.static_water_level_m} ม.` : "-"],
-    ["ระดับน้ำสูบ", well.pumping_water_level_m != null ? `${well.pumping_water_level_m} ม.` : "-"],
+    ["ปริมาณน้ำ", well.water_quantity_m3hr != null ? `${well.water_quantity_m3hr} ลบ.ม./ชม.` : "-"],
+    ["ความลึกที่ต้องการ", well.requested_depth_m != null ? `${well.requested_depth_m} ม.` : "-"],
+    ["วิธีการเจาะ", well.drilling_method ? DRILLING_METHOD_LABEL[well.drilling_method] || well.drilling_method : "-"],
   ];
   stats.forEach(([label, value], i) => {
     const x = 62 + (i % 2) * 240;

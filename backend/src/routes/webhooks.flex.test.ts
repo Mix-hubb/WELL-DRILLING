@@ -24,7 +24,6 @@ describe("buildWellInfoFlex", () => {
         well_name: "บ่อไร่องุ่น",
         total_depth_m: 80,
         water_quantity_m3hr: 6.2,
-        yield_lpm: 103,
         completion_date: "2026-02-15",
       },
     ];

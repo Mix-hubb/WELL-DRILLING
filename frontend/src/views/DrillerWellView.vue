@@ -59,11 +59,6 @@ const {
         <v-col cols="6"><v-text-field v-model="form.water_quantity_m3hr" type="number" label="ปริมาณน้ำ (ม³/ชม.)" /></v-col>
       </v-row>
       <v-row dense class="mb-1">
-        <v-col cols="6"><v-text-field v-model="form.yield_lpm" type="number" label="อัตราไหล (L/min)" /></v-col>
-        <v-col cols="6"><v-text-field v-model="form.static_water_level_m" type="number" label="ระดับน้ำนิ่ง (ม.)" /></v-col>
-      </v-row>
-      <v-row dense class="mb-1">
-        <v-col cols="6"><v-text-field v-model="form.pumping_water_level_m" type="number" label="ระดับน้ำลด (ม.)" /></v-col>
         <v-col cols="6"><v-text-field v-model="form.completion_date" type="date" label="วันที่เจาะเสร็จ" /></v-col>
       </v-row>
       <v-row dense class="mb-1">

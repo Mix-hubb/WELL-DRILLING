@@ -120,8 +120,8 @@ describe("streamWellReportPdf (actual implementation)", () => {
       well_name: "บ่อทดสอบ",
       total_depth_m: 45,
       water_quantity_m3hr: 3.2,
-      static_water_level_m: 12,
-      pumping_water_level_m: 25,
+      requested_depth_m: 50,
+      drilling_method: "ROTARY",
       strata: [
         { depth_from_m: 0, depth_to_m: 15, lithology_type: "CLAY", description: "ดินเหนียวปนทราย" },
       ],
