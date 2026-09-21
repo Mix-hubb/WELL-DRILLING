@@ -7,7 +7,7 @@ import { api } from "@/api/client";
 import { useUiStore } from "@/stores/ui";
 import { fmtDate } from "@/utils/date";
 import { useSSE, connected } from "@/composables/useSSE";
-import type { RepairRequest, PaymentSlip, RepairRecord } from "@/types";
+import type { RepairRequest, RepairRecord } from "@/types";
 import { REPAIR_STATUS, QUOTATION_STATUS, money } from "@/constants";
 import StatusChip from "@/components/StatusChip.vue";
 import DrillerLinkChip from "@/components/DrillerLinkChip.vue";
@@ -29,24 +29,11 @@ const quoteNotes = ref("");
 const scheduleDlg = ref(false);
 const scheduleDate = ref("");
 
-// Payment Slips (Flow 2)
-const slips = ref<PaymentSlip[]>([]);
-const slipsLoading = ref(false);
-const previewImage = ref<string | null>(null);
 const photoPreview = ref<string | null>(null);
 const photoPreviewDlg = computed({
   get: () => !!photoPreview.value,
   set: (val) => { if (!val) photoPreview.value = null; },
 });
-const uploadingSlip = ref(false);
-const slipFileInput = ref<HTMLInputElement | null>(null);
-const previewDlg = computed({
-  get: () => !!previewImage.value,
-  set: (val) => { if (!val) previewImage.value = null; },
-});
-const rejectDlg = ref(false);
-const rejectSlipId = ref("");
-const rejectNotes = ref("");
 
 const canQuote = computed(() => request.value && !request.value.quotation && request.value.status === "NEW");
 
@@ -59,38 +46,8 @@ async function reload() {
   }
 }
 
-async function loadSlips() {
-  if (!route.params.id) return;
-  try {
-    slipsLoading.value = true;
-    slips.value = await repairRequestsApi.getPaymentSlips(route.params.id as string);
-  } catch (e) {
-    slips.value = [];
-  } finally {
-    slipsLoading.value = false;
-  }
-}
-
-async function uploadSlip(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input?.files?.[0];
-  if (!file || !route.params.id) return;
-  try {
-    uploadingSlip.value = true;
-    await repairRequestsApi.createPaymentSlip(route.params.id as string, file);
-    ui.notify("อัปโหลดสลิปสำเร็จ", "success");
-    await loadSlips();
-  } catch (e) {
-    ui.notifyError(e);
-  } finally {
-    uploadingSlip.value = false;
-    input.value = "";
-  }
-}
-
 onMounted(async () => {
   await reload();
-  await loadSlips();
   loading.value = false;
   connect();
   on("REPAIR_REQUEST_CHANGED", (data) => {
@@ -119,17 +76,6 @@ onMounted(async () => {
   });
   on("QUOTATION_CHANGED", () => reload());
   on("QUOTATION_DELETED", () => reload());
-  on("PAYMENT_SLIP_RECEIVED", (data) => {
-    if (String(data.repair_id) === String(route.params.id)) {
-      ui.notify("มีสลิปโอนเงินใหม่ส่งมาจากลูกค้าทาง LINE!", "info");
-      loadSlips();
-    }
-  });
-  on("PAYMENT_SLIP_VERIFIED", (data) => {
-    if (String(data.repair_id) === String(route.params.id)) {
-      loadSlips();
-    }
-  });
 
   if (!route.params.id) return;
 
@@ -152,7 +98,6 @@ function startPolling() {
   pollTimer = setInterval(() => {
     if (!route.params.id) return;
     reload();
-    loadSlips();
   }, POLL_INTERVAL);
 }
 
@@ -233,38 +178,6 @@ async function regenerateMagicLink() {
     const { token } = await repairRequestsApi.generateMagicLink(request.value.repair_id);
     request.value.magic_link_token = token;
     ui.notify("สร้างลิงก์ช่างใหม่แล้ว", "success");
-  } catch (e) {
-    ui.notifyError(e);
-  }
-}
-
-async function verifySlip(slipId: string) {
-  if (!request.value) return;
-  try {
-    await repairRequestsApi.verifyPaymentSlip(request.value.repair_id, slipId, { status: "VERIFIED" });
-    ui.notify("ยืนยันการชำระเงินและส่งข้อความขอบคุณลูกค้าผ่าน LINE แล้ว", "success");
-    await loadSlips();
-  } catch (e) {
-    ui.notifyError(e);
-  }
-}
-
-function openRejectSlip(slipId: string) {
-  rejectSlipId.value = slipId;
-  rejectNotes.value = "";
-  rejectDlg.value = true;
-}
-
-async function confirmRejectSlip() {
-  if (!request.value || !rejectSlipId.value) return;
-  try {
-    await repairRequestsApi.verifyPaymentSlip(request.value.repair_id, rejectSlipId.value, {
-      status: "REJECTED",
-      notes: rejectNotes.value || undefined,
-    });
-    rejectDlg.value = false;
-    ui.notify("ปฏิเสธสลิปและส่งข้อความแจ้งลูกค้าส่งใหม่ผ่าน LINE แล้ว", "info");
-    await loadSlips();
   } catch (e) {
     ui.notifyError(e);
   }
@@ -448,85 +361,10 @@ async function handleSendReceipt() {
         </div>
         <div v-else-if="request.status === 'COMPLETED'" class="d-flex ga-2">
           <v-btn size="small" color="grey-darken-1" variant="flat" prepend-icon="mdi-check-all" @click="setStatus('CLOSED')">
-            ปิดงาน (ส่ง LINE ขอสลิปโอนเงิน)
+            ปิดงาน
           </v-btn>
         </div>
         <div v-else class="text-caption text-medium-emphasis">{{ REPAIR_STATUS[request.status]?.label || request.status }}</div>
-      </v-card>
-
-      <!-- Payment Slips Section -->
-      <v-card class="pa-4 mb-4">
-        <div class="d-flex justify-space-between align-center mb-2">
-          <div class="text-subtitle-1 font-display font-weight-bold d-flex align-center ga-2">
-            <v-icon icon="mdi-receipt-text-outline" color="primary" />
-            <span>สลิปโอนเงิน ({{ slips.length }})</span>
-          </div>
-          <div class="d-flex ga-1">
-            <input ref="slipFileInput" type="file" accept="image/*" class="d-none" @change="uploadSlip" />
-            <v-btn
-              size="x-small"
-              variant="flat"
-              color="primary"
-              prepend-icon="mdi-upload"
-              :loading="uploadingSlip"
-              @click="slipFileInput?.click()"
-            >
-              อัปโหลดสลิป
-            </v-btn>
-            <v-btn size="x-small" variant="text" icon="mdi-refresh" @click="loadSlips" />
-          </div>
-        </div>
-
-        <div v-if="request.status === 'CLOSED' && !slips.length" class="pa-3 rounded bg-amber-lighten-5 text-amber-darken-4 text-caption mb-3 d-flex align-center ga-2">
-          <v-icon icon="mdi-information" size="18" />
-          <span>ปิดงานแล้ว รอสลิปโอนเงินจากลูกค้า (ลูกค้าส่งรูปสลิปผ่าน LINE OA ได้โดยตรง ระบบจะดึงเข้ามาที่นี่อัตโนมัติ)</span>
-        </div>
-
-        <div v-if="slips.length">
-          <v-card v-for="slip in slips" :key="slip.slip_id" variant="outlined" class="pa-3 mb-3">
-            <div class="d-flex flex-wrap justify-space-between align-center ga-2 mb-2">
-              <div class="d-flex align-center ga-2">
-                <v-chip
-                  size="small"
-                  :color="slip.status === 'VERIFIED' ? 'success' : slip.status === 'REJECTED' ? 'error' : 'warning'"
-                  variant="flat"
-                >
-                  {{ slip.status === 'VERIFIED' ? 'ยืนยันชำระแล้ว' : slip.status === 'REJECTED' ? 'ปฏิเสธแล้ว' : 'รอตรวจสอบ' }}
-                </v-chip>
-                <span class="text-caption text-medium-emphasis">ส่งเมื่อ {{ fmtDateTime(slip.submitted_at) }}</span>
-                <span v-if="slip.verified_at" class="text-caption text-medium-emphasis">· ตรวจสอบเมื่อ {{ fmtDateTime(slip.verified_at) }}</span>
-              </div>
-              <div v-if="slip.status === 'PENDING'" class="d-flex ga-2">
-                <v-btn size="small" color="success" variant="flat" prepend-icon="mdi-check-circle-outline" @click="verifySlip(slip.slip_id)">
-                  ยืนยันการชำระเงิน
-                </v-btn>
-                <v-btn size="small" color="error" variant="tonal" prepend-icon="mdi-close-circle-outline" @click="openRejectSlip(slip.slip_id)">
-                  ปฏิเสธสลิป
-                </v-btn>
-              </div>
-            </div>
-
-            <div v-if="slip.notes" class="text-caption text-error mb-2">
-              หมายเหตุ/เหตุผล: {{ slip.notes }}
-            </div>
-
-            <div v-if="slip.image_url" class="mt-2">
-              <img
-                :src="api.fileUrl(slip.image_url)"
-                alt="Payment Slip"
-                style="max-width: 180px; max-height: 220px; border-radius: 8px; cursor: pointer; object-fit: cover; border: 1px solid rgba(0,0,0,0.12);"
-                @click="previewImage = slip.image_url"
-              />
-              <div class="text-caption text-medium-emphasis mt-1">คลิกที่รูปเพื่อดูรูปเต็ม</div>
-            </div>
-            <div v-else class="text-caption text-medium-emphasis">
-              ไม่มีรูปสลิป
-            </div>
-          </v-card>
-        </div>
-        <div v-else-if="request.status !== 'CLOSED'" class="text-caption text-medium-emphasis">
-          ยังไม่มีสลิปการโอนเงิน (ระบบจะส่งแจ้งเตือนขอสลิปใน LINE เมื่อกดปิดงาน)
-        </div>
       </v-card>
 
       <!-- Records -->
@@ -648,41 +486,6 @@ async function handleSendReceipt() {
               ยืนยันวันนัด & ส่ง LINE
             </v-btn>
           </v-card-actions>
-        </v-card>
-      </v-dialog>
-
-      <!-- Reject Slip dialog -->
-      <v-dialog v-model="rejectDlg" max-width="420">
-        <v-card class="pa-4">
-          <v-card-title class="px-0 pt-0 text-h6 font-display font-weight-bold">
-            ปฏิเสธสลิปโอนเงิน
-          </v-card-title>
-          <v-card-text class="px-0">
-            <p class="text-caption text-medium-emphasis mb-3">
-              ระบุเหตุผลเพื่อแจ้งเตือนให้ลูกค้าทราบและส่งสลิปใหม่อีกครั้งผ่าน LINE
-            </p>
-            <v-textarea
-              v-model="rejectNotes"
-              label="เหตุผล (เช่น ยอดเงินไม่ตรง, สลิปไม่ชัดเจน)"
-              variant="outlined"
-              rows="3"
-            />
-          </v-card-text>
-          <v-card-actions class="px-0 pb-0">
-            <v-spacer />
-            <v-btn variant="text" @click="rejectDlg = false">ยกเลิก</v-btn>
-            <v-btn color="error" variant="flat" @click="confirmRejectSlip">
-              ปฏิเสธ & ส่งแจ้งเตือน LINE
-            </v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
-
-      <!-- Image Preview Dialog -->
-      <v-dialog v-model="previewDlg" max-width="600">
-        <v-card class="pa-2 text-center" v-if="previewImage">
-          <img :src="api.fileUrl(previewImage)" style="max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 4px;" />
-          <v-btn class="mt-2" variant="tonal" size="small" @click="previewImage = null">ปิด</v-btn>
         </v-card>
       </v-dialog>
 

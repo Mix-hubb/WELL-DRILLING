@@ -121,17 +121,6 @@ describe("useSSE", () => {
     expect(cb).toHaveBeenCalledTimes(1);
   });
 
-  it("delivers payment slip events", () => {
-    localStorage.setItem("welldrill-token", "tok.eyJvcmdJZCI6Im9yZy0xIn0.");
-    const wrapper = mount(Host);
-    const cb = vi.fn();
-    wrapper.vm.on("PAYMENT_SLIP_RECEIVED", cb);
-    wrapper.vm.connect();
-
-    mockChannels[0]._fireBroadcast("PAYMENT_SLIP_RECEIVED", { repair_id: 12 });
-    expect(cb).toHaveBeenCalledWith({ repair_id: 12 });
-  });
-
   it("only listens for wildcard events", () => {
     localStorage.setItem("welldrill-token", "tok.eyJvcmdJZCI6Im9yZy0xIn0.");
     const wrapper = mount(Host);
