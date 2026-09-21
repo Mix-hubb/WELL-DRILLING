@@ -13,8 +13,6 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
-    "@types/multer": "^2.2.0",
-    "@types/pg": "^8.23.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -31,9 +29,11 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.2.0",
     "@types/node": "^20.14.11",
     "@types/nodemailer": "^6.4.0",
     "@types/pdfkit": "^0.13.4",
+    "@types/pg": "^8.23.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.5.4",
     "vitest": "^3.2.7"

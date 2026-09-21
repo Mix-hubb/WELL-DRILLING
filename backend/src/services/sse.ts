@@ -21,13 +21,3 @@ export function broadcast(event: SSEEvent) {
     payload: event.data,
   });
 }
-
-export function clientCount(): number {
-  return 0;
-}
-
-export function addClient(): boolean {
-  return true;
-}
-
-export function removeClient(): void {}

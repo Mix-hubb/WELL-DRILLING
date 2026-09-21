@@ -140,7 +140,6 @@ export async function sendFlexToCustomerById(
 
     const accessToken = await getAccessTokenForCustomer(customerId, fallbackOrgId);
     if (!accessToken) {
-      console.log(`[LINE] would send flex (no token for org): ${altText}`);
       await logNotification(customerId, kind, altText, "", "FAILED");
       return false;
     }

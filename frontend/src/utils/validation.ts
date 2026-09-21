@@ -18,15 +18,6 @@ export const validPhone = (message = "เบอร์โทรศัพท์ต
 
 export const validThaiPhone = validPhone;
 
-export const validNumber = (message = "กรุณากรอกตัวเลขที่ถูกต้อง", min?: number, max?: number) => (value: unknown) => {
-  if (value === null || value === undefined || value === "") return true;
-  const num = Number(value);
-  if (Number.isNaN(num)) return message;
-  if (min !== undefined && num < min) return `ค่าต้องไม่น้อยกว่า ${min}`;
-  if (max !== undefined && num > max) return `ค่าต้องไม่เกิน ${max}`;
-  return true;
-};
-
 /**
  * ดักจับแป้นพิมพ์: ป้องกันการพิมพ์ตัวอักษรหรือสัญลักษณ์ อนุญาตเฉพาะ 0-9 และปุ่มควบคุม
  */

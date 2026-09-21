@@ -3,7 +3,6 @@
 // ============================================================
 
 // ---------- Enums ----------
-export type UserRole    = "ADMIN" | "DRILLER";
 
 export type DrillingRequestStatus = "NEW" | "QUOTED" | "ACCEPTED" | "REJECTED" | "CANCELLED";
 export type RequestSource = "MANUAL" | "LINE";

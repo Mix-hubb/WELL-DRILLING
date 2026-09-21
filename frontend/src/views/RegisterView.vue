@@ -3,7 +3,7 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
-import { requiredField, validEmail, validPhone, validThaiPhone, allowOnlyDigits, cleanPhoneNumber } from "@/utils/validation";
+import { requiredField, validEmail, validThaiPhone, allowOnlyDigits, cleanPhoneNumber } from "@/utils/validation";
 
 const router = useRouter();
 const auth = useAuthStore();

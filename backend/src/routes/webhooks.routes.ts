@@ -397,7 +397,6 @@ async function handleImage(userId: string, messageId: string, org: OrgLineConfig
   );
 
   if (!repairResult.rows.length) {
-    console.log(`[webhook] Image from ${userId} ignored: no payable (CLOSED/COMPLETED) repair found`);
     if (replyToken) {
       reply(
         org.line_channel_access_token,
@@ -440,8 +439,6 @@ async function handleImage(userId: string, messageId: string, org: OrgLineConfig
 }
 
 async function handlePostback(userId: string, data: string, org: OrgLineConfig, replyToken?: string) {
-  console.log(`[postback] Processing: userId=${userId} data="${data}" org=${org.org_id}`);
-
   const custResult = await pool.query(
     "SELECT customer_id, customer_name, org_id FROM customers WHERE line_user_id = $1 AND org_id = $2",
     [userId, org.org_id]
@@ -452,18 +449,14 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     return;
   }
   const customerId = custResult.rows[0].customer_id;
-  console.log(`[postback] Found customer: id=${customerId} name=${custResult.rows[0].customer_name} org_id=${custResult.rows[0].org_id}`);
 
   const acceptDrillMatch = data.match(/^accept_drill_(.+)$/);
   const rejectDrillMatch = data.match(/^reject_drill_(.+)$/);
   const acceptRepairMatch = data.match(/^accept_repair_(.+)$/);
   const rejectRepairMatch = data.match(/^reject_repair_(.+)$/);
 
-  console.log(`[postback] Match results: acceptDrill=${!!acceptDrillMatch} rejectDrill=${!!rejectDrillMatch} acceptRepair=${!!acceptRepairMatch} rejectRepair=${!!rejectRepairMatch}`);
-
   if (acceptDrillMatch) {
     const requestId = acceptDrillMatch[1];
-    console.log(`[postback] Accepting drilling request ${requestId}`);
     const existing = await pool.query(
       `SELECT r.status, r.customer_id FROM drilling_requests r
        JOIN customers c ON c.customer_id = r.customer_id AND c.org_id = $3
@@ -579,8 +572,6 @@ router.post(
     const body = req.body;
     const destination = body?.destination as string | undefined;
 
-    console.log(`[LINE webhook] destination=${destination} events=${body?.events?.length || 0}`);
-
     if (!destination) {
       return res.status(400).json({ error: "No destination" });
     }
@@ -603,15 +594,12 @@ router.post(
       if (!userId) continue;
       await findOrCreateCustomerByLine(userId, undefined, org.org_id);
 
-      console.log(`[LINE webhook] event type=${event.type} userId=${userId}`);
-
       try {
         if (event.type === "message" && event.message?.type === "text") {
           await handleText(userId, event.message.text, event.replyToken, org, baseUrl);
         } else if (event.type === "message" && event.message?.type === "image") {
           await handleImage(userId, event.message.id, org, event.replyToken);
         } else if (event.type === "postback") {
-          console.log(`[LINE webhook] postback data=${event.postback?.data}`);
           await handlePostback(userId, event.postback?.data || "", org, event.replyToken);
         }
       } catch (err) {

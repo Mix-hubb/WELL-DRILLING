@@ -4,7 +4,6 @@ import {
   validEmail,
   validPhone,
   validThaiPhone,
-  validNumber,
   allowOnlyDigits,
   cleanPhoneNumber,
   cleanDigits,

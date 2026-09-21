@@ -166,7 +166,6 @@ router.put(
               );
               updates.push(`line_bot_user_id = $${idx++}`);
               params.push(newBotUserId);
-              console.log(`[lineSettings] Successfully linked bot user ID ${newBotUserId} to org ${orgId}`);
             }
           } else {
             console.warn(`[lineSettings] Could not fetch bot info: ${botInfoRes.status}`);

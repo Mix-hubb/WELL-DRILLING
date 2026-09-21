@@ -9,7 +9,7 @@ vi.mock("../config/supabase", () => ({
   supabase: { channel: mockChannel },
 }));
 
-import { broadcast, clientCount, addClient, removeClient } from "./sse";
+import { broadcast } from "./sse";
 
 describe("sse (supabase realtime)", () => {
   it("broadcast sends to org channel when orgId is provided", () => {
@@ -32,17 +32,5 @@ describe("sse (supabase realtime)", () => {
       event: "PUMP_CATALOG_CREATED",
       payload: { model_id: 1 },
     });
-  });
-
-  it("clientCount returns 0", () => {
-    expect(clientCount()).toBe(0);
-  });
-
-  it("addClient returns true", () => {
-    expect(addClient()).toBe(true);
-  });
-
-  it("removeClient is a no-op", () => {
-    expect(() => removeClient()).not.toThrow();
   });
 });

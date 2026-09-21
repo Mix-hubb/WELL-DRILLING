@@ -5,10 +5,12 @@ export interface Organization {
   name: string;
   slug: string;
   invite_code: string;
+  line_channel_id?: string | null;
   line_channel_secret?: string | null;
   line_channel_access_token?: string | null;
   line_liff_id_drilling?: string | null;
   line_liff_id_repair?: string | null;
+  line_bot_user_id?: string | null;
   created_at?: string;
   updated_at?: string;
 }

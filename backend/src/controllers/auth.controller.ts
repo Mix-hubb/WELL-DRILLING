@@ -9,9 +9,6 @@ import { sendResetCodeEmail } from "../services/email";
 import { sendResetCodeSms } from "../services/sms";
 import { broadcast } from "../services/sse";
 
-const USER_ROLE: UserRole = "DRILLER";
-const OWNER_ROLE: UserRole = "ADMIN";
-
 export async function register(req: Request, res: Response) {
   const { email, password, full_name, phone, org_name } = req.body;
   const inviteCode = typeof req.body.invite_code === "string"
