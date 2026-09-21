@@ -135,7 +135,7 @@ export async function update(req: Request, res: Response) {
   const result = await pool.query(
     `${REQUEST_SELECT} WHERE r.request_id = $1`, [id]
   );
-  broadcast({ type: "DRILLING_REQUEST_UPDATED", data: { request_id: Number(id) }, orgId: req.user?.orgId });
+  broadcast({ type: "DRILLING_REQUEST_UPDATED", data: { request_id: id }, orgId: req.user?.orgId });
   res.json(mapRow(result.rows[0]));
 }
 
@@ -168,7 +168,7 @@ export async function updateStatus(req: Request, res: Response) {
   const { rows } = await pool.query(
     `${REQUEST_SELECT} WHERE r.request_id = $1`, [id]
   );
-  broadcast({ type: "DRILLING_REQUEST_CHANGED", data: { request_id: Number(id), status }, orgId: req.user?.orgId });
+  broadcast({ type: "DRILLING_REQUEST_CHANGED", data: { request_id: id, status }, orgId: req.user?.orgId });
   res.json(mapRow(rows[0]));
 }
 
@@ -184,7 +184,7 @@ export async function remove(req: Request, res: Response) {
     [req.params.id]
   );
   await pool.query("DELETE FROM drilling_requests WHERE request_id = $1", [req.params.id]);
-  broadcast({ type: "DRILLING_REQUEST_DELETED", data: { request_id: Number(req.params.id) }, orgId: req.user?.orgId });
+  broadcast({ type: "DRILLING_REQUEST_DELETED", data: { request_id: req.params.id }, orgId: req.user?.orgId });
   res.status(204).end();
 }
 

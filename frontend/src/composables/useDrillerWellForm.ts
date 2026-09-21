@@ -6,6 +6,7 @@ import {
   DRILLING_METHOD, WATER_TYPE, HARDNESS, LITHOLOGY_TYPE, LITHOLOGY_COLOR,
   PIPE_MATERIAL, PIPE_TYPE, PIPE_SIZE_OPTIONS, PROTECTION_TYPE,
 } from "@/constants";
+import { deriveCatalogPumpFields } from "@/utils/pumpCatalog";
 
 export interface StrataEntry {
   depth_from_m: string; depth_to_m: string;
@@ -109,80 +110,19 @@ export function useDrillerWellForm(token: string) {
     }
   }
 
-  function firstNumber(value: string | null | undefined): number | null {
-    if (!value) return null;
-    const match = value.replace(/,/g, "").match(/(\d+(?:\.\d+)?)/);
-    return match ? Number(match[1]) : null;
-  }
-
-  function parseKw(value: string | null | undefined): number | null {
-    if (!value) return null;
-    const clean = value.replace(/,/g, "");
-    const kw = clean.match(/(\d+(?:\.\d+)?)\s*kw/i);
-    if (kw) return Number(kw[1]);
-    const watts = clean.match(/(\d+(?:\.\d+)?)\s*W(?!\w)/i);
-    return watts ? Math.round((Number(watts[1]) / 1000) * 100) / 100 : null;
-  }
-
-  function parseVoltage(value: string | null | undefined): string {
-    const match = value?.match(/(\d+(?:\.\d+)?)\s*V/i);
-    return match ? match[1] : "";
-  }
-
-  function parsePhase(value: string | null | undefined): number | null {
-    const match = value?.match(/(\d)\s*เฟส/);
-    return match ? Number(match[1]) : null;
-  }
-
-  function parseDischargeMm(value: string | null | undefined): number | null {
-    if (!value) return null;
-    const match = value.replace(/,/g, "").match(/(\d+(?:\/\d+)?(?:\.\d+)?)"/);
-    if (!match) return null;
-    const inches = match[1].includes("/")
-      ? Number(match[1].split("/")[0]) / Number(match[1].split("/")[1])
-      : Number(match[1]);
-    return Math.round(inches * 25.4 * 10) / 10;
-  }
-
-  function parseHead(value: string | null | undefined): number | null {
-    if (!value) return null;
-    const numbers = [...value.replace(/,/g, "").matchAll(/(\d+(?:\.\d+)?)/g)].map((match) => Number(match[1]));
-    return numbers.length ? Math.max(...numbers) : null;
-  }
-
   function applyCatalog(pump: PumpEntry, model: PumpCatalogModel | null) {
     if (!model) return;
-    const solar = !!model.series?.includes("โซลาร์") || /dc/i.test(model.model);
-    const drainage = !!model.series?.includes("ปั๊มจุ่ม");
-    pump.pump_type = solar ? "DC_SOLAR_SUBMERSIBLE" : drainage ? "OTHER" : "AC_SUBMERSIBLE";
-    pump.brand = model.brand;
-    pump.pump_model = model.model;
-
-    if (model.motor_power) {
-      const kw = parseKw(model.motor_power);
-      if (kw != null) pump.power_kw = String(kw);
-      if (/hp/i.test(model.motor_power)) {
-        const horsepower = firstNumber(model.motor_power);
-        if (horsepower != null) pump.horsepower = String(horsepower);
-      }
-    }
-    if (model.impeller_stages) {
-      const stages = firstNumber(model.impeller_stages);
-      pump.impeller_stages = stages != null ? String(stages) : "";
-    }
-    if (model.phase) {
-      pump.voltage = parseVoltage(model.phase) || pump.voltage;
-      const phase = parsePhase(model.phase);
-      if (phase) pump.phase = phase;
-    }
-    if (model.discharge_size) {
-      const size = parseDischargeMm(model.discharge_size);
-      if (size != null) pump.discharge_size_mm = String(size);
-    }
-    if (model.max_head_m) {
-      const head = parseHead(model.max_head_m);
-      if (head != null) pump.rated_head_m = String(head);
-    }
+    const derived = deriveCatalogPumpFields(model);
+    pump.pump_type = derived.pump_type;
+    pump.brand = derived.brand;
+    pump.pump_model = derived.pump_model;
+    if (derived.power_kw != null) pump.power_kw = String(derived.power_kw);
+    if (derived.horsepower != null) pump.horsepower = String(derived.horsepower);
+    if (derived.impeller_stages != null) pump.impeller_stages = String(derived.impeller_stages);
+    if (derived.voltage) pump.voltage = derived.voltage;
+    if (derived.phase != null) pump.phase = derived.phase;
+    if (derived.discharge_size_mm != null) pump.discharge_size_mm = String(derived.discharge_size_mm);
+    if (derived.rated_head_m != null) pump.rated_head_m = String(derived.rated_head_m);
   }
 
   function buildPayload() {

@@ -88,7 +88,7 @@ describe("repairRecords.controller", () => {
       expect(mocks.broadcast).toHaveBeenCalledWith(
         expect.objectContaining({
           type: "REPAIR_RECORD_UPDATED",
-          data: { record_id: 10, repair_id: 5 },
+          data: { record_id: "10", repair_id: 5 },
           orgId: "org-1",
         })
       );

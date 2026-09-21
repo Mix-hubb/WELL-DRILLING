@@ -9,10 +9,13 @@ const form = ref({
   name: "",
   phone: "",
   address: "",
+  well_id: "" as string | null,
   problem_types: [] as string[],
   detail: "",
   scheduled_date: "",
 });
+
+const wells = ref<{ well_id: string; well_name: string }[]>([]);
 
 const loading = ref(false);
 const success = ref(false);
@@ -115,7 +118,8 @@ const canSubmit = computed(() => {
   const hasValidPhone = validThaiPhone()(form.value.phone) === true;
   const hasName = !!form.value.name?.trim();
   const hasProblems = form.value.problem_types.length > 0;
-  return hasValidPhone && hasName && hasProblems;
+  const hasWellIfNeeded = wells.value.length <= 1 || !!form.value.well_id;
+  return hasValidPhone && hasName && hasProblems && hasWellIfNeeded;
 });
 
 async function submit() {
@@ -148,6 +152,7 @@ async function submit() {
         name: form.value.name,
         phone: form.value.phone,
         address: form.value.address || null,
+        well_id: form.value.well_id || null,
         problems: form.value.problem_types,
         detail: form.value.detail || null,
         photos: photoData.length > 0 ? photoData : null,
@@ -230,6 +235,8 @@ async function checkExistingCustomer() {
       form.value.name = data.customer.customer_name || profileName.value;
       form.value.phone = data.customer.phone || "";
       form.value.address = data.customer.address || "";
+      wells.value = data.wells || [];
+      if (wells.value.length === 1) form.value.well_id = wells.value[0].well_id;
     } else {
       form.value.name = profileName.value;
     }
@@ -383,6 +390,27 @@ async function checkExistingCustomer() {
                 {{ p }}
               </v-chip>
             </div>
+          </div>
+
+          <!-- เลือกบ่อบาดาล (กรณีมีมากกว่า 1 บ่อ) -->
+          <div v-if="wells.length > 1" class="field-group">
+            <div class="field-label">
+              <v-icon icon="mdi-water-outline" size="16" class="mr-1" />
+              เลือกบ่อบาดาลที่ต้องการแจ้งซ่อม
+              <span class="text-error ml-1">*</span>
+            </div>
+            <v-select
+              v-model="form.well_id"
+              :items="wells"
+              item-title="well_name"
+              item-value="well_id"
+              placeholder="เลือกบ่อบาดาล"
+              variant="outlined"
+              density="comfortable"
+              rounded="lg"
+              hide-details
+              class="field-input"
+            />
           </div>
 
           <!-- รายละเอียดเพิ่มเติม -->

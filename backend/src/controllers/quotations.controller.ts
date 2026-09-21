@@ -226,7 +226,7 @@ export async function updateStatus(req: Request, res: Response) {
     "SELECT * FROM quotations WHERE quotation_id = $1", [id]
   );
   res.json(rows[0]);
-  broadcast({ type: "QUOTATION_CHANGED", data: { quotation_id: Number(id), status }, orgId: req.user?.orgId });
+  broadcast({ type: "QUOTATION_CHANGED", data: { quotation_id: id, status }, orgId: req.user?.orgId });
 }
 
 export async function remove(req: Request, res: Response) {
@@ -242,6 +242,6 @@ export async function remove(req: Request, res: Response) {
   );
   if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบใบเสนอราคา" });
   await pool.query("DELETE FROM quotations WHERE quotation_id = $1", [req.params.id]);
-  broadcast({ type: "QUOTATION_DELETED", data: { quotation_id: Number(req.params.id) }, orgId: req.user?.orgId });
+  broadcast({ type: "QUOTATION_DELETED", data: { quotation_id: req.params.id }, orgId: req.user?.orgId });
   res.status(204).end();
 }

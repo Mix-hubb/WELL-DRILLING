@@ -142,7 +142,7 @@ describe("remove", () => {
     const res = createRes();
     await wells.remove(createReq({ params: { id: "1" } }), res);
     expect(mocks.poolQuery).toHaveBeenCalledWith("DELETE FROM wells WHERE well_id = $1", ["1"]);
-    expect(mocks.broadcast).toHaveBeenCalledWith({ type: "WELL_DELETED", data: { well_id: 1 }, orgId: "org-1" });
+    expect(mocks.broadcast).toHaveBeenCalledWith({ type: "WELL_DELETED", data: { well_id: "1" }, orgId: "org-1" });
     expect(res.status).toHaveBeenCalledWith(204);
   });
 });

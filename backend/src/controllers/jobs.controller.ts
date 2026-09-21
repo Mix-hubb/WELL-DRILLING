@@ -187,7 +187,7 @@ export async function update(req: Request, res: Response) {
   );
 
   const row = await getJobRow(id, req.user?.orgId);
-  broadcast({ type: "JOB_UPDATED", data: { job_id: Number(id) }, orgId: req.user?.orgId });
+  broadcast({ type: "JOB_UPDATED", data: { job_id: id }, orgId: req.user?.orgId });
   res.json(row);
 }
 export async function updateStatus(req: Request, res: Response) {
@@ -204,7 +204,7 @@ export async function updateStatus(req: Request, res: Response) {
 
   await pool.query("UPDATE drilling_jobs SET status = $1 WHERE job_id = $2", [status, id]);
   const row = await getJobRow(id, req.user?.orgId);
-  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: Number(id), status }, orgId: req.user?.orgId });
+  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: id, status }, orgId: req.user?.orgId });
   res.json(row);
 }
 
@@ -375,7 +375,7 @@ export async function completeWell(req: Request, res: Response) {
   );
   sendTextToCustomer(job.customer_id, msg, "STATUS", orgRows[0]?.org_id).catch(() => {});
   const orgId = orgRows[0]?.org_id;
-  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: Number(id), status: "SUCCESS" }, orgId });
+  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: id, status: "SUCCESS" }, orgId });
   broadcast({ type: "WELL_CREATED", data: { well_id: wellId, customer_id: job.customer_id }, orgId });
 
   res.json(row);
@@ -390,7 +390,7 @@ export async function remove(req: Request, res: Response) {
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบงาน" });
   await pool.query("DELETE FROM drilling_jobs WHERE job_id = $1", [req.params.id]);
-  broadcast({ type: "JOB_DELETED", data: { job_id: Number(req.params.id) }, orgId });
+  broadcast({ type: "JOB_DELETED", data: { job_id: req.params.id }, orgId });
   res.status(204).end();
 }
 
@@ -407,6 +407,6 @@ export async function generateMagicLink(req: Request, res: Response) {
     "UPDATE drilling_jobs SET magic_link_token = $1, magic_link_expires_at = NOW() + INTERVAL '7 days' WHERE job_id = $2",
     [token, id]
   );
-  broadcast({ type: "JOB_MAGIC_LINK_CHANGED", data: { job_id: Number(id), token }, orgId: req.user?.orgId });
+  broadcast({ type: "JOB_MAGIC_LINK_CHANGED", data: { job_id: id, token }, orgId: req.user?.orgId });
   res.json({ token });
 }

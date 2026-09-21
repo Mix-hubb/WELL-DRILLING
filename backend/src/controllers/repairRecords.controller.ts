@@ -85,7 +85,7 @@ export async function update(req: Request, res: Response) {
   const updatedRecord = mapRow(rows[0]);
   broadcast({
     type: "REPAIR_RECORD_UPDATED",
-    data: { record_id: Number(id), repair_id: existing.rows[0].repair_id },
+    data: { record_id: id, repair_id: existing.rows[0].repair_id },
     orgId: req.user?.orgId,
   });
 
@@ -104,7 +104,7 @@ export async function remove(req: Request, res: Response) {
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบบันทึก" });
   await pool.query("DELETE FROM repair_records WHERE record_id = $1", [req.params.id]);
-  broadcast({ type: "REPAIR_RECORD_DELETED", data: { record_id: Number(req.params.id) }, orgId: req.user?.orgId });
+  broadcast({ type: "REPAIR_RECORD_DELETED", data: { record_id: req.params.id }, orgId: req.user?.orgId });
   res.status(204).end();
 }
 

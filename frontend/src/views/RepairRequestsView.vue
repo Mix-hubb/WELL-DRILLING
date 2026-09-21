@@ -35,7 +35,7 @@ useSSERefresh(refreshData, [
 
 const { on } = useSSE();
 on("REPAIR_MAGIC_LINK_CHANGED", (data) => {
-  const r = requests.requests.find((x) => x.repair_id === Number(data.repair_id));
+  const r = requests.requests.find((x) => String(x.repair_id) === String(data.repair_id));
   if (r) r.magic_link_token = data.token;
 });
 

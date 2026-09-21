@@ -137,7 +137,7 @@ export async function create(req: Request, res: Response) {
 }
 
 export async function createFromPublicForm(req: Request, res: Response) {
-  const { name, phone, address, well_name, problems, detail, photos, scheduled_date, line_user_id, line_display_name, line_picture_url, liff_id } = req.body;
+  const { name, phone, address, well_id, well_name, problems, detail, photos, scheduled_date, line_user_id, line_display_name, line_picture_url, liff_id } = req.body;
   if (!name || !phone || !problems?.length) {
     return res.status(400).json({ error: "ต้องระบุชื่อ, เบอร์โทร และปัญหาที่พบ" });
   }
@@ -216,9 +216,19 @@ export async function createFromPublicForm(req: Request, res: Response) {
       customerId = c.rows[0].customer_id;
     }
 
-    const wells = await client.query(
-      "SELECT well_id FROM wells WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 1", [customerId]
-    );
+    let resolvedWellId: string | null = null;
+    if (well_id) {
+      const wellCheck = await client.query(
+        "SELECT well_id FROM wells WHERE well_id = $1 AND customer_id = $2", [well_id, customerId]
+      );
+      resolvedWellId = wellCheck.rows[0]?.well_id || null;
+    }
+    if (!resolvedWellId) {
+      const wells = await client.query(
+        "SELECT well_id FROM wells WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 1", [customerId]
+      );
+      resolvedWellId = wells.rows[0]?.well_id || null;
+    }
 
     const combinedDetail = well_name
       ? `บ่อ: ${well_name}${detail ? `\n${detail}` : ""}`
@@ -228,7 +238,7 @@ export async function createFromPublicForm(req: Request, res: Response) {
       `INSERT INTO repair_requests (customer_id, well_id, problems, detail, photos, scheduled_date, magic_link_token, magic_link_expires_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW() + INTERVAL '7 days')
        RETURNING repair_id`,
-      [customerId, wells.rows.length ? wells.rows[0].well_id : null, JSON.stringify(problems), combinedDetail, photos?.length ? JSON.stringify(photos) : null, scheduled_date || null, generateMagicToken()]
+      [customerId, resolvedWellId, JSON.stringify(problems), combinedDetail, photos?.length ? JSON.stringify(photos) : null, scheduled_date || null, generateMagicToken()]
     );
 
     await client.query("COMMIT");
@@ -272,7 +282,7 @@ export async function update(req: Request, res: Response) {
   const result = await pool.query(
     `${REQUEST_SELECT} WHERE r.repair_id = $1`, [id]
   );
-  broadcast({ type: "REPAIR_REQUEST_UPDATED", data: { repair_id: Number(id) }, orgId: req.user?.orgId });
+  broadcast({ type: "REPAIR_REQUEST_UPDATED", data: { repair_id: id }, orgId: req.user?.orgId });
   res.json(mapRow(result.rows[0]));
 }
 
@@ -352,7 +362,7 @@ export async function updateStatus(req: Request, res: Response) {
     }
   }
 
-  broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(id), status }, orgId: req.user?.orgId });
+  broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: id, status }, orgId: req.user?.orgId });
   res.json(mapRow(rows[0]));
 }
 
@@ -418,8 +428,8 @@ export async function addRecord(req: Request, res: Response) {
   if (reqRow.rows.length) {
     const cust = reqRow.rows[0];
     const orgId = cust.org_id;
-    broadcast({ type: "REPAIR_RECORD_ADDED", data: { repair_id: Number(id) }, orgId });
-    broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(id), status: "COMPLETED" }, orgId });
+    broadcast({ type: "REPAIR_RECORD_ADDED", data: { repair_id: id }, orgId });
+    broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: id, status: "COMPLETED" }, orgId });
 
     // Send automatic receipt Flex card to customer
     const baseUrl = getReqBaseUrl(req);
@@ -465,7 +475,7 @@ export async function remove(req: Request, res: Response) {
     [req.params.id]
   );
   await pool.query("DELETE FROM repair_requests WHERE repair_id = $1", [req.params.id]);
-  broadcast({ type: "REPAIR_REQUEST_DELETED", data: { repair_id: Number(req.params.id) }, orgId: req.user?.orgId });
+  broadcast({ type: "REPAIR_REQUEST_DELETED", data: { repair_id: req.params.id }, orgId: req.user?.orgId });
   res.status(204).end();
 }
 
@@ -482,7 +492,7 @@ export async function generateMagicLink(req: Request, res: Response) {
     "UPDATE repair_requests SET magic_link_token = $1, magic_link_expires_at = NOW() + INTERVAL '7 days' WHERE repair_id = $2",
     [token, id]
   );
-  broadcast({ type: "REPAIR_MAGIC_LINK_CHANGED", data: { repair_id: Number(id), token }, orgId: req.user?.orgId });
+  broadcast({ type: "REPAIR_MAGIC_LINK_CHANGED", data: { repair_id: id, token }, orgId: req.user?.orgId });
   res.json({ token });
 }
 

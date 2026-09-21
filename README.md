@@ -104,7 +104,7 @@ npm run preview
 | `APP_URL`                                                        | URL ที่ใช้สร้างลิงก์กลับไป frontend            |
 | `LINE_CHANNEL_SECRET`                                            | LINE channel secret แบบ legacy/single-org      |
 | `LINE_CHANNEL_ACCESS_TOKEN`                                      | LINE access token แบบ legacy/single-org        |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`  | ส่ง email reset password                       |
+| `RESEND_API_KEY`, `RESEND_FROM`                                  | ส่ง email reset password ผ่าน Resend           |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` | ส่ง SMS OTP                                    |
 
 การตั้งค่า LINE แบบหลายองค์กรเก็บในตาราง `organizations` และรองรับ `line_bot_user_id`, LIFF IDs และ access token แยกองค์กร

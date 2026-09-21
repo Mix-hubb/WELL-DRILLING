@@ -104,6 +104,6 @@ export async function remove(req: Request, res: Response) {
     `DELETE FROM customers WHERE customer_id = $1${sql}`,
     [req.params.id, ...params]
   );
-  broadcast({ type: "CUSTOMER_DELETED", data: { customer_id: Number(req.params.id) }, orgId: req.user?.orgId });
+  broadcast({ type: "CUSTOMER_DELETED", data: { customer_id: req.params.id }, orgId: req.user?.orgId });
   res.status(204).end();
 }

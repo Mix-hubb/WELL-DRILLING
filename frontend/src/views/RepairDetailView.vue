@@ -94,23 +94,23 @@ onMounted(async () => {
   loading.value = false;
   connect();
   on("REPAIR_REQUEST_CHANGED", (data) => {
-    if (data.repair_id === Number(route.params.id)) reload();
+    if (String(data.repair_id) === route.params.id) reload();
   });
   on("REPAIR_REQUEST_UPDATED", (data) => {
-    if (data.repair_id === Number(route.params.id)) reload();
+    if (String(data.repair_id) === route.params.id) reload();
   });
   on("REPAIR_REQUEST_DELETED", (data) => {
-    if (data.repair_id === Number(route.params.id)) reload();
+    if (String(data.repair_id) === route.params.id) reload();
   });
   on("REPAIR_RECORD_ADDED", (data) => {
-    if (data.repair_id === Number(route.params.id)) reload();
+    if (String(data.repair_id) === route.params.id) reload();
   });
   on("REPAIR_RECORD_DELETED", () => reload());
   on("REPAIR_RECORD_UPDATED", (data) => {
-    if (data.repair_id === Number(route.params.id)) reload();
+    if (String(data.repair_id) === route.params.id) reload();
   });
   on("REPAIR_MAGIC_LINK_CHANGED", (data) => {
-    if (request.value && Number(data.repair_id) === request.value.repair_id) {
+    if (request.value && String(data.repair_id) === String(request.value.repair_id)) {
       request.value.magic_link_token = data.token;
     }
   });

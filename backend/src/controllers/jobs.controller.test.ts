@@ -220,7 +220,7 @@ describe("updateStatus", () => {
     );
     expect(mocks.broadcast).toHaveBeenCalledWith({
       type: "JOB_STATUS_CHANGED",
-      data: { job_id: 1, status: "DRILLING" },
+      data: { job_id: "1", status: "DRILLING" },
       orgId: "org-1",
     });
     expect(res.json).toHaveBeenCalledWith(jobRow);

@@ -270,7 +270,7 @@ describe("updateStatus", () => {
     );
     expect(mocks.broadcast).toHaveBeenCalledWith({
       type: "REPAIR_REQUEST_CHANGED",
-      data: { repair_id: 1, status: "ACCEPTED" },
+      data: { repair_id: "1", status: "ACCEPTED" },
       orgId: "org-1",
     });
     expect(res.json).toHaveBeenCalled();

@@ -258,7 +258,7 @@ describe("updateStatus", () => {
     );
     expect(mocks.broadcast).toHaveBeenCalledWith({
       type: "DRILLING_REQUEST_CHANGED",
-      data: { request_id: 1, status: "ACCEPTED" },
+      data: { request_id: "1", status: "ACCEPTED" },
       orgId: "org-1",
     });
     expect(res.json).toHaveBeenCalledWith(requestRowMapped);

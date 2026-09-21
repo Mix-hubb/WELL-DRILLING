@@ -35,15 +35,15 @@ async function load() {
 }
 
 useSSERefresh(load, [
-  { event: "JOB_UPDATED", filter: (data) => data.job_id === Number(route.params.id) },
-  { event: "JOB_DELETED", filter: (data) => data.job_id === Number(route.params.id) },
-  { event: "JOB_STATUS_CHANGED", filter: (data) => data.job_id === Number(route.params.id) },
+  { event: "JOB_UPDATED", filter: (data) => String(data.job_id) === route.params.id },
+  { event: "JOB_DELETED", filter: (data) => String(data.job_id) === route.params.id },
+  { event: "JOB_STATUS_CHANGED", filter: (data) => String(data.job_id) === route.params.id },
   "WELL_CREATED",
 ]);
 
 const { on } = useSSE();
 on("JOB_MAGIC_LINK_CHANGED", (data) => {
-  if (job.value && Number(data.job_id) === job.value.job_id) job.value.magic_link_token = data.token;
+  if (job.value && String(data.job_id) === String(job.value.job_id)) job.value.magic_link_token = data.token;
 });
 
 async function setStatus(status: DrillingJobStatus) {

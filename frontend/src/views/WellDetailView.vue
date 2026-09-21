@@ -232,7 +232,9 @@ function methodLabel(method: string | null | undefined): string {
         <div style="min-width:0;word-break:break-word">
           <div>{{ PUMP_TYPE[p.pump_type as keyof typeof PUMP_TYPE] || "-" }} · {{ p.brand }} {{ p.pump_model || "" }}</div>
           <div class="text-caption text-medium-emphasis">
-            {{ p.horsepower }} HP · {{ p.impeller_stages }} ใบพัด · หย่อนที่ {{ p.installation_depth_m }} ม.
+            <template v-if="p.horsepower">{{ p.horsepower }} HP</template>
+            <template v-if="p.impeller_stages"> · {{ p.impeller_stages }} ใบพัด</template>
+            <template v-if="p.installation_depth_m"> · หย่อนที่ {{ p.installation_depth_m }} ม.</template>
             <template v-if="p.voltage"> · {{ p.voltage }} V</template>
             <template v-if="p.phase"> · {{ p.phase }} เฟส</template>
             <template v-if="p.rated_flow_m3hr"> · ไหล {{ p.rated_flow_m3hr }} ม³/ชม.</template>

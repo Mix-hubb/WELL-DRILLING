@@ -186,7 +186,11 @@ app.get("/api/public/customer-by-line", publicLimiter, asyncHandler(async (req: 
     "SELECT request_id, name, phone, address, status FROM drilling_requests WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 1",
     [c.customer_id]
   );
-  res.json({ found: true, customer: c, lastRequest: requests.rows[0] || null });
+  const wells = await pool.query(
+    "SELECT well_id, well_name FROM wells WHERE customer_id = $1 ORDER BY created_at ASC",
+    [c.customer_id]
+  );
+  res.json({ found: true, customer: c, lastRequest: requests.rows[0] || null, wells: wells.rows });
 }));
 app.get("/api/public/wells/:id/report.pdf", publicLimiter, asyncHandler(wellsCtrl.exportReport));
 app.get("/api/public/repairs/:id/receipt.pdf", publicLimiter, asyncHandler(repairCtrl.exportReceipt));
@@ -214,6 +218,11 @@ app.use("/api/org",               authMiddleware, apiLimiter, orgRoutes);
 // centralized error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logError(err, _req.header("x-request-id"));
+  // Postgres 22P02 = invalid_text_representation — a malformed id (e.g. missing/undefined)
+  // was passed into a uuid/int column. This is a client input error, not a server fault.
+  if (err?.code === "22P02") {
+    return res.status(400).json({ error: "รูปแบบข้อมูลไม่ถูกต้อง", code: err.code });
+  }
   res.status(500).json({ error: err?.message || "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์", code: err?.code });
 });
 

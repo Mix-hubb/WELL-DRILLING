@@ -195,7 +195,7 @@ describe("updateStatus", () => {
     );
     expect(mocks.broadcast).toHaveBeenCalledWith({
       type: "QUOTATION_CHANGED",
-      data: { quotation_id: 1, status: "REJECTED" },
+      data: { quotation_id: "1", status: "REJECTED" },
       orgId: "org-1",
     });
     expect(res.json).toHaveBeenCalled();

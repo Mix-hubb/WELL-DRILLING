@@ -31,7 +31,7 @@ useSSERefresh(refreshData, [
 
 const { on } = useSSE();
 on("JOB_MAGIC_LINK_CHANGED", (data) => {
-  const j = jobsStore.jobs.find((x) => x.job_id === Number(data.job_id));
+  const j = jobsStore.jobs.find((x) => String(x.job_id) === String(data.job_id));
   if (j) j.magic_link_token = data.token;
 });
 

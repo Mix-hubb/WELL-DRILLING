@@ -1,7 +1,7 @@
 import type {
   DrillingJobStatus, DrillingRequestStatus, RepairRequestStatus,
   QuotationStatus, Hardness, PipeMaterial, PipeType,
-  PumpType, DrillingMethod, WaterType, LithologyType, PumpBrand, ControlBoxProtection,
+  PumpType, DrillingMethod, WaterType, LithologyType, ControlBoxProtection,
 } from "@/types";
 
 // ---------- Flow A: drilling request ----------
@@ -124,20 +124,6 @@ export const LITHOLOGY_COLOR: Record<LithologyType, string> = {
   BASALT:    "#4B4B4B",
   HARDROCK:  "#5A5A5A",
   OTHER:     "#A0856C",
-};
-
-// ---------- ยี่ห้อปั๊ม (dropdown) ----------
-export const PUMP_BRAND: Record<PumpBrand, string> = {
-  FRANKLIN: "Franklin Electric",
-  TORQUE:   "TORQUE",
-  GRUNDFOS: "Grundfos",
-  HITACHI:  "Hitachi",
-  PEDROLLO: "Pedrollo",
-  MITSUBISHI: "Mitsubishi",
-  KSB:      "KSB",
-  TSURUMI:  "Tsurumi",
-  LOWARA:   "Lowara",
-  OTHER:    "อื่นๆ",
 };
 
 // ---------- ระบบป้องกันตู้คุมไฟ (dropdown) ----------

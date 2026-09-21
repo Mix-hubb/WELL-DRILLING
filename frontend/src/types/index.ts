@@ -28,9 +28,6 @@ export type LithologyType =
   | "TOP_SOIL" | "CLAY" | "SAND" | "GRAVEL" | "LATERITE"
   | "SANDSTONE" | "SHALE" | "LIMESTONE" | "GRANITE" | "BASALT"
   | "HARDROCK" | "OTHER";
-export type PumpBrand =
-  | "FRANKLIN" | "TORQUE" | "GRUNDFOS" | "HITACHI" | "PEDROLLO"
-  | "MITSUBISHI" | "KSB" | "TSURUMI" | "LOWARA" | "OTHER";
 export type ControlBoxProtection =
   | "OVERLOAD_RELAY" | "CIRCUIT_BREAKER" | "AUTO_RESTART" | "WATER_LEVEL"
   | "LIGHTNING" | "NONE" | "OTHER";
