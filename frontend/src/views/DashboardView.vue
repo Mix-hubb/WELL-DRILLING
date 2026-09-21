@@ -98,9 +98,6 @@ const todayLabel = new Date().toLocaleDateString("th-TH", {
           </div>
           <div class="text-caption text-medium-emphasis">{{ todayLabel }}</div>
         </div>
-        <v-btn color="primary" variant="tonal" to="/drilling-requests" prepend-icon="mdi-plus">
-          เพิ่มงานใหม่
-        </v-btn>
       </div>
 
       <!-- ===== Row 1: KPI Cards ===== -->
