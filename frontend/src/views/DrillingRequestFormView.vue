@@ -71,7 +71,7 @@ async function checkExistingCustomer() {
   if (!lineUserId.value) return;
   checkingExisting.value = true;
   try {
-    const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4001/api";
+    const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
     const res = await fetch(`${BASE_URL}/public/customer-by-line?line_user_id=${encodeURIComponent(lineUserId.value)}&liff_id=${encodeURIComponent(actualLiffId.value || "")}`);
     if (!res.ok) return;
     const data = await res.json();
@@ -105,7 +105,7 @@ async function submit() {
   loading.value = true;
   error.value = "";
   try {
-    const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4001/api";
+    const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
     const res = await fetch(`${BASE_URL}/public/drilling-requests`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

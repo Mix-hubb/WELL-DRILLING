@@ -111,7 +111,7 @@ router.beforeEach(async (to, _from, next) => {
   const urlLiffId = sanitizeLiffId(to.query.liffId) || undefined;
   if (urlLiffId && to.name !== "request-drill" && to.name !== "repair-form") {
     try {
-      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4001/api";
+      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
       const res = await fetch(`${BASE_URL}/public/liff-info?liff_id=${encodeURIComponent(urlLiffId)}`);
       const data = await res.json();
       if (data.found && data.formType) {

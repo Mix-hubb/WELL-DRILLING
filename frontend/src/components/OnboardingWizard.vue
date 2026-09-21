@@ -12,7 +12,7 @@ const emit = defineEmits<{ done: [] }>();
 const step = ref(1);
 const totalSteps = 5;
 
-const BASE_API = (import.meta.env.VITE_API_URL || "http://localhost:4001/api").replace(/\/api$/, "");
+const BASE_API = (import.meta.env.VITE_API_URL || "http://localhost:4000/api").replace(/\/api$/, "");
 const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
 
 const steps = [
