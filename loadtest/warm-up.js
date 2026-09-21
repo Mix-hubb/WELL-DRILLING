@@ -1,7 +1,11 @@
 import http from "k6/http";
 import { check, sleep } from "k6";
 
-const BASE_URL = "https://well-drilling-api.onrender.com";
+// Defaults to the local dev stack; pass --env BASE_URL=... to override.
+// Against a local server this is just a cheap pre-flight health check —
+// its original purpose (waking a cold Render free-tier instance) doesn't
+// apply to localhost.
+const BASE_URL = __ENV.BASE_URL || "http://localhost:4001";
 
 export const options = {
   vus: 1,

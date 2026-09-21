@@ -2,7 +2,7 @@ import rateLimit from "express-rate-limit";
 
 export const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: Number(process.env.RATE_LIMIT_API_MAX) || 60,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests, please try again later" },
@@ -10,7 +10,7 @@ export const apiLimiter = rateLimit({
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: Number(process.env.RATE_LIMIT_AUTH_MAX) || 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many login attempts, please try again later" },
@@ -18,7 +18,7 @@ export const authLimiter = rateLimit({
 
 export const publicLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 20,
+  max: Number(process.env.RATE_LIMIT_PUBLIC_MAX) || 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests, please try again later" },

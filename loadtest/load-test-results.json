@@ -1,20 +1,20 @@
 {
-  "timestamp": "2026-09-08T07:36:03.561Z",
+  "timestamp": "2026-09-21T23:08:32.230Z",
   "summary": {
-    "total_requests": 1527,
-    "avg_response_time_ms": 12893,
-    "p95_response_time_ms": 40021,
+    "total_requests": 4565,
+    "avg_response_time_ms": 4,
+    "p95_response_time_ms": 8,
     "p99_response_time_ms": 0,
-    "max_response_time_ms": 60002,
-    "error_rate_percent": "100.00",
-    "requests_per_second": "9.54"
+    "max_response_time_ms": 85,
+    "error_rate_percent": "0.00",
+    "requests_per_second": "34.73"
   },
   "by_endpoint": {
     "http_req_duration{expected_response:true}": {
-      "avg_ms": 10832,
-      "p95_ms": 36480,
+      "avg_ms": 4,
+      "p95_ms": 8,
       "p99_ms": 0,
-      "max_ms": 57306,
+      "max_ms": 85,
       "count": 0
     }
   }

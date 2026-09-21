@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<title>E2E Test Report — Well-Drilling</title>
+<style>
+  :root {
+    --pass: #16a34a; --fail: #dc2626; --skip: #f59e0b;
+    --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0;
+    --text: #0f172a; --muted: #64748b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Inter", "Sarabun", "Segoe UI", sans-serif;
+    padding: 32px;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+  header { margin-bottom: 28px; }
+  header h1 { font-size: 28px; margin: 0 0 4px; }
+  header .sub { color: var(--muted); font-size: 14px; }
+  .cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin: 24px 0; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; text-align: center;
+  }
+  .card .num { font-size: 28px; font-weight: 800; }
+  .card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-top: 4px; }
+  .card.pass .num { color: var(--pass); }
+  .card.fail .num { color: var(--fail); }
+  .card.skip .num { color: var(--skip); }
+  section {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 24px; margin-bottom: 24px;
+  }
+  section h2 { font-size: 16px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .charts-row { display: flex; gap: 32px; align-items: center; flex-wrap: wrap; }
+  .legend { display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .04em; }
+  td.mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 12px; color: var(--muted); }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .03em; }
+  .badge-pass { background: #dcfce7; color: #166534; }
+  .badge-fail { background: #fee2e2; color: #991b1b; }
+  .badge-skip { background: #fef3c7; color: #92400e; }
+  .badge-unknown { background: #e2e8f0; color: #334155; }
+  .env-note {
+    background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af;
+    border-radius: 10px; padding: 12px 16px; font-size: 13px; margin-bottom: 24px;
+  }
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 32px; }
+  @media print {
+    body { padding: 0; background: #fff; }
+    section { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>รายงานผลการทดสอบ End-to-End (Playwright)</h1>
+    <div class="sub">ระบบจัดการบ่อบาดาล (Well-Drilling) &middot; 22 กันยายน 2569 เวลา 06:15</div>
+  </header>
+
+  <div class="env-note">
+    ทดสอบกับสภาพแวดล้อม <strong>Local</strong> เท่านั้น (Backend + PostgreSQL รันในเครื่องผ่าน Docker) ไม่มีการเชื่อมต่อกับระบบ Production
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="num">13</div><div class="label">Total Tests</div></div>
+    <div class="card pass"><div class="num">13</div><div class="label">Passed</div></div>
+    <div class="card fail"><div class="num">0</div><div class="label">Failed</div></div>
+    <div class="card skip"><div class="num">0</div><div class="label">Skipped</div></div>
+    <div class="card"><div class="num">46.4s</div><div class="label">Duration</div></div>
+  </div>
+
+  <section>
+    <h2>ภาพรวมผลการทดสอบ</h2>
+    <div class="charts-row">
+      <svg width="220" height="220" viewBox="0 0 220 220"><circle cx="110" cy="110" r="93" fill="none" stroke="#e2e8f0" stroke-width="34" /><circle cx="110" cy="110" r="93" fill="none" stroke="#16a34a" stroke-width="34"
+      stroke-dasharray="584.3362335677015 0" stroke-dashoffset="0" transform="rotate(-90 110 110)" stroke-linecap="butt" /><text x="110" y="106" text-anchor="middle" font-size="30" font-weight="800" fill="#0f172a" font-family="Inter, sans-serif">100.0%</text><text x="110" y="130" text-anchor="middle" font-size="12" fill="#64748b" font-family="Inter, sans-serif">PASS RATE</text></svg>
+      <div class="legend">
+        <div class="legend-item"><span class="dot" style="background:#16a34a"></span> Passed — 13 tests</div>
+        <div class="legend-item"><span class="dot" style="background:#dc2626"></span> Failed — 0 tests</div>
+        <div class="legend-item"><span class="dot" style="background:#f59e0b"></span> Skipped — 0 tests</div>
+        <div class="legend-item" style="margin-top:8px;color:#64748b">Pass rate: <strong style="color:#0f172a">100.0%</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>ระยะเวลาทดสอบแยกตามไฟล์ (Spec File)</h2>
+    <svg width="640" height="324" viewBox="0 0 640 324" font-family="Inter, sans-serif"><text x="220" y="27" text-anchor="end" font-size="12" fill="#334155">auth.spec.ts</text><rect x="230" y="10" width="340" height="26" fill="#f1f5f9" rx="4" /><rect x="230" y="10" width="340" height="26" fill="#16a34a" rx="4" /><text x="578" y="27" font-size="12" fill="#0f172a" font-weight="600">13.34s · 3/3</text><text x="220" y="65" text-anchor="end" font-size="12" fill="#334155">auth.setup.ts</text><rect x="230" y="48" width="340" height="26" fill="#f1f5f9" rx="4" /><rect x="230" y="48" width="172.02608500112436" height="26" fill="#16a34a" rx="4" /><text x="410.02608500112433" y="65" font-size="12" fill="#0f172a" font-weight="600">6.75s · 1/1</text><text x="220" y="103" text-anchor="end" font-size="12" fill="#334155">customers.spec.ts</text><rect x="230" y="86" width="340" height="26" fill="#f1f5f9" rx="4" /><rect x="230" y="86" width="147.407240836519" height="26" fill="#16a34a" rx="4" /><text x="385.407240836519" y="103" font-size="12" fill="#0f172a" font-weight="600">5.78s · 2/2</text><text x="220" y="141" text-anchor="end" font-size="12" fill="#334155">public-forms.spec.ts</text><rect x="230" y="124" width="340" height="26" fill="#f1f5f9" rx="4" /><rect x="230" y="124" width="94.3977213102466" height="26" fill="#16a34a" rx="4" /><text x="332.3977213102466" y="141" font-size="12" fill="#0f172a" font-weight="600">3.70s · 2/2</text><text x="220" y="179" text-anchor="end" font-size="12" fill="#334155">jobs.spec.ts</text><rect x="230" y="162" width="340" height="26" fill="#f1f5f9" rx="4" /><rect x="230" y="162" width="93.19991005172025" height="26" fill="#16a34a" rx="4" /><text x="331.1999100517203" y="179" font-size="12" fill="#0f172a" font-weight="600">3.66s · 2/2</text><text x="220" y="217" text-anchor="end" font-size="12" fill="#334155">wells.spec.ts</text><rect x="230" y="200" width="340" height="26" fill="#f1f5f9" rx="4" /><rect x="230" y="200" width="48.42215725957574" height="26" fill="#16a34a" rx="4" /><text x="286.4221572595757" y="217" font-size="12" fill="#0f172a" font-weight="600">1.90s · 1/1</text><text x="220" y="255" text-anchor="end" font-size="12" fill="#334155">responsive.spec.ts</text><rect x="230" y="238" width="340" height="26" fill="#f1f5f9" rx="4" /><rect x="230" y="238" width="29.384603852784647" height="26" fill="#16a34a" rx="4" /><text x="267.38460385278466" y="255" font-size="12" fill="#0f172a" font-weight="600">1.15s · 1/1</text><text x="220" y="293" text-anchor="end" font-size="12" fill="#334155">settings.spec.ts</text><rect x="230" y="276" width="340" height="26" fill="#f1f5f9" rx="4" /><rect x="230" y="276" width="27.218349449066785" height="26" fill="#16a34a" rx="4" /><text x="265.2183494490668" y="293" font-size="12" fill="#0f172a" font-weight="600">1.07s · 1/1</text></svg>
+  </section>
+
+  <section>
+    <h2>รายละเอียดผลการทดสอบทั้งหมด (13 รายการ)</h2>
+    <table>
+      <thead>
+        <tr><th>Spec File</th><th>Describe</th><th>Test</th><th>Project</th><th>Status</th><th>Duration</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+    <td class="mono">auth.setup.ts</td>
+    <td></td>
+    <td>register test user</td>
+    <td class="mono">setup</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+    <td class="num">6.75s</td>
+  </tr>
+<tr>
+    <td class="mono">auth.spec.ts</td>
+    <td>auth</td>
+    <td>unauthenticated user is redirected from /dashboard to /login</td>
+    <td class="mono">auth</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+    <td class="num">0.96s</td>
+  </tr>
+<tr>
+    <td class="mono">auth.spec.ts</td>
+    <td>auth</td>
+    <td>register, login-guard, and logout round trip</td>
+    <td class="mono">auth</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+    <td class="num">6.87s</td>
+  </tr>
+<tr>
+    <td class="mono">auth.spec.ts</td>
+    <td>auth</td>
+    <td>wrong password shows an error and does not navigate away</td>
+    <td class="mono">auth</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+    <td class="num">5.50s</td>
+  </tr>
+<tr>
+    <td class="mono">customers.spec.ts</td>
+    <td>customers CRUD</td>
+    <td>create, edit, and delete a customer</td>
+    <td class="mono">chromium</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+    <td class="num">2.72s</td>
+  </tr>
+<tr>
+    <td class="mono">customers.spec.ts</td>
+    <td>customers CRUD</td>
+    <td>search filters the customer list</td>
+    <td class="mono">chromium</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+    <td class="num">3.06s</td>
+  </tr>
+<tr>
+    <td class="mono">jobs.spec.ts</td>
+    <td>drilling job status flow</td>
+    <td>SUCCESS path: stepper shows only the success track, no FAILED step</td>
+    <td class="mono">chromium</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+    <td class="num">1.67s</td>
+  </tr>
+<tr>
+    <td class="mono">jobs.spec.ts</td>
+    <td>drilling job status flow</td>
+    <td>FAILED path: stepper shows only the failed track, and the red chip persists after closing</td>
+    <td class="mono">chromium</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+    <td class="num">1.99s</td>
+  </tr>
+<tr>
+    <td class="mono">public-forms.spec.ts</td>
+    <td>public LIFF forms (render only)</td>
+    <td>/request-drill renders without redirecting to login</td>
+    <td class="mono">chromium</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+    <td class="num">2.83s</td>
+  </tr>
+<tr>
+    <td class="mono">public-forms.spec.ts</td>
+    <td>public LIFF forms (render only)</td>
+    <td>/repair-form renders without redirecting to login</td>
+    <td class="mono">chromium</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+    <td class="num">0.88s</td>
+  </tr>
+<tr>
+    <td class="mono">settings.spec.ts</td>
+    <td>settings</td>
+    <td>shows the org invite code for an admin user</td>
+    <td class="mono">chromium</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+    <td class="num">1.07s</td>
+  </tr>
+<tr>
+    <td class="mono">wells.spec.ts</td>
+    <td>wells</td>
+    <td>customer list renders and links to a customer's well list</td>
+    <td class="mono">chromium</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+    <td class="num">1.90s</td>
+  </tr>
+<tr>
+    <td class="mono">responsive.spec.ts</td>
+    <td>mobile responsive nav</td>
+    <td>bottom nav shows on mobile with the more menu exposing settings and repair requests</td>
+    <td class="mono">mobile</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+    <td class="num">1.15s</td>
+  </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer>สร้างโดย Playwright Test Runner &middot; Well-Drilling QA Report</footer>
+</div>
+</body>
+</html>

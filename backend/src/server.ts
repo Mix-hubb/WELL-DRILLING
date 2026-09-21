@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import path from "path";
 import cors from "cors";
+import { pool } from "./config/db";
 
 import authRoutes            from "./routes/auth.routes";
 import customersRoutes       from "./routes/customers.routes";
@@ -63,7 +64,6 @@ app.use((_req, res, next) => {
 
 app.get("/api/health", publicLimiter, async (_req, res) => {
   try {
-    const { pool } = await import("./config/db.js");
     await pool.query("SELECT 1 as ok");
     res.json({ ok: true, db: "connected", time: new Date().toISOString() });
   } catch (err: any) {
@@ -73,7 +73,6 @@ app.get("/api/health", publicLimiter, async (_req, res) => {
 
 app.get("/api/debug/postback-test/:customerId/:requestId", authMiddleware, adminMiddleware, apiLimiter, async (req, res) => {
   try {
-    const { pool } = await import("./config/db.js");
     const { customerId, requestId } = req.params;
 
     const cust = await pool.query(
@@ -108,7 +107,6 @@ app.get("/api/debug/postback-test/:customerId/:requestId", authMiddleware, admin
 
 app.get("/api/debug/overview", authMiddleware, adminMiddleware, apiLimiter, async (_req, res) => {
   try {
-    const { pool } = await import("./config/db.js");
     const customers = await pool.query(
       "SELECT customer_id, customer_name, phone, line_user_id, org_id FROM customers ORDER BY created_at DESC LIMIT 20"
     );
@@ -151,7 +149,6 @@ app.get("/api/public/liff-info", publicLimiter, asyncHandler(async (req: any, re
   if (!liff_id) return res.status(400).json({ error: "ต้องระบุ liff_id" });
   const cleanId = sanitizeLiffId(liff_id);
   if (!cleanId) return res.status(400).json({ error: "ต้องระบุ liff_id" });
-  const { pool } = await import("./config/db.js");
   const result = await pool.query(
     `SELECT org_id, line_liff_id_drilling, line_liff_id_repair FROM organizations
      WHERE line_liff_id_drilling = $1 OR line_liff_id_repair = $1 ORDER BY created_at DESC LIMIT 1`,
@@ -170,7 +167,6 @@ app.get("/api/public/customer-by-line", publicLimiter, asyncHandler(async (req: 
   if (!line_user_id || !liff_id) return res.status(400).json({ error: "ต้องระบุ line_user_id และ liff_id" });
   const cleanId = sanitizeLiffId(liff_id);
   if (!cleanId) return res.status(400).json({ error: "ต้องระบุ liff_id" });
-  const { pool } = await import("./config/db.js");
   const result = await pool.query(
     `SELECT c.customer_id, c.customer_name, c.phone, c.address
      FROM customers c
@@ -231,7 +227,6 @@ process.on("unhandledRejection", (reason) => logError(reason));
 // Graceful shutdown
 async function shutdown(signal: string) {
   console.log(`\n${signal} received. Shutting down gracefully...`);
-  const { pool } = await import("./config/db.js");
   server.close(() => {
     console.log("HTTP server closed.");
     pool.end().then(() => {

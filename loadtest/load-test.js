@@ -2,23 +2,24 @@ import http from "k6/http";
 import { check, sleep } from "k6";
 import { Rate, Trend } from "k6/metrics";
 import { textSummary } from "https://jslib.k6.io/k6-summary/0.1.0/index.js";
+import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js";
 
 // ===== Custom Metrics =====
 const errorRate = new Rate("errors");
 const statsDuration = new Trend("stats_duration", true);
 
 // ===== Config =====
-const BASE_URL = "https://well-drilling-api.onrender.com";
-const TEST_EMAIL = "phet@gmail.com";
-const TEST_PASSWORD = "asdzxc123";
+// Defaults to the local dev stack — pass --env BASE_URL=... to point
+// elsewhere (never at production unless you mean it).
+const BASE_URL = __ENV.BASE_URL || "http://localhost:4001";
 
-// ===== Staged Load Test =====
+// ===== Staged Load Test (matches the plan documented below in README.md) =====
 export const options = {
   stages: [
     { duration: "20s", target: 5 },
     { duration: "30s", target: 10 },
-    { duration: "30s", target: 100 },
-    { duration: "30s", target: 500 },
+    { duration: "30s", target: 20 },
+    { duration: "30s", target: 50 },
     { duration: "20s", target: 0 },
   ],
   thresholds: {
@@ -27,40 +28,33 @@ export const options = {
   },
 };
 
-// ===== Shared token (cached per VU) =====
-let cachedToken = null;
-
-function getToken() {
-  if (cachedToken) return cachedToken;
-
+// ===== setup(): runs once before any VU starts. Registers a single
+// disposable test account and hands its token to every VU, instead of
+// each VU hitting /api/auth itself (which would blow past authLimiter). =====
+export function setup() {
+  const email = `loadtest_${Date.now()}@welldrilling.test`;
   const res = http.post(
-    `${BASE_URL}/api/auth/login`,
-    JSON.stringify({ email: TEST_EMAIL, password: TEST_PASSWORD }),
-    { headers: { "Content-Type": "application/json" }, tags: { name: "auth_login" } }
+    `${BASE_URL}/api/auth/register`,
+    JSON.stringify({
+      email,
+      password: "test123456",
+      full_name: "Load Test User",
+      phone: "0899999999",
+      org_name: `LoadTest Org ${Date.now()}`,
+    }),
+    { headers: { "Content-Type": "application/json" }, tags: { name: "auth_register" } }
   );
-
-  if (res.status === 200) {
-    try {
-      cachedToken = JSON.parse(res.body).token;
-      return cachedToken;
-    } catch {}
+  if (res.status !== 201) {
+    throw new Error(`setup(): register failed ${res.status} ${res.body}`);
   }
-
-  console.error(`Login failed: ${res.status} ${res.body}`);
-  return null;
+  return { token: JSON.parse(res.body).token };
 }
 
 // ===== Main Test =====
-export default function () {
-  const token = getToken();
-  if (!token) {
-    errorRate.add(1);
-    return;
-  }
-
+export default function (data) {
   const authHeaders = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
+    Authorization: `Bearer ${data.token}`,
   };
 
   // --- Test 1: Health check (public) ---
@@ -144,6 +138,7 @@ export function handleSummary(data) {
 
   return {
     "load-test-results.json": JSON.stringify(results, null, 2),
+    "report.html": htmlReport(data),
     stdout: textSummary(data, { indent: " ", enableColors: true }),
   };
 }
