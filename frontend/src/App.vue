@@ -64,8 +64,8 @@ const pageTitle = computed(() => (route.meta.label as string) || "ระบบ�
             <v-icon icon="mdi-layers-triple" size="18" />
           </v-avatar>
         </template>
-        <v-app-bar-title class="font-display font-weight-bold">
-          {{ mobile ? "ระบบจัดการบ่อบาดาล" : pageTitle }}
+        <v-app-bar-title class="font-display font-weight-bold text-truncate">
+          {{ pageTitle }}
         </v-app-bar-title>
         <v-spacer />
         <template v-if="auth.isLoggedIn">

@@ -37,6 +37,7 @@ function setDefaultPoolQuery() {
   mocks.poolQuery.mockImplementation(async (sql: string) => {
     if (sql.includes("FROM wells w")) return { rows: [wellRow] };
     if (sql.includes("FROM customers c")) return { rows: [{ customer_id: 1 }] };
+    if (sql.includes("SELECT depth_from_m, depth_to_m FROM well_strata_logs")) return { rows: [] };
     if (sql.includes("FROM well_strata_logs")) return { rows: [{ strata_id: 1 }] };
     if (sql.includes("FROM well_pipes")) return { rows: [{ pipe_id: 1 }] };
     if (sql.includes("FROM well_pumps")) return { rows: [{ pump_id: 1 }] };
@@ -174,13 +175,45 @@ describe("strata / pipes / pumps / control boxes", () => {
       }),
       res
     );
-    const [sql, params] = mocks.poolQuery.mock.calls[1];
+    const [sql, params] = mocks.poolQuery.mock.calls[2];
     expect(sql).toContain("INSERT INTO well_strata_logs");
     expect(params[0]).toBe("1");
     expect(params[3]).toBe("CLAY");
     expect(params[7]).toBe(true);
     expect(res.status).toHaveBeenCalledWith(201);
     expect(mocks.broadcast).toHaveBeenCalled();
+  });
+
+  it("addStrata rejects a range deeper than the well's total_depth_m", async () => {
+    mocks.poolQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM wells w")) return { rows: [{ ...wellRow, total_depth_m: 50 }] };
+      if (sql.includes("SELECT depth_from_m, depth_to_m FROM well_strata_logs")) return { rows: [] };
+      return { rows: [] };
+    });
+    const res = createRes();
+    await wells.addStrata(
+      createReq({ params: { wellId: "1" }, body: { depth_from_m: 40, depth_to_m: 60 } }),
+      res
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mocks.poolQuery).not.toHaveBeenCalledWith(expect.stringContaining("INSERT INTO"), expect.anything());
+  });
+
+  it("addStrata rejects a range overlapping an existing layer", async () => {
+    mocks.poolQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM wells w")) return { rows: [{ ...wellRow, total_depth_m: 200 }] };
+      if (sql.includes("SELECT depth_from_m, depth_to_m FROM well_strata_logs")) {
+        return { rows: [{ depth_from_m: 0, depth_to_m: 20 }] };
+      }
+      return { rows: [] };
+    });
+    const res = createRes();
+    await wells.addStrata(
+      createReq({ params: { wellId: "1" }, body: { depth_from_m: 10, depth_to_m: 30 } }),
+      res
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mocks.poolQuery).not.toHaveBeenCalledWith(expect.stringContaining("INSERT INTO"), expect.anything());
   });
 
   it("removeStrata returns 204", async () => {

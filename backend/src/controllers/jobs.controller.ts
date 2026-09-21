@@ -4,6 +4,7 @@ import { pool } from "../config/db";
 import { userFilter } from "../utils/userFilter";
 import { DrillingJob } from "../types";
 import { sendTextToCustomer } from "../services/line";
+import { validateStrataList } from "../utils/strataValidation";
 import { broadcast } from "../services/sse";
 
 function generateMagicToken(): string {
@@ -202,7 +203,12 @@ export async function updateStatus(req: Request, res: Response) {
   const existing = await getJobRow(id, req.user?.orgId);
   if (!existing) return res.status(404).json({ error: "ไม่พบงานเจาะ" });
 
-  await pool.query("UPDATE drilling_jobs SET status = $1 WHERE job_id = $2", [status, id]);
+  // เก็บผลลัพธ์ (SUCCESS/FAILED) แยกไว้ใน result เพื่อให้ยังรู้ผลเจาะเดิมได้แม้ status จะกลายเป็น CLOSED ภายหลัง
+  if (status === "SUCCESS" || status === "FAILED") {
+    await pool.query("UPDATE drilling_jobs SET status = $1, result = $1 WHERE job_id = $2", [status, id]);
+  } else {
+    await pool.query("UPDATE drilling_jobs SET status = $1 WHERE job_id = $2", [status, id]);
+  }
   const row = await getJobRow(id, req.user?.orgId);
   broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: id, status }, orgId: req.user?.orgId });
   res.json(row);
@@ -241,6 +247,14 @@ export async function completeWell(req: Request, res: Response) {
     return res.status(403).json({ error: "Token ไม่ถูกต้อง" });
   }
 
+  if (Array.isArray(strata)) {
+    const validRanges = strata
+      .filter((s: any) => s.depth_from_m != null && s.depth_to_m != null)
+      .map((s: any) => ({ depth_from_m: Number(s.depth_from_m), depth_to_m: Number(s.depth_to_m) }));
+    const validationError = validateStrataList(validRanges, total_depth_m != null ? Number(total_depth_m) : null);
+    if (validationError) return res.status(400).json({ error: validationError });
+  }
+
   const client = await pool.connect();
   let wellId = job.well_id;
   try {
@@ -270,9 +284,11 @@ export async function completeWell(req: Request, res: Response) {
       );
       wellId = w.rows[0].well_id;
 
+      // wells.result เก็บเป็น 'SUCCESS'/'FAIL' แต่ drilling_jobs.status และ drilling_jobs.result เก็บเป็น 'SUCCESS'/'FAILED'
+      const jobStatusValue = wellResult === "FAIL" ? "FAILED" : "SUCCESS";
       await client.query(
         "UPDATE drilling_jobs SET well_id = $1, status = $2, result = $3 WHERE job_id = $4",
-        [wellId, wellResult === "FAIL" ? "FAILED" : "SUCCESS", wellResult, id]
+        [wellId, jobStatusValue, jobStatusValue, id]
       );
     } else {
       const wellResult = (result === "FAIL" || result === "FAILED") ? "FAIL" : "SUCCESS";
@@ -289,9 +305,10 @@ export async function completeWell(req: Request, res: Response) {
           wellResult, failure_reason || null, notes || null, wellId,
         ]
       );
+      const jobStatusValue = wellResult === "FAIL" ? "FAILED" : "SUCCESS";
       await client.query(
         "UPDATE drilling_jobs SET status = $1, result = $2 WHERE job_id = $3",
-        [wellResult === "FAIL" ? "FAILED" : "SUCCESS", wellResult, id]
+        [jobStatusValue, jobStatusValue, id]
       );
     }
 

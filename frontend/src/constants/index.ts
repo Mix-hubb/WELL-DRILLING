@@ -30,6 +30,14 @@ export const JOB_STATUS_HEX: Record<DrillingJobStatus, string> = {
   CLOSED:   "#8A8078",
 };
 
+/**
+ * สถานะที่ควรแสดงผลจริง — งานที่เจาะไม่สำเร็จแล้วถูกปิดคิวยังต้องขึ้นเป็น "เจาะไม่สำเร็จ" สีแดง
+ * ไม่ใช่ "ปิดคิวแล้ว" สีเทาเฉยๆ เพื่อให้เห็นผลเจาะที่แท้จริงตลอด
+ */
+export function jobDisplayStatus(job: { status: DrillingJobStatus; result?: string | null }): DrillingJobStatus {
+  return job.result === "FAILED" ? "FAILED" : job.status;
+}
+
 // ---------- Flow B: repair request ----------
 export const REPAIR_STATUS: Record<RepairRequestStatus, { label: string; color: string }> = {
   NEW:          { label: "แจ้งใหม่",     color: "info" },

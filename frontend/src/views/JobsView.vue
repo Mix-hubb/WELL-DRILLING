@@ -9,7 +9,7 @@ import { useSSE }            from "@/composables/useSSE";
 import { fmtShortDate as fmtDate } from "@/utils/date";
 import { jobsApi }           from "@/api/jobs";
 import type { DrillingJob }  from "@/types";
-import { JOB_STATUS }        from "@/constants";
+import { JOB_STATUS, jobDisplayStatus } from "@/constants";
 import StatusChip   from "@/components/StatusChip.vue";
 import DrillerLinkChip from "@/components/DrillerLinkChip.vue";
 import JobFormDialog from "@/components/forms/JobFormDialog.vue";
@@ -166,7 +166,7 @@ async function doDelete() {
           @click="router.push(`/jobs/${j.job_id}`)"
         >
           <div class="d-flex justify-space-between align-start mb-2">
-            <StatusChip :status="j.status" />
+            <StatusChip :status="jobDisplayStatus(j)" />
             <div v-if="j.scheduled_date" class="text-caption text-medium-emphasis">{{ fmtDate(j.scheduled_date) }}</div>
           </div>
 
@@ -234,7 +234,7 @@ async function doDelete() {
             class="py-3"
           >
             <template v-slot:prepend>
-              <StatusChip :status="j.status" class="mr-2" />
+              <StatusChip :status="jobDisplayStatus(j)" class="mr-2" />
             </template>
             <v-list-item-title class="font-weight-bold">{{ j.job_title || `คิวงาน #${j.job_id}` }}</v-list-item-title>
             <v-list-item-subtitle class="text-caption">{{ j.customer_name }} · {{ j.site_address || "" }}</v-list-item-subtitle>

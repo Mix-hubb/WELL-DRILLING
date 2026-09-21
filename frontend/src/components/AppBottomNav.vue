@@ -16,11 +16,16 @@ const primary = [
 
 const more = [
   { to: "/repair-requests", label: "รายการแจ้งซ่อม", icon: "mdi-wrench-outline" },
+  { to: "/settings",        label: "ตั้งค่าระบบ",     icon: "mdi-cog-outline" },
 ];
 
-const activeIndex = computed(() => {
-  const i = primary.findIndex((p) => route.path.startsWith(p.to));
-  return i === -1 ? false : i;
+const MORE_VALUE = "__more__";
+
+const activeValue = computed(() => {
+  const primaryMatch = primary.find((p) => route.path.startsWith(p.to));
+  if (primaryMatch) return primaryMatch.to;
+  const moreMatch = more.find((p) => route.path.startsWith(p.to));
+  return moreMatch ? MORE_VALUE : undefined;
 });
 
 function goMore(to: string) {
@@ -31,19 +36,19 @@ function goMore(to: string) {
 
 <template>
   <v-bottom-navigation
-    grow :model-value="activeIndex" color="primary" mode="shift"
+    grow :model-value="activeValue" color="primary" mode="shift"
     class="app-bottom-nav"
   >
     <v-btn v-for="item in primary" :key="item.to" :to="item.to" :value="item.to">
       <v-icon :icon="item.icon" />
-      <span class="text-caption">{{ item.label }}</span>
+      <span class="text-caption nav-label">{{ item.label }}</span>
     </v-btn>
 
     <v-menu v-model="moreMenu" location="top">
       <template #activator="{ props }">
-        <v-btn v-bind="props">
+        <v-btn v-bind="props" :value="MORE_VALUE">
           <v-icon icon="mdi-dots-horizontal" />
-          <span class="text-caption">เพิ่มเติม</span>
+          <span class="text-caption nav-label">เพิ่มเติม</span>
         </v-btn>
       </template>
       <v-list density="comfortable">
@@ -61,5 +66,12 @@ function goMore(to: string) {
 <style scoped>
 .app-bottom-nav {
   padding-bottom: var(--safe-bottom, 0px);
+}
+
+.nav-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 </style>

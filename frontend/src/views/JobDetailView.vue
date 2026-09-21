@@ -10,7 +10,7 @@ import { useSSERefresh } from "@/composables/useSSERefresh";
 import { useSSE }        from "@/composables/useSSE";
 import { fmtDate }       from "@/utils/date";
 import type { DrillingJob, DrillingJobStatus } from "@/types";
-import { JOB_STATUS } from "@/constants";
+import { JOB_STATUS, jobDisplayStatus } from "@/constants";
 import StatusChip      from "@/components/StatusChip.vue";
 import DrillerLinkChip from "@/components/DrillerLinkChip.vue";
 import WellLogFormDialog from "@/components/forms/WellLogFormDialog.vue";
@@ -22,12 +22,22 @@ const job          = ref<DrillingJob | null>(null);
 const wellId       = ref<number | null>(null);
 const showWellForm = ref(false);
 
-const STEPS: DrillingJobStatus[] = ["QUEUED", "DRILLING", "SUCCESS", "FAILED", "CLOSED"];
-const currentStepIndex = computed(() => (job.value ? STEPS.indexOf(job.value.status as DrillingJobStatus) : 0));
+const FAILED_STEPS: DrillingJobStatus[] = ["QUEUED", "DRILLING", "FAILED", "CLOSED"];
+const SUCCESS_STEPS: DrillingJobStatus[] = ["QUEUED", "DRILLING", "SUCCESS", "CLOSED"];
+const STEPS = computed<DrillingJobStatus[]>(() => (
+  job.value && jobDisplayStatus(job.value) === "FAILED" ? FAILED_STEPS : SUCCESS_STEPS
+));
+const currentStepIndex = computed(() => (job.value ? STEPS.value.indexOf(job.value.status as DrillingJobStatus) : 0));
 
 async function load() {
+  const id = route.params.id;
+  if (!id || id === "undefined" || id === "null") {
+    ui.notify("ไม่พบรหัสงาน กลับไปหน้าคิวงาน", "error");
+    router.push("/jobs");
+    return;
+  }
   try {
-    job.value = await jobsApi.getOne(route.params.id as string);
+    job.value = await jobsApi.getOne(id as string);
     wellId.value = job.value?.well_id ?? null;
   } catch (e) {
     ui.notifyError(e);
@@ -96,7 +106,7 @@ async function regenerateMagicLink() {
     <v-card class="pa-5 mb-4">
       <div class="d-flex justify-space-between align-start mb-2 flex-wrap ga-2">
         <div>
-          <StatusChip :status="job.status" />
+          <StatusChip :status="jobDisplayStatus(job)" />
           <div class="text-h6 font-display font-weight-bold mt-2">{{ job.job_title || `คิวงาน #${job.job_id}` }}</div>
         </div>
       </div>

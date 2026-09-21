@@ -369,6 +369,27 @@ async function checkExistingCustomer() {
 
         <v-form @submit.prevent="submit">
 
+          <!-- เลือกบ่อบาดาล (กรณีมีมากกว่า 1 บ่อ) -->
+          <div v-if="wells.length > 1" class="field-group">
+            <div class="field-label">
+              <v-icon icon="mdi-water-outline" size="16" class="mr-1" />
+              เลือกบ่อบาดาลที่ต้องการแจ้งซ่อม
+              <span class="text-error ml-1">*</span>
+            </div>
+            <v-select
+              v-model="form.well_id"
+              :items="wells"
+              item-title="well_name"
+              item-value="well_id"
+              placeholder="เลือกบ่อบาดาล"
+              variant="outlined"
+              density="comfortable"
+              rounded="lg"
+              hide-details
+              class="field-input"
+            />
+          </div>
+
           <!-- อาการที่พบ -->
           <div class="field-group">
             <div class="field-label">
@@ -390,27 +411,6 @@ async function checkExistingCustomer() {
                 {{ p }}
               </v-chip>
             </div>
-          </div>
-
-          <!-- เลือกบ่อบาดาล (กรณีมีมากกว่า 1 บ่อ) -->
-          <div v-if="wells.length > 1" class="field-group">
-            <div class="field-label">
-              <v-icon icon="mdi-water-outline" size="16" class="mr-1" />
-              เลือกบ่อบาดาลที่ต้องการแจ้งซ่อม
-              <span class="text-error ml-1">*</span>
-            </div>
-            <v-select
-              v-model="form.well_id"
-              :items="wells"
-              item-title="well_name"
-              item-value="well_id"
-              placeholder="เลือกบ่อบาดาล"
-              variant="outlined"
-              density="comfortable"
-              rounded="lg"
-              hide-details
-              class="field-input"
-            />
           </div>
 
           <!-- รายละเอียดเพิ่มเติม -->

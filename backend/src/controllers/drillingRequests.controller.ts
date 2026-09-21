@@ -266,27 +266,43 @@ export async function createFromPublicForm(req: Request, res: Response) {
       customerId = c.rows[0].customer_id;
     }
 
-    const duplicate = await client.query(
+    // ป้องกันการกดส่งซ้ำโดยไม่ตั้งใจ (เช่น กดปุ่มซ้ำ/เครือข่ายส่งซ้ำ) ภายในเวลาสั้นๆ
+    const recentDuplicate = await client.query(
       `SELECT r.request_id
        FROM drilling_requests r
        WHERE r.customer_id = $1
          AND r.name = $2
          AND r.phone = $3
          AND r.address IS NOT DISTINCT FROM $4
-         AND r.requested_depth_m IS NOT DISTINCT FROM $5
+         AND r.created_at > NOW() - INTERVAL '30 seconds'
        ORDER BY r.created_at DESC
        LIMIT 1`,
-      [customerId, name, phone, address || null, requested_depth_m ?? null]
+      [customerId, name, phone, address || null]
     );
-    if (duplicate.rows.length) {
+    if (recentDuplicate.rows.length) {
       await client.query("ROLLBACK");
-      return res.status(409).json({ error: "มีคำร้องแจ้งเจาะข้อมูลเดียวกันอยู่แล้ว ไม่สร้างคำร้องซ้ำ" });
+      return res.status(409).json({ error: "กำลังส่งคำร้องซ้ำ กรุณารอสักครู่แล้วลองใหม่" });
     }
+
+    // ลูกค้าอาจมีหลายบ่อในที่อยู่เดียวกัน — แจ้งเจาะซ้ำด้วยข้อมูลเดิมได้ ระบบจะนับลำดับบ่อให้อัตโนมัติ
+    // แทนที่จะปฏิเสธว่าเป็นคำร้องซ้ำ
+    const priorCount = await client.query(
+      `SELECT COUNT(*)::int AS count
+       FROM drilling_requests r
+       WHERE r.customer_id = $1
+         AND r.name = $2
+         AND r.phone = $3
+         AND r.address IS NOT DISTINCT FROM $4`,
+      [customerId, name, phone, address || null]
+    );
+    const wellSequence = Number(priorCount.rows[0].count) + 1;
+    const autoNote = `บ่อที่ ${wellSequence}`;
+    const combinedNotes = notes ? `${autoNote}\n${notes}` : autoNote;
 
     const r = await client.query(
       `INSERT INTO drilling_requests (customer_id, source, name, phone, address, requested_depth_m, appointment_date, notes)
        VALUES ($1, 'LINE', $2, $3, $4, $5, $6, $7) RETURNING request_id`,
-      [customerId, name, phone, address || null, requested_depth_m ?? null, appointment_date ?? null, notes || null]
+      [customerId, name, phone, address || null, requested_depth_m ?? null, appointment_date ?? null, combinedNotes]
     );
 
     await client.query("COMMIT");

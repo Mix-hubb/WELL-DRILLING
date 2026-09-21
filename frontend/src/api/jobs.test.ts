@@ -100,3 +100,35 @@ describe("jobsApi", () => {
     expect(result).toEqual({ data: { id: 5, ...data } });
   });
 });
+
+describe("jobsApi id guard", () => {
+  it.each([undefined, null, "", "undefined", "null"])("getOne throws instead of calling GET /jobs/%s", (badId) => {
+    expect(() => jobsApi.getOne(badId as any)).toThrow("ไม่พบรหัสงาน");
+    expect(mockApi.get).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, null, ""])("update throws instead of calling PUT /jobs/%s", (badId) => {
+    expect(() => jobsApi.update(badId as any, {})).toThrow("ไม่พบรหัสงาน");
+    expect(mockApi.put).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, null, ""])("updateStatus throws instead of calling PATCH /jobs/%s/status", (badId) => {
+    expect(() => jobsApi.updateStatus(badId as any, "SUCCESS")).toThrow("ไม่พบรหัสงาน");
+    expect(mockApi.patch).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, null, ""])("generateMagicLink throws instead of calling POST /jobs/%s/magic-link", (badId) => {
+    expect(() => jobsApi.generateMagicLink(badId as any)).toThrow("ไม่พบรหัสงาน");
+    expect(mockApi.post).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, null, ""])("remove throws instead of calling DELETE /jobs/%s", (badId) => {
+    expect(() => jobsApi.remove(badId as any)).toThrow("ไม่พบรหัสงาน");
+    expect(mockApi.del).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, null, ""])("completeWell throws instead of calling PATCH /jobs/%s/well", (badId) => {
+    expect(() => jobsApi.completeWell(badId as any, {})).toThrow("ไม่พบรหัสงาน");
+    expect(mockApi.publicPatch).not.toHaveBeenCalled();
+  });
+});

@@ -270,7 +270,12 @@ function methodLabel(method: string | null | undefined): string {
     </v-card>
 
     <!-- Dialogs -->
-    <StrataFormDialog v-model="showStrata" @submit="addStrata" />
+    <StrataFormDialog
+      v-model="showStrata"
+      :total-depth-m="store.current ? Number(store.current.total_depth_m) || null : null"
+      :existing-strata="store.current ? (store.current.strata as any[]) : []"
+      @submit="addStrata"
+    />
     <PipeFormDialog   v-model="showPipe"   @submit="addPipe"   />
     <PumpFormDialog   v-model="showPump"   @submit="addPump"   />
     <ControlBoxFormDialog v-model="showCtrl" @submit="addControlBox" />

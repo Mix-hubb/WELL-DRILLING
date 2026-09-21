@@ -3,6 +3,7 @@ import { pool } from "../config/db";
 import { userFilter } from "../utils/userFilter";
 import { FullWell } from "../types";
 import { streamWellReportPdf } from "../utils/pdfReport";
+import { validateStrataList } from "../utils/strataValidation";
 import { broadcast } from "../services/sse";
 
 async function getWellRow(id: string, orgId?: string | null): Promise<any | null> {
@@ -210,10 +211,19 @@ export async function addStrata(req: Request, res: Response) {
   }
   const { sql, params } = userFilter(req, "c", 1);
   const ownershipCheck = await pool.query(
-    `SELECT w.well_id FROM wells w JOIN customers c ON c.customer_id = w.customer_id WHERE w.well_id = $1${sql}`,
+    `SELECT w.well_id, w.total_depth_m FROM wells w JOIN customers c ON c.customer_id = w.customer_id WHERE w.well_id = $1${sql}`,
     [wellId, ...params]
   );
   if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบบ่อหรือไม่มีสิทธิ์" });
+
+  const existing = await pool.query(
+    "SELECT depth_from_m, depth_to_m FROM well_strata_logs WHERE well_id = $1", [wellId]
+  );
+  const validationError = validateStrataList(
+    [...existing.rows, { depth_from_m: Number(depth_from_m), depth_to_m: Number(depth_to_m) }],
+    ownershipCheck.rows[0].total_depth_m != null ? Number(ownershipCheck.rows[0].total_depth_m) : null
+  );
+  if (validationError) return res.status(400).json({ error: validationError });
 
   const { rows } = await pool.query(
     `INSERT INTO well_strata_logs (well_id, depth_from_m, depth_to_m, lithology_type, lithology_name, color_hex, hardness, water_bearing, description)

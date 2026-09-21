@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { HARDNESS, LITHOLOGY_TYPE, LITHOLOGY_COLOR } from "@/constants";
+import { validateStrataList, type DepthRange } from "@/utils/strataValidation";
 
-const props = defineProps<{ modelValue: boolean }>();
+const props = defineProps<{
+  modelValue: boolean;
+  totalDepthM?: number | null;
+  existingStrata?: DepthRange[];
+}>();
 const emit  = defineEmits<{ "update:modelValue": [boolean]; submit: [Record<string, any>] }>();
+
+const error = ref("");
 
 const hardnessOptions = Object.entries(HARDNESS).map(([value, title]) => ({ value, title }));
 const lithologyOptions = Object.entries(LITHOLOGY_TYPE).map(([value, title]) => ({ value, title }));
@@ -21,7 +28,7 @@ const empty = () => ({
 const form = ref(empty());
 const showAdvanced = ref(false);
 
-watch(() => props.modelValue, (v) => { if (v) { form.value = empty(); showAdvanced.value = false; } });
+watch(() => props.modelValue, (v) => { if (v) { form.value = empty(); showAdvanced.value = false; error.value = ""; } });
 
 function onTypeChange(type: string) {
   const t = type as keyof typeof LITHOLOGY_TYPE;
@@ -33,9 +40,16 @@ function onTypeChange(type: string) {
 
 function submit() {
   if (!form.value.depth_from_m || !form.value.depth_to_m || !form.value.lithology_name) return;
+  const newRange: DepthRange = { depth_from_m: Number(form.value.depth_from_m), depth_to_m: Number(form.value.depth_to_m) };
+  const validationError = validateStrataList([...(props.existingStrata || []), newRange], props.totalDepthM);
+  if (validationError) {
+    error.value = validationError;
+    return;
+  }
+  error.value = "";
   emit("submit", {
-    depth_from_m:   Number(form.value.depth_from_m),
-    depth_to_m:     Number(form.value.depth_to_m),
+    depth_from_m:   newRange.depth_from_m,
+    depth_to_m:     newRange.depth_to_m,
     lithology_name: form.value.lithology_name,
     color_hex:      form.value.color_hex || null,
     water_bearing:  form.value.water_bearing ? 1 : 0,
@@ -51,6 +65,9 @@ function submit() {
       <v-card-title class="pa-4 font-display font-weight-bold">เพิ่มช่วงชั้นดิน / หิน</v-card-title>
       <v-divider />
       <v-card-text class="pa-4">
+        <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-3" rounded="lg">
+          {{ error }}
+        </v-alert>
         <v-row dense class="mb-1">
           <v-col cols="6">
             <v-text-field v-model="form.depth_from_m" type="number" label="ความลึกเริ่ม (ม.) *" />

@@ -308,6 +308,7 @@ describe("createFromPublicForm", () => {
       if (sql.includes("SELECT org_id FROM organizations")) return { rows: [{ org_id: "org-1" }] };
       if (sql.includes("SELECT customer_id FROM customers")) return { rows: [] };
       if (sql.includes("INSERT INTO customers")) return { rows: [{ customer_id: 10 }] };
+      if (sql.includes("SELECT COUNT(*)::int AS count")) return { rows: [{ count: 0 }] };
       if (sql.includes("INSERT INTO drilling_requests")) return { rows: [{ request_id: 5 }] };
       return { rows: [] };
     });
@@ -329,6 +330,47 @@ describe("createFromPublicForm", () => {
     expect(mocks.sendTextToCustomer).toHaveBeenCalledWith(10, expect.any(String), "STATUS", "org-1");
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({ request_id: 5, customer_id: 10 });
+  });
+
+  it("allows repeat submissions with the same info and numbers them as additional wells", async () => {
+    client.query.mockImplementation(async (sql: string) => {
+      if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") return { rows: [] };
+      if (sql.includes("SELECT org_id FROM organizations")) return { rows: [{ org_id: "org-1" }] };
+      if (sql.includes("SELECT customer_id FROM customers")) return { rows: [{ customer_id: 10 }] };
+      if (sql.includes("INTERVAL '30 seconds'")) return { rows: [] };
+      if (sql.includes("SELECT COUNT(*)::int AS count")) return { rows: [{ count: 1 }] };
+      if (sql.includes("INSERT INTO drilling_requests")) return { rows: [{ request_id: 6 }] };
+      return { rows: [] };
+    });
+
+    const res = createRes();
+    await drillingRequests.createFromPublicForm(
+      createReq({ body: { name: "นายทดสอบ", phone: "0811111111", address: "กรุงเทพ", liff_id: "liff-drill" } }),
+      res
+    );
+
+    const insertCall = client.query.mock.calls.find((c) => String(c[0]).includes("INSERT INTO drilling_requests"));
+    expect(insertCall![1][6]).toBe("บ่อที่ 2");
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  it("rejects a same-info resubmit within 30 seconds as an accidental double-submit", async () => {
+    client.query.mockImplementation(async (sql: string) => {
+      if (sql === "BEGIN" || sql === "ROLLBACK") return { rows: [] };
+      if (sql.includes("SELECT org_id FROM organizations")) return { rows: [{ org_id: "org-1" }] };
+      if (sql.includes("SELECT customer_id FROM customers")) return { rows: [{ customer_id: 10 }] };
+      if (sql.includes("INTERVAL '30 seconds'")) return { rows: [{ request_id: 5 }] };
+      return { rows: [] };
+    });
+
+    const res = createRes();
+    await drillingRequests.createFromPublicForm(
+      createReq({ body: { name: "นายทดสอบ", phone: "0811111111", address: "กรุงเทพ", liff_id: "liff-drill" } }),
+      res
+    );
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(client.query).toHaveBeenCalledWith("ROLLBACK");
   });
 
   it("rejects a public form without an organization-bound LIFF", async () => {

@@ -225,6 +225,33 @@ describe("updateStatus", () => {
     });
     expect(res.json).toHaveBeenCalledWith(jobRow);
   });
+
+  it("persists result alongside status when marking SUCCESS", async () => {
+    const res = createRes();
+    await jobs.updateStatus(createReq({ params: { id: "1" }, body: { status: "SUCCESS" } }), res);
+    expect(mocks.poolQuery).toHaveBeenCalledWith(
+      "UPDATE drilling_jobs SET status = $1, result = $1 WHERE job_id = $2",
+      ["SUCCESS", "1"]
+    );
+  });
+
+  it("persists result alongside status when marking FAILED", async () => {
+    const res = createRes();
+    await jobs.updateStatus(createReq({ params: { id: "1" }, body: { status: "FAILED" } }), res);
+    expect(mocks.poolQuery).toHaveBeenCalledWith(
+      "UPDATE drilling_jobs SET status = $1, result = $1 WHERE job_id = $2",
+      ["FAILED", "1"]
+    );
+  });
+
+  it("does not touch result when closing a job", async () => {
+    const res = createRes();
+    await jobs.updateStatus(createReq({ params: { id: "1" }, body: { status: "CLOSED" } }), res);
+    expect(mocks.poolQuery).toHaveBeenCalledWith(
+      "UPDATE drilling_jobs SET status = $1 WHERE job_id = $2",
+      ["CLOSED", "1"]
+    );
+  });
 });
 
 describe("completeWell", () => {
@@ -288,6 +315,56 @@ describe("completeWell", () => {
       expect.objectContaining({ type: "WELL_CREATED" })
     );
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ job_id: 1 }));
+  });
+
+  it("stores 'FAILED' (not 'FAIL') on drilling_jobs when the driller reports a failed result", async () => {
+    setUp(() => undefined);
+
+    const res = createRes();
+    await jobs.completeWell(
+      createReq({
+        params: { id: "1" },
+        body: { total_depth_m: 50, result: "FAIL", failure_reason: "เจอหินแข็ง", strata: [], pipes: [], pumps: [], control_boxes: [] },
+      }),
+      res
+    );
+
+    const updateJob = client.query.mock.calls.find((c) => String(c[0]).includes("UPDATE drilling_jobs"));
+    expect(updateJob![1]).toContain("FAILED");
+    expect(updateJob![1]).not.toContain("FAIL");
+    expect(res.status).not.toHaveBeenCalledWith(500);
+  });
+
+  it("rejects a stratum deeper than the submitted total_depth_m", async () => {
+    setUp(() => undefined);
+    const res = createRes();
+    await jobs.completeWell(
+      createReq({
+        params: { id: "1" },
+        body: { total_depth_m: 50, strata: [{ depth_from_m: 40, depth_to_m: 60 }], pipes: [], pumps: [], control_boxes: [] },
+      }),
+      res
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mocks.poolConnect).not.toHaveBeenCalled();
+  });
+
+  it("rejects overlapping strata ranges", async () => {
+    setUp(() => undefined);
+    const res = createRes();
+    await jobs.completeWell(
+      createReq({
+        params: { id: "1" },
+        body: {
+          total_depth_m: 100,
+          strata: [{ depth_from_m: 0, depth_to_m: 20 }, { depth_from_m: 10, depth_to_m: 30 }],
+          pipes: [], pumps: [], control_boxes: [],
+        },
+      }),
+      res
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mocks.poolConnect).not.toHaveBeenCalled();
   });
 });
 

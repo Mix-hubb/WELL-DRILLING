@@ -7,6 +7,7 @@ import {
   PIPE_MATERIAL, PIPE_TYPE, PIPE_SIZE_OPTIONS, PROTECTION_TYPE,
 } from "@/constants";
 import { deriveCatalogPumpFields } from "@/utils/pumpCatalog";
+import { validateStrataList } from "@/utils/strataValidation";
 
 export interface StrataEntry {
   depth_from_m: string; depth_to_m: string;
@@ -170,6 +171,16 @@ export function useDrillerWellForm(token: string) {
 
   async function submit() {
     if (!job.value || !form.value.well_name || !form.value.total_depth_m) return;
+
+    const strataRanges = form.value.strata
+      .filter((entry) => entry.depth_from_m !== "" && entry.depth_to_m !== "")
+      .map((entry) => ({ depth_from_m: Number(entry.depth_from_m), depth_to_m: Number(entry.depth_to_m) }));
+    const validationError = validateStrataList(strataRanges, Number(form.value.total_depth_m));
+    if (validationError) {
+      ui.notify(validationError, "error");
+      return;
+    }
+
     submitting.value = true;
     try {
       await jobsApi.completeWell(job.value.job_id, buildPayload());

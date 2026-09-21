@@ -483,8 +483,8 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
       [requestId, customerId, `เจาะบ่อ ${req?.name || ""}`, req?.address || null, req?.appointment_date || null]
     );
 
-    broadcast({ type: "DRILLING_REQUEST_CHANGED", data: { request_id: Number(requestId), status: "ACCEPTED" }, orgId: org.org_id });
-    broadcast({ type: "JOB_CREATED", data: { request_id: Number(requestId) }, orgId: org.org_id });
+    broadcast({ type: "DRILLING_REQUEST_CHANGED", data: { request_id: requestId, status: "ACCEPTED" }, orgId: org.org_id });
+    broadcast({ type: "JOB_CREATED", data: { request_id: requestId }, orgId: org.org_id });
 
     const { sendTextToCustomerById } = await import("../services/line.js");
     sendTextToCustomerById(customerId, "ยอมรับเรียบร้อยครับ จะดำเนินการเข้าคิวเจาะให้ต่อไป", "STATUS", org.org_id).catch(() => {});
@@ -505,8 +505,8 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     await pool.query("UPDATE drilling_requests SET status = 'REJECTED' WHERE request_id = $1", [requestId]);
     await pool.query("UPDATE quotations SET status = 'REJECTED' WHERE kind = 'DRILLING' AND drilling_request_id = $1", [requestId]);
 
-    broadcast({ type: "DRILLING_REQUEST_CHANGED", data: { request_id: Number(requestId), status: "REJECTED" }, orgId: org.org_id });
-    broadcast({ type: "QUOTATION_CHANGED", data: { drilling_request_id: Number(requestId) }, orgId: org.org_id });
+    broadcast({ type: "DRILLING_REQUEST_CHANGED", data: { request_id: requestId, status: "REJECTED" }, orgId: org.org_id });
+    broadcast({ type: "QUOTATION_CHANGED", data: { drilling_request_id: requestId }, orgId: org.org_id });
 
     const { sendTextToCustomerById } = await import("../services/line.js");
     sendTextToCustomerById(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งเจาะใหม่ได้ตลอดเวลา", "STATUS", org.org_id).catch(() => {});
@@ -533,8 +533,8 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     const scheduledDate = reqResult.rows[0]?.scheduled_date;
     const dateText = scheduledDate ? `วันที่ ${scheduledDate}` : "กำหนดนัดหมาย";
 
-    broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(repairId), status: "ACCEPTED" }, orgId: org.org_id });
-    broadcast({ type: "QUOTATION_CHANGED", data: { repair_request_id: Number(repairId) }, orgId: org.org_id });
+    broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: repairId, status: "ACCEPTED" }, orgId: org.org_id });
+    broadcast({ type: "QUOTATION_CHANGED", data: { repair_request_id: repairId }, orgId: org.org_id });
 
     const { sendTextToCustomerById } = await import("../services/line.js");
     sendTextToCustomerById(customerId, `ยอมรับเรียบร้อยครับ กรุณาเตรียมตัวสำหรับการซ่อมบำรุง${dateText} ทีมงานจะติดต่อกลับเพื่อยืนยันอีกครั้ง`, "STATUS", org.org_id).catch(() => {});
@@ -555,8 +555,8 @@ async function handlePostback(userId: string, data: string, org: OrgLineConfig, 
     await pool.query("UPDATE repair_requests SET status = 'REJECTED' WHERE repair_id = $1", [repairId]);
     await pool.query("UPDATE quotations SET status = 'REJECTED' WHERE kind = 'REPAIR' AND repair_request_id = $1", [repairId]);
 
-    broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: Number(repairId), status: "REJECTED" }, orgId: org.org_id });
-    broadcast({ type: "QUOTATION_CHANGED", data: { repair_request_id: Number(repairId) }, orgId: org.org_id });
+    broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: repairId, status: "REJECTED" }, orgId: org.org_id });
+    broadcast({ type: "QUOTATION_CHANGED", data: { repair_request_id: repairId }, orgId: org.org_id });
 
     const { sendTextToCustomerById } = await import("../services/line.js");
     sendTextToCustomerById(customerId, "ไม่เป็นไรครับ หากรู้สึกเปลี่ยนใจสามารถแจ้งซ่อมใหม่ได้ตลอดเวลา", "STATUS", org.org_id).catch(() => {});

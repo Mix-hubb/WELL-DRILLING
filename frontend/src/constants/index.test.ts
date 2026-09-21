@@ -8,6 +8,7 @@ import {
   JOB_STATUS_HEX,
   PUMP_TYPE,
   HARDNESS,
+  jobDisplayStatus,
 } from "./index";
 
 describe("money", () => {
@@ -62,6 +63,21 @@ describe("JOB_STATUS_HEX", () => {
     for (const s of Object.keys(JOB_STATUS)) {
       expect(JOB_STATUS_HEX[s as keyof typeof JOB_STATUS_HEX]).toMatch(/^#[0-9A-F]{6}$/i);
     }
+  });
+});
+
+describe("jobDisplayStatus", () => {
+  it("returns the job's own status when result is not FAILED", () => {
+    expect(jobDisplayStatus({ status: "CLOSED", result: "SUCCESS" })).toBe("CLOSED");
+    expect(jobDisplayStatus({ status: "DRILLING", result: null })).toBe("DRILLING");
+  });
+
+  it("keeps showing FAILED even after the job is closed", () => {
+    expect(jobDisplayStatus({ status: "CLOSED", result: "FAILED" })).toBe("FAILED");
+  });
+
+  it("returns the job's own status (FAILED) when not yet closed", () => {
+    expect(jobDisplayStatus({ status: "FAILED", result: "FAILED" })).toBe("FAILED");
   });
 });
 
