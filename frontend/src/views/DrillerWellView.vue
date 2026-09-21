@@ -4,8 +4,7 @@ import { useRoute } from "vue-router";
 import { jobsApi } from "@/api/jobs";
 import { useUiStore } from "@/stores/ui";
 import { fmtDate } from "@/utils/date";
-import { JOB_STATUS, DRILLING_METHOD, WATER_TYPE } from "@/constants";
-import type { DrillingJob, DrillingJobStatus } from "@/types";
+import type { DrillingJob } from "@/types";
 import StatusChip from "@/components/StatusChip.vue";
 import WellLogFormDialog from "@/components/forms/WellLogFormDialog.vue";
 
@@ -16,9 +15,6 @@ const job = ref<DrillingJob | null>(null);
 const loading = ref(true);
 const showWellForm = ref(false);
 const wellId = ref<number | null>(null);
-
-const methodLabels = Object.fromEntries(Object.entries(DRILLING_METHOD).map(([v, t]) => [v, t]));
-const waterLabels = Object.fromEntries(Object.entries(WATER_TYPE).map(([v, t]) => [v, t]));
 
 onMounted(async () => {
   try {
@@ -119,23 +115,14 @@ async function submitWellLog(form: any) {
         <div class="text-body-2">{{ job.notes }}</div>
       </div>
 
-      <!-- ปุ่มบันทึกประวัติบ่อบาดาล -->
+      <!-- ปุ่มบันทึกประวัติบ่อบาดาล (แสดงเมื่องานเจาะเสร็จหรือไม่สำเร็จ) -->
       <v-btn
-        v-if="(job.status === 'SUCCESS' || job.status === 'FAILED') && !wellId"
-        color="primary" variant="flat" block prepend-icon="mdi-plus"
+        v-if="job.status === 'SUCCESS' || job.status === 'FAILED' || job.status === 'CLOSED'"
+        color="primary" variant="flat" block prepend-icon="mdi-lead-pencil"
         class="mt-4"
         @click="showWellForm = true"
       >
-        บันทึกประวัติบ่อบาดาล
-      </v-btn>
-
-      <v-btn
-        v-if="wellId"
-        color="primary" variant="tonal" block prepend-icon="mdi-file-document-outline"
-        class="mt-4"
-        @click="ui.notify('ดูรายละเอียดได้ในระบบหลัก', 'info')"
-      >
-        ดูประวัติบ่อบาดาล
+        {{ wellId ? 'แก้ไขข้อมูลบ่อบาดาล' : 'บันทึกข้อมูลบ่อบาดาล' }}
       </v-btn>
     </v-card>
 
