@@ -486,6 +486,41 @@ export async function generateMagicLink(req: Request, res: Response) {
   res.json({ token });
 }
 
+export async function createPaymentSlip(req: Request, res: Response) {
+  const { id } = req.params;
+  const { sql, params } = userFilter(req, "c", 1);
+  const existing = await pool.query(
+    `SELECT r.repair_id, r.customer_id, c.org_id
+     FROM repair_requests r
+     JOIN customers c ON c.customer_id = r.customer_id
+     WHERE r.repair_id = $1${sql}`,
+    [id, ...params]
+  );
+  if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้อง" });
+
+  const customerId = existing.rows[0].customer_id;
+  const orgId = existing.rows[0].org_id;
+
+  if (!req.file) return res.status(400).json({ error: "กรุณาเลือกไฟล์สลิป" });
+
+  const imageUrl = `/uploads/${req.file.filename}`;
+
+  const { rows } = await pool.query(
+    `INSERT INTO payment_slips (repair_id, customer_id, image_url, status)
+     VALUES ($1, $2, $3, 'PENDING')
+     RETURNING *`,
+    [id, customerId || null, imageUrl]
+  );
+
+  broadcast({
+    type: "PAYMENT_SLIP_RECEIVED",
+    data: { repair_id: id, slip_id: rows[0].slip_id },
+    orgId,
+  });
+
+  res.status(201).json(rows[0]);
+}
+
 export async function listPaymentSlips(req: Request, res: Response) {
   const { id } = req.params;
   const { sql, params } = userFilter(req, "c", 1);

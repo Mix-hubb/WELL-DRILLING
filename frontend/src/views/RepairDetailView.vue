@@ -33,6 +33,8 @@ const scheduleDate = ref("");
 const slips = ref<PaymentSlip[]>([]);
 const slipsLoading = ref(false);
 const previewImage = ref<string | null>(null);
+const uploadingSlip = ref(false);
+const slipFileInput = ref<HTMLInputElement | null>(null);
 const previewDlg = computed({
   get: () => !!previewImage.value,
   set: (val) => { if (!val) previewImage.value = null; },
@@ -61,6 +63,23 @@ async function loadSlips() {
     slips.value = [];
   } finally {
     slipsLoading.value = false;
+  }
+}
+
+async function uploadSlip(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input?.files?.[0];
+  if (!file || !route.params.id) return;
+  try {
+    uploadingSlip.value = true;
+    await repairRequestsApi.createPaymentSlip(route.params.id as string, file);
+    ui.notify("อัปโหลดสลิปสำเร็จ", "success");
+    await loadSlips();
+  } catch (e) {
+    ui.notifyError(e);
+  } finally {
+    uploadingSlip.value = false;
+    input.value = "";
   }
 }
 
@@ -429,7 +448,20 @@ async function handleSendReceipt() {
             <v-icon icon="mdi-receipt-text-outline" color="primary" />
             <span>สลิปโอนเงิน ({{ slips.length }})</span>
           </div>
-          <v-btn size="x-small" variant="text" icon="mdi-refresh" @click="loadSlips" />
+          <div class="d-flex ga-1">
+            <input ref="slipFileInput" type="file" accept="image/*" class="d-none" @change="uploadSlip" />
+            <v-btn
+              size="x-small"
+              variant="flat"
+              color="primary"
+              prepend-icon="mdi-upload"
+              :loading="uploadingSlip"
+              @click="slipFileInput?.click()"
+            >
+              อัปโหลดสลิป
+            </v-btn>
+            <v-btn size="x-small" variant="text" icon="mdi-refresh" @click="loadSlips" />
+          </div>
         </div>
 
         <div v-if="request.status === 'CLOSED' && !slips.length" class="pa-3 rounded bg-amber-lighten-5 text-amber-darken-4 text-caption mb-3 d-flex align-center ga-2">
@@ -467,7 +499,7 @@ async function handleSendReceipt() {
 
             <div v-if="slip.image_url" class="mt-2">
               <img
-                :src="slip.image_url"
+                :src="api.fileUrl(slip.image_url)"
                 alt="Payment Slip"
                 style="max-width: 180px; max-height: 220px; border-radius: 8px; cursor: pointer; object-fit: cover; border: 1px solid rgba(0,0,0,0.12);"
                 @click="previewImage = slip.image_url"
@@ -636,7 +668,7 @@ async function handleSendReceipt() {
       <!-- Image Preview Dialog -->
       <v-dialog v-model="previewDlg" max-width="600">
         <v-card class="pa-2 text-center" v-if="previewImage">
-          <img :src="previewImage" style="max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 4px;" />
+          <img :src="api.fileUrl(previewImage)" style="max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 4px;" />
           <v-btn class="mt-2" variant="tonal" size="small" @click="previewImage = null">ปิด</v-btn>
         </v-card>
       </v-dialog>

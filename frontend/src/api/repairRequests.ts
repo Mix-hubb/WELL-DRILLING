@@ -20,6 +20,11 @@ export const repairRequestsApi = {
 
   getPaymentSlips: (id: number | string) =>
     api.get<PaymentSlip[]>(`/repair-requests/${id}/payment-slips`),
+  createPaymentSlip: (id: number | string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return api.postForm<PaymentSlip>(`/repair-requests/${id}/payment-slips`, form);
+  },
   verifyPaymentSlip: (id: number | string, slipId: string, data: { status: "VERIFIED" | "REJECTED"; notes?: string }) =>
     api.patch<PaymentSlip>(`/repair-requests/${id}/payment-slips/${slipId}`, data),
   downloadReceiptPdf: (id: number | string) =>
