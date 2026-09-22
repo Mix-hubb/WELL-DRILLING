@@ -60,11 +60,6 @@ function wellCount(customerId: number): number {
   return wellCountsByCustomerId.value.get(customerId) || 0;
 }
 
-function openAddDialog() {
-  editingCustomer.value = null;
-  showDialog.value = true;
-}
-
 function openEditDialog(c: Customer) {
   editingCustomer.value = c;
   showDialog.value = true;
@@ -76,14 +71,10 @@ function confirmDelete(c: Customer) {
 }
 
 async function handleSave(data: Partial<Customer>) {
+  if (!editingCustomer.value?.customer_id) return;
   try {
-    if (editingCustomer.value?.customer_id) {
-      await customersStore.update(editingCustomer.value.customer_id, data);
-      ui.notify("แก้ไขข้อมูลลูกค้าเรียบร้อยแล้ว", "success");
-    } else {
-      await customersStore.create(data);
-      ui.notify("เพิ่มลูกค้าเรียบร้อยแล้ว", "success");
-    }
+    await customersStore.update(editingCustomer.value.customer_id, data);
+    ui.notify("แก้ไขข้อมูลลูกค้าเรียบร้อยแล้ว", "success");
     showDialog.value = false;
   } catch (e) {
     ui.notifyError(e);
@@ -105,7 +96,7 @@ async function handleDelete() {
 
 <template>
   <div>
-    <div class="d-flex flex-wrap ga-3 align-center justify-space-between mb-4">
+    <div class="d-flex flex-wrap ga-3 align-center mb-4">
       <v-text-field
         v-model="search"
         density="compact"
@@ -116,14 +107,6 @@ async function handleDelete() {
         class="page-head-search"
         style="max-width: 360px"
       />
-      <v-btn
-        color="primary"
-        variant="flat"
-        prepend-icon="mdi-account-plus"
-        @click="openAddDialog"
-      >
-        เพิ่มลูกค้า
-      </v-btn>
     </div>
 
     <v-row v-if="!customersStore.loading">
@@ -163,7 +146,7 @@ async function handleDelete() {
       </v-col>
     </v-row>
 
-    <!-- Add/Edit Customer Dialog -->
+    <!-- Edit Customer Dialog -->
     <CustomerFormDialog
       v-model="showDialog"
       :customer="editingCustomer"
