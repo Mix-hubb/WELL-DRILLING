@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { jobsApi }       from "@/api/jobs";
 import { api }           from "@/api/client";
 import { useUiStore }    from "@/stores/ui";
+import { useAuthStore }  from "@/stores/auth";
 
 import { useSSERefresh } from "@/composables/useSSERefresh";
 import { useSSE }        from "@/composables/useSSE";
@@ -16,6 +17,7 @@ import DrillerLinkChip from "@/components/DrillerLinkChip.vue";
 const route  = useRoute();
 const router = useRouter();
 const ui     = useUiStore();
+const auth   = useAuthStore();
 const job          = ref<DrillingJob | null>(null);
 const wellId       = ref<number | null>(null);
 
@@ -159,7 +161,7 @@ async function regenerateMagicLink() {
       </div>
 
       <!-- Actions -->
-      <div class="d-flex flex-wrap ga-2 mt-4">
+      <div v-if="auth.isAdmin" class="d-flex flex-wrap ga-2 mt-4">
         <v-btn v-if="job.status === 'QUEUED'" color="deep-orange-darken-1" variant="flat" prepend-icon="mdi-play"
           @click="setStatus('DRILLING')">เริ่มเจาะ</v-btn>
 

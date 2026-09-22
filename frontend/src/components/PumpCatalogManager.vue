@@ -2,11 +2,13 @@
 import { ref, computed } from "vue";
 import { pumpCatalogApi } from "@/api/pumpCatalog";
 import { useUiStore } from "@/stores/ui";
+import { useAuthStore } from "@/stores/auth";
 import { useSSERefresh } from "@/composables/useSSERefresh";
 import { money } from "@/constants";
 import type { PumpCatalogModel } from "@/types";
 
 const ui = useUiStore();
+const auth = useAuthStore();
 const models = ref<PumpCatalogModel[]>([]);
 const loading = ref(true);
 const search = ref("");
@@ -176,6 +178,7 @@ async function handleDelete() {
         />
       </div>
       <v-btn
+        v-if="auth.isAdmin"
         color="primary"
         variant="flat"
         prepend-icon="mdi-plus"
@@ -240,8 +243,10 @@ async function handleDelete() {
             <div v-if="m.reference_price" class="text-subtitle-2 font-weight-bold text-success mr-2">
               ฿{{ money(m.reference_price) }}
             </div>
-            <v-btn icon="mdi-pencil-outline" size="small" variant="text" @click="openEditDialog(m)" />
-            <v-btn icon="mdi-delete-outline" size="small" variant="text" color="error" @click="confirmDelete(m)" />
+            <template v-if="auth.isAdmin">
+              <v-btn icon="mdi-pencil-outline" size="small" variant="text" @click="openEditDialog(m)" />
+              <v-btn icon="mdi-delete-outline" size="small" variant="text" color="error" @click="confirmDelete(m)" />
+            </template>
           </div>
         </div>
 

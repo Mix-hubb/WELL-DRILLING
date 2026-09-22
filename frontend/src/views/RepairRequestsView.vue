@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useRepairRequestsStore } from "@/stores/repairRequests";
 import { useUiStore } from "@/stores/ui";
+import { useAuthStore } from "@/stores/auth";
 import { useSSERefresh } from "@/composables/useSSERefresh";
 import { useSSE }        from "@/composables/useSSE";
 import { quotationsApi } from "@/api/quotations";
@@ -16,6 +17,7 @@ import DrillerLinkChip from "@/components/DrillerLinkChip.vue";
 const router   = useRouter();
 const requests = useRepairRequestsStore();
 const ui       = useUiStore();
+const auth     = useAuthStore();
 async function refreshData() {
   try { await requests.fetchAll(); } catch (e) { ui.notifyError(e); }
 }
@@ -251,7 +253,13 @@ async function doDelete() {
 
           <v-divider class="my-2" />
 
-          <div v-if="r.status === 'NEW'" class="d-flex ga-2">
+          <div v-if="!auth.isAdmin" class="text-caption text-medium-emphasis">
+            {{ REPAIR_STATUS[r.status]?.label || r.status }}
+            <template v-if="r.status === 'COMPLETED' && r.records?.[0]?.final_price">
+              · จบงาน {{ money(r.records[0].final_price) }} บาท
+            </template>
+          </div>
+          <div v-else-if="r.status === 'NEW'" class="d-flex ga-2">
             <v-btn size="small" color="primary" variant="flat" prepend-icon="mdi-file-document-edit-outline" @click="openQuote(r)">
               ส่งใบราคา
             </v-btn>
@@ -355,7 +363,7 @@ async function doDelete() {
     </v-dialog>
 
     <!-- FAB Management Menu -->
-    <div class="fab-wrapper">
+    <div v-if="auth.isAdmin" class="fab-wrapper">
       <v-menu v-model="fabOpen" location="top" :close-on-content-click="true">
         <template v-slot:activator="{ props }">
           <v-btn icon="mdi-cog-outline" color="secondary" v-bind="props" elevation="4" />

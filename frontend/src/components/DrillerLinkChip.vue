@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useUiStore } from "@/stores/ui";
+import { useAuthStore } from "@/stores/auth";
 
 const props = defineProps<{ token: string | null; path: string; locked?: boolean }>();
 const emit = defineEmits<{ regenerate: [] }>();
 const ui = useUiStore();
+const auth = useAuthStore();
 
 const url = computed(() => (props.token ? `${window.location.origin}${props.path}${props.token}` : ""));
 
@@ -34,10 +36,10 @@ async function copy() {
     <v-btn v-if="token" size="x-small" variant="tonal" prepend-icon="mdi-content-copy" @click.stop="copy">
       copy
     </v-btn>
-    <v-btn v-if="!locked" size="x-small" variant="tonal" prepend-icon="mdi-refresh" @click.stop="emit('regenerate')">
+    <v-btn v-if="!locked && auth.isAdmin" size="x-small" variant="tonal" prepend-icon="mdi-refresh" @click.stop="emit('regenerate')">
       {{ token ? "สร้างใหม่" : "สร้างลิงก์" }}
     </v-btn>
-    <v-chip v-else size="x-small" variant="tonal" color="success" prepend-icon="mdi-lock-check-outline">
+    <v-chip v-else-if="locked" size="x-small" variant="tonal" color="success" prepend-icon="mdi-lock-check-outline">
       บันทึกข้อมูลแล้ว
     </v-chip>
   </div>

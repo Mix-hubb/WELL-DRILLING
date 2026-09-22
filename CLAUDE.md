@@ -39,7 +39,7 @@ Database: apply `supabase/migrations/*.sql` in numeric order via the Supabase SQ
 2. **Protected routes** — everything under `/api/customers`, `/api/jobs`, `/api/wells`, etc., gated by `authMiddleware` (JWT) then `apiLimiter` (rate limit) then the router.
 3. **Debug/admin routes** — inline in `server.ts`, gated by `authMiddleware` + `adminMiddleware`.
 
-Routes are thin (`routes/*.routes.ts`): wire an HTTP verb + path to a controller function wrapped in `asyncHandler` (Express 4 doesn't forward async rejections automatically — always wrap async route handlers with `asyncHandler`). `memberMiddleware` additionally requires the JWT to carry a valid `orgId` for write operations.
+Routes are thin (`routes/*.routes.ts`): wire an HTTP verb + path to a controller function wrapped in `asyncHandler` (Express 4 doesn't forward async rejections automatically — always wrap async route handlers with `asyncHandler`). All write operations (POST/PUT/PATCH/DELETE) across every resource route are gated by `adminMiddleware` — the `DRILLER` role is read-only everywhere in the authenticated app (GET routes have no role check). Drillers still submit fieldwork data through the unauthenticated magic-link endpoints (`magicAuth`/`magicResourceAuth`), which are unaffected by this.
 
 Controllers (`controllers/*.controller.ts`) talk to Postgres directly via the shared `pool` from `config/db.ts` — there is no ORM. Query params are always positional (`$1`, `$2`, ...).
 

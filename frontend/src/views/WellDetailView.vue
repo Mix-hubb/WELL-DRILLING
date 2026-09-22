@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useWellsStore } from "@/stores/wells";
 import { useUiStore } from "@/stores/ui";
+import { useAuthStore } from "@/stores/auth";
 import { api } from "@/api/client";
 import { useSSERefresh } from "@/composables/useSSERefresh";
 import { useSSE } from "@/composables/useSSE";
@@ -20,6 +21,7 @@ const route  = useRoute();
 const router = useRouter();
 const store  = useWellsStore();
 const ui     = useUiStore();
+const auth   = useAuthStore();
 /* ---- dialogs ---- */
 const showStrata    = ref(false);
 const showPipe      = ref(false);
@@ -179,7 +181,7 @@ function methodLabel(method: string | null | undefined): string {
     </v-card>
 
     <!-- ===== Strata Visualizer ===== -->
-    <SectionHeader title="ชั้นดิน / ชั้นหิน" icon="mdi-layers-outline" @add="showStrata = true" />
+    <SectionHeader title="ชั้นดิน / ชั้นหิน" icon="mdi-layers-outline" :show-add="auth.isAdmin" @add="showStrata = true" />
     <v-card class="pa-4 mb-4">
       <StrataColumn
         v-if="store.current.strata.length"
@@ -201,13 +203,13 @@ function methodLabel(method: string | null | undefined): string {
             {{ s.lithology_type ? (LITHOLOGY_TYPE[s.lithology_type as keyof typeof LITHOLOGY_TYPE] || s.lithology_name || "-") : (s.lithology_name || "-") }}
           </span>
           <span v-if="s.water_bearing" class="text-primary mr-2">💧</span>
-          <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error" @click="removeStrata(s.strata_id)" />
+          <v-btn v-if="auth.isAdmin" icon="mdi-delete-outline" size="x-small" variant="text" color="error" @click="removeStrata(s.strata_id)" />
         </div>
       </div>
     </v-card>
 
     <!-- ===== Pipes ===== -->
-    <SectionHeader title="โปรแกรมท่อบ่อ" icon="mdi-pipe" @add="showPipe = true" />
+    <SectionHeader title="โปรแกรมท่อบ่อ" icon="mdi-pipe" :show-add="auth.isAdmin" @add="showPipe = true" />
     <v-card class="pa-4 mb-4">
       <div v-if="!store.current.pipes.length" class="text-center py-6 text-medium-emphasis">ยังไม่มีข้อมูลท่อ</div>
       <div
@@ -220,12 +222,12 @@ function methodLabel(method: string | null | undefined): string {
           {{ " " }}{{ PIPE_MATERIAL[p.material as keyof typeof PIPE_MATERIAL] || "-" }}
           <span class="text-medium-emphasis">· {{ PIPE_TYPE[p.pipe_type as keyof typeof PIPE_TYPE] || "-" }} · {{ p.size_mm }} มม. × {{ p.quantity }} ชิ้น</span>
         </div>
-        <v-btn icon="mdi-delete-outline" size="small" variant="text" color="error" @click="removePipe(p.pipe_id)" />
+        <v-btn v-if="auth.isAdmin" icon="mdi-delete-outline" size="small" variant="text" color="error" @click="removePipe(p.pipe_id)" />
       </div>
     </v-card>
 
     <!-- ===== Pumps ===== -->
-    <SectionHeader title="ปั๊มน้ำบาดาล" icon="mdi-water-pump" @add="showPump = true" />
+    <SectionHeader title="ปั๊มน้ำบาดาล" icon="mdi-water-pump" :show-add="auth.isAdmin" @add="showPump = true" />
     <v-card class="pa-4 mb-4">
       <div v-if="!store.current.pumps.length" class="text-center py-6 text-medium-emphasis">ยังไม่มีข้อมูลปั๊ม</div>
       <div
@@ -246,12 +248,12 @@ function methodLabel(method: string | null | undefined): string {
             <template v-if="p.installed_date"> · ติดตั้ง {{ fmtDate(p.installed_date) }}</template>
           </div>
         </div>
-        <v-btn icon="mdi-delete-outline" size="small" variant="text" color="error" @click="removePump(p.pump_id)" />
+        <v-btn v-if="auth.isAdmin" icon="mdi-delete-outline" size="small" variant="text" color="error" @click="removePump(p.pump_id)" />
       </div>
     </v-card>
 
     <!-- ===== Control Boxes ===== -->
-    <SectionHeader title="ตู้คอนโทรล" icon="mdi-electronics-outline" @add="showCtrl = true" />
+    <SectionHeader title="ตู้คอนโทรล" icon="mdi-electronics-outline" :show-add="auth.isAdmin" @add="showCtrl = true" />
     <v-card class="pa-4 mb-6">
       <div v-if="!store.current.control_boxes.length" class="text-center py-6 text-medium-emphasis">ยังไม่มีข้อมูลตู้คอนโทรล</div>
       <div
@@ -269,7 +271,7 @@ function methodLabel(method: string | null | undefined): string {
             <template v-if="c.installed_date"> · ติดตั้ง {{ fmtDate(c.installed_date) }}</template>
           </div>
         </div>
-        <v-btn icon="mdi-delete-outline" size="small" variant="text" color="error" @click="removeControlBox(c.control_box_id)" />
+        <v-btn v-if="auth.isAdmin" icon="mdi-delete-outline" size="small" variant="text" color="error" @click="removeControlBox(c.control_box_id)" />
       </div>
     </v-card>
 

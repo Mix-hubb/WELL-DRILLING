@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useCustomersStore } from "@/stores/customers";
 import { useWellsStore } from "@/stores/wells";
 import { useUiStore } from "@/stores/ui";
+import { useAuthStore } from "@/stores/auth";
 import { useSSERefresh } from "@/composables/useSSERefresh";
 import CustomerFormDialog from "@/components/forms/CustomerFormDialog.vue";
 import type { Customer } from "@/types";
@@ -12,6 +13,7 @@ const router = useRouter();
 const customersStore = useCustomersStore();
 const wellsStore = useWellsStore();
 const ui = useUiStore();
+const auth = useAuthStore();
 const search = ref("");
 
 // Dialog states
@@ -122,7 +124,7 @@ async function handleDelete() {
               </v-avatar>
               <div class="font-weight-bold">{{ c.customer_name }}</div>
             </div>
-            <div class="d-flex ga-1" @click.stop>
+            <div v-if="auth.isAdmin" class="d-flex ga-1" @click.stop>
               <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="medium-emphasis" @click="openEditDialog(c)" />
               <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error" @click="confirmDelete(c)" />
             </div>

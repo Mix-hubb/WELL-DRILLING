@@ -26,4 +26,17 @@ describe("SectionHeader", () => {
     await wrapper.find(".add-btn").trigger("click");
     expect(wrapper.emitted("add")).toHaveLength(1);
   });
+
+  it("shows the add button by default", () => {
+    const wrapper = mountWith("รายการงาน", "mdi-briefcase");
+    expect(wrapper.find(".add-btn").exists()).toBe(true);
+  });
+
+  it("hides the add button when showAdd is false (read-only driller view)", () => {
+    const wrapper = mount(SectionHeader, {
+      props: { title: "รายการงาน", icon: "mdi-briefcase", showAdd: false },
+      global: { stubs },
+    });
+    expect(wrapper.find(".add-btn").exists()).toBe(false);
+  });
 });

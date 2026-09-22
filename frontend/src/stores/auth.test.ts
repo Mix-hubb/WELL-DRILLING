@@ -62,6 +62,15 @@ describe("auth store", () => {
     expect(store.fullName).toBe("สมชาย");
   });
 
+  it("isAdmin is true only for role ADMIN, false for DRILLER or logged out", () => {
+    const store = useAuthStore();
+    expect(store.isAdmin).toBe(false);
+    store.user = meUser; // role: ADMIN
+    expect(store.isAdmin).toBe(true);
+    store.user = { ...meUser, role: "DRILLER" };
+    expect(store.isAdmin).toBe(false);
+  });
+
   it("login stores token + user", async () => {
     const res: AuthResponse = { token: "jwt", user: meUser };
     mocks.login.mockResolvedValueOnce(res);

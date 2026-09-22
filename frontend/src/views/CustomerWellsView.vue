@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { customersApi, type CustomerOverview } from "@/api/customers";
 import { api } from "@/api/client";
 import { useUiStore } from "@/stores/ui";
+import { useAuthStore } from "@/stores/auth";
 import { useSSERefresh } from "@/composables/useSSERefresh";
 import { fmtDate } from "@/utils/date";
 import { DRILLING_METHOD } from "@/constants";
@@ -13,6 +14,7 @@ import type { Customer } from "@/types";
 const route = useRoute();
 const router = useRouter();
 const ui = useUiStore();
+const auth = useAuthStore();
 const loading = ref(true);
 const data = ref<CustomerOverview | null>(null);
 const showEditCustomer = ref(false);
@@ -89,6 +91,7 @@ async function downloadWellReport(wellId: number) {
             <div class="d-flex align-center ga-2">
               <span class="text-h6 font-display font-weight-bold">{{ customer.customer_name }}</span>
               <v-btn
+                v-if="auth.isAdmin"
                 icon="mdi-pencil-outline"
                 size="x-small"
                 variant="text"

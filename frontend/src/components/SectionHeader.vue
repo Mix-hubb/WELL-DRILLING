@@ -1,5 +1,5 @@
 <script setup lang="ts">
-defineProps<{ title: string; icon: string }>();
+withDefaults(defineProps<{ title: string; icon: string; showAdd?: boolean }>(), { showAdd: true });
 defineEmits<{ add: [] }>();
 </script>
 
@@ -11,6 +11,6 @@ defineEmits<{ add: [] }>();
       </div>
       <div class="text-subtitle-1 font-display font-weight-bold">{{ title }}</div>
     </div>
-    <v-btn size="small" variant="tonal" color="primary" prepend-icon="mdi-plus" @click="$emit('add')">เพิ่ม</v-btn>
+    <v-btn v-if="showAdd" size="small" variant="tonal" color="primary" prepend-icon="mdi-plus" @click="$emit('add')">เพิ่ม</v-btn>
   </div>
 </template>

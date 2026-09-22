@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useDrillingRequestsStore } from "@/stores/drillingRequests";
 import { useJobsStore } from "@/stores/jobs";
 import { useUiStore } from "@/stores/ui";
+import { useAuthStore } from "@/stores/auth";
 import { useSSERefresh } from "@/composables/useSSERefresh";
 import { quotationsApi } from "@/api/quotations";
 import { money, REQUEST_STATUS } from "@/constants";
@@ -16,6 +17,7 @@ const router     = useRouter();
 const requests   = useDrillingRequestsStore();
 const jobsStore  = useJobsStore();
 const ui         = useUiStore();
+const auth       = useAuthStore();
 async function refreshData() {
   try { await requests.fetchAll(); } catch (e) { ui.notifyError(e); }
 }
@@ -231,7 +233,10 @@ async function reject(r: any) {
 
           <v-divider class="my-2" />
 
-          <div v-if="r.status === 'NEW'" class="d-flex ga-2">
+          <div v-if="!auth.isAdmin" class="text-caption text-medium-emphasis">
+            {{ REQUEST_STATUS[r.status]?.label || r.status }}
+          </div>
+          <div v-else-if="r.status === 'NEW'" class="d-flex ga-2">
             <v-btn size="small" color="primary" variant="flat" prepend-icon="mdi-file-document-edit-outline" @click="openQuote(r)">
               ส่งใบราคา
             </v-btn>
@@ -313,7 +318,7 @@ async function reject(r: any) {
     </v-dialog>
 
     <!-- FAB Management Menu -->
-    <div class="fab-wrapper">
+    <div v-if="auth.isAdmin" class="fab-wrapper">
       <v-menu v-model="fabOpen" location="top" :close-on-content-click="true">
         <template v-slot:activator="{ props }">
           <v-btn icon="mdi-cog-outline" color="secondary" v-bind="props" elevation="4" />

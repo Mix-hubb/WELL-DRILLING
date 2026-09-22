@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useJobsStore }      from "@/stores/jobs";
 import { useCustomersStore } from "@/stores/customers";
 import { useUiStore }        from "@/stores/ui";
+import { useAuthStore }      from "@/stores/auth";
 import { useSSERefresh }     from "@/composables/useSSERefresh";
 import { useSSE }            from "@/composables/useSSE";
 import { fmtShortDate as fmtDate } from "@/utils/date";
@@ -18,6 +19,7 @@ const router          = useRouter();
 const jobsStore       = useJobsStore();
 const customersStore  = useCustomersStore();
 const ui              = useUiStore();
+const auth            = useAuthStore();
 async function refreshData() {
   try { await Promise.all([jobsStore.fetchAll(), customersStore.fetchAll()]); } catch (e) { ui.notifyError(e); }
 }
@@ -147,7 +149,7 @@ async function doDelete() {
         style="max-width:280px"
         clearable
       />
-      <v-btn color="primary" variant="flat" prepend-icon="mdi-plus" @click="showForm = true">
+      <v-btn v-if="auth.isAdmin" color="primary" variant="flat" prepend-icon="mdi-plus" @click="showForm = true">
         เพิ่มคิวงาน
       </v-btn>
     </div>
@@ -204,7 +206,7 @@ async function doDelete() {
     />
 
     <!-- FAB Management Menu -->
-    <div class="fab-wrapper">
+    <div v-if="auth.isAdmin" class="fab-wrapper">
       <v-menu v-model="fabOpen" location="top" :close-on-content-click="true">
         <template v-slot:activator="{ props }">
           <v-btn icon="mdi-cog-outline" color="secondary" v-bind="props" elevation="4" />

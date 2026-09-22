@@ -5,6 +5,7 @@ import { repairRequestsApi, repairRecordsApi } from "@/api/repairRequests";
 import { quotationsApi } from "@/api/quotations";
 import { api } from "@/api/client";
 import { useUiStore } from "@/stores/ui";
+import { useAuthStore } from "@/stores/auth";
 import { fmtDate } from "@/utils/date";
 import { useSSE, connected } from "@/composables/useSSE";
 import type { RepairRequest, RepairRecord } from "@/types";
@@ -16,6 +17,7 @@ import RepairRecordEditDialog from "@/components/forms/RepairRecordEditDialog.vu
 const route = useRoute();
 const router = useRouter();
 const ui = useUiStore();
+const auth = useAuthStore();
 const { connect, on } = useSSE();
 const request = ref<RepairRequest | null>(null);
 const loading = ref(true);
@@ -35,7 +37,7 @@ const photoPreviewDlg = computed({
   set: (val) => { if (!val) photoPreview.value = null; },
 });
 
-const canQuote = computed(() => request.value && !request.value.quotation && request.value.status === "NEW");
+const canQuote = computed(() => auth.isAdmin && request.value && !request.value.quotation && request.value.status === "NEW");
 
 // จับค่า id จาก URL ครั้งเดียวตอนเมานต์ ไม่อ่าน route.params.id ซ้ำในฟังก์ชันที่ถูกเรียกจาก
 // realtime event/polling เพราะ route เป็น reactive object ตัวเดียวที่ใช้ร่วมกันทั้งแอป — ถ้า
@@ -327,7 +329,10 @@ async function handleSendReceipt() {
       <!-- Status actions -->
       <v-card class="pa-4 mb-4">
         <div class="text-subtitle-1 font-display font-weight-bold mb-2">การดำเนินการ</div>
-        <div v-if="request.status === 'NEW'" class="text-caption text-medium-emphasis">
+        <div v-if="!auth.isAdmin" class="text-caption text-medium-emphasis">
+          {{ REPAIR_STATUS[request.status]?.label || request.status }}
+        </div>
+        <div v-else-if="request.status === 'NEW'" class="text-caption text-medium-emphasis">
           ส่งใบราคาเพื่อให้ลูกค้ายืนยันก่อนดำเนินการ
         </div>
         <div v-else-if="request.status === 'QUOTED'" class="d-flex ga-2">
@@ -382,6 +387,7 @@ async function handleSendReceipt() {
               ดาวน์โหลดใบเสร็จ (PDF)
             </v-btn>
             <v-btn
+              v-if="auth.isAdmin"
               size="small"
               color="success"
               variant="flat"
@@ -399,8 +405,10 @@ async function handleSendReceipt() {
               <div class="text-subtitle-2 font-weight-bold">บันทึก #{{ rec.record_id }}</div>
               <div class="d-flex align-center ga-1">
                 <div class="text-caption text-medium-emphasis mr-2">{{ fmtDate(rec.completed_at) }}</div>
-                <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="medium-emphasis" @click="openEditRecord(rec)" />
-                <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error" @click="confirmDeleteRecord(rec)" />
+                <template v-if="auth.isAdmin">
+                  <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="medium-emphasis" @click="openEditRecord(rec)" />
+                  <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error" @click="confirmDeleteRecord(rec)" />
+                </template>
               </div>
             </div>
             <div v-if="rec.final_price" class="font-weight-bold text-success mb-1">ราคาจบงาน {{ money(rec.final_price) }} บาท</div>

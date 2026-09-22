@@ -289,6 +289,8 @@ async function copyToClipboard(text: string, label: string) {
                 </div>
               </v-alert>
 
+              <!-- ช่างเจาะดูค่าที่ตั้งไว้ได้ แต่แก้ไข/บันทึกไม่ได้ — fieldset ปิดใช้งาน input ทั้งหมดข้างในพร้อมกัน -->
+              <fieldset :disabled="!auth.isAdmin" style="border:none;padding:0;margin:0;">
               <!-- Channel ID -->
               <v-text-field
                 v-model="channelId"
@@ -396,6 +398,7 @@ async function copyToClipboard(text: string, label: string) {
               <v-alert v-if="liffRepairStatus === 'duplicate'" type="error" variant="tonal" density="compact" class="mb-3">
                 LIFF ID นี้ถูกใช้โดย "<strong>{{ liffRepairUsedBy }}</strong>" แล้ว — 1 LIFF ID ใช้ได้กับ 1 องค์กรเท่านั้น
               </v-alert>
+              </fieldset>
             </div>
 
             <v-divider v-if="hasLineConfig" />
@@ -535,7 +538,7 @@ async function copyToClipboard(text: string, label: string) {
             </template>
 
             <!-- Save Button -->
-            <div class="pa-4">
+            <div v-if="auth.isAdmin" class="pa-4">
               <v-btn
                 color="primary"
                 size="large"

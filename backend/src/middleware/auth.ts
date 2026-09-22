@@ -53,10 +53,3 @@ export function adminMiddleware(req: Request, res: Response, next: NextFunction)
   }
   next();
 }
-
-export function memberMiddleware(req: Request, res: Response, next: NextFunction) {
-  if (!req.user?.userId || !req.user.orgId) {
-    return res.status(403).json({ error: "ผู้ใช้ไม่ได้สังกัดองค์กร" });
-  }
-  next();
-}
