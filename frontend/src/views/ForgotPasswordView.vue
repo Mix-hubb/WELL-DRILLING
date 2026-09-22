@@ -9,7 +9,6 @@ const router = useRouter();
 const ui = useUiStore();
 
 const email = ref("");
-const method = ref<"email" | "sms">("email");
 const loading = ref(false);
 const sent = ref(false);
 
@@ -20,12 +19,12 @@ async function handleSendCode() {
   }
   loading.value = true;
   try {
-    await authApi.forgotPassword(email.value, method.value);
+    await authApi.forgotPassword(email.value, "email");
     sent.value = true;
     ui.notify("ส่งรหัสยืนยันเรียบร้อยแล้ว", "success");
     router.push({
       name: "reset-password",
-      query: { email: email.value, method: method.value },
+      query: { email: email.value },
     });
   } catch (err) {
     ui.notifyError(err);
@@ -44,7 +43,7 @@ async function handleSendCode() {
             <v-icon icon="mdi-lock-reset" color="primary" size="48" class="mb-2" />
             <div class="text-h5 font-weight-bold">ลืมรหัสผ่าน</div>
             <div class="text-body-2 text-medium-emphasis">
-              เลือกวิธีรับรหัสยืนยันเพื่อเปลี่ยนรหัสผ่าน
+              กรอกอีเมลที่ลงทะเบียนไว้เพื่อรับรหัสยืนยัน
             </div>
           </v-card-title>
 
@@ -60,12 +59,6 @@ async function handleSendCode() {
                 :rules="[requiredField('กรุณากรอกอีเมล'), validEmail('รูปแบบอีเมลไม่ถูกต้อง')]"
                 class="mb-4"
               />
-
-              <div class="text-body-2 text-medium-emphasis mb-2">วิธีรับรหัสยืนยัน</div>
-              <v-radio-group v-model="method" class="mt-0 mb-4">
-                <v-radio label="ส่งทางอีเมล" value="email" color="primary" />
-                <v-radio label="ส่งทาง SMS (เบอร์ที่ลงทะเบียน)" value="sms" color="primary" />
-              </v-radio-group>
 
               <v-btn
                 type="submit"

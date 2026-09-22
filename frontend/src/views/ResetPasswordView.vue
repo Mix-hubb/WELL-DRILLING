@@ -10,7 +10,6 @@ const route = useRoute();
 const ui = useUiStore();
 
 const email = computed(() => (route.query.email as string) || "");
-const method = computed(() => (route.query.method as string) || "email");
 
 const code = ref("");
 const newPassword = ref("");
@@ -65,7 +64,7 @@ async function handleResetPassword() {
             <v-icon icon="mdi-shield-lock-outline" color="primary" size="48" class="mb-2" />
             <div class="text-h5 font-weight-bold">เปลี่ยนรหัสผ่าน</div>
             <div class="text-body-2 text-medium-emphasis">
-              {{ method === "sms" ? "รหัสถูกส่งทาง SMS ไปที่เบอร์โทรศัพท์" : "รหัสถูกส่งไปที่อีเมล" }}: {{ email }}
+              รหัสถูกส่งไปที่อีเมล: {{ email }}
             </div>
           </v-card-title>
 
