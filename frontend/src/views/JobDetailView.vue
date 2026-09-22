@@ -2,7 +2,6 @@
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { jobsApi }       from "@/api/jobs";
-import { wellsApi }      from "@/api/wells";
 import { api }           from "@/api/client";
 import { useUiStore }    from "@/stores/ui";
 
@@ -13,14 +12,19 @@ import type { DrillingJob, DrillingJobStatus } from "@/types";
 import { JOB_STATUS, jobDisplayStatus } from "@/constants";
 import StatusChip      from "@/components/StatusChip.vue";
 import DrillerLinkChip from "@/components/DrillerLinkChip.vue";
-import WellLogFormDialog from "@/components/forms/WellLogFormDialog.vue";
 
 const route  = useRoute();
 const router = useRouter();
 const ui     = useUiStore();
 const job          = ref<DrillingJob | null>(null);
 const wellId       = ref<number | null>(null);
-const showWellForm = ref(false);
+
+// จับค่า id จาก URL ครั้งเดียวตอนเมานต์ ไม่อ่าน route.params.id ซ้ำใน load()
+// เพราะ route เป็น reactive object ตัวเดียวที่ใช้ร่วมกันทั้งแอป — ถ้า useSSERefresh
+// สั่ง load() ทำงานล่าช้า (เช่น ระหว่าง page transition หลังผู้ใช้กดออกจากหน้านี้ไปแล้ว)
+// route.params.id ตอนนั้นอาจเปลี่ยนเป็นของหน้าอื่นไปแล้ว ทำให้เข้าเงื่อนไข "ไม่พบรหัสงาน"
+// และ redirect ผู้ใช้กลับ /jobs ทั้งที่ไม่ได้เกิดปัญหาจริงกับคิวงานนี้เลย
+const jobId = route.params.id as string | undefined;
 
 const FAILED_STEPS: DrillingJobStatus[] = ["QUEUED", "DRILLING", "FAILED", "CLOSED"];
 const SUCCESS_STEPS: DrillingJobStatus[] = ["QUEUED", "DRILLING", "SUCCESS", "CLOSED"];
@@ -30,14 +34,13 @@ const STEPS = computed<DrillingJobStatus[]>(() => (
 const currentStepIndex = computed(() => (job.value ? STEPS.value.indexOf(job.value.status as DrillingJobStatus) : 0));
 
 async function load() {
-  const id = route.params.id;
-  if (!id || id === "undefined" || id === "null") {
+  if (!jobId || jobId === "undefined" || jobId === "null") {
     ui.notify("ไม่พบรหัสงาน กลับไปหน้าคิวงาน", "error");
     router.push("/jobs");
     return;
   }
   try {
-    job.value = await jobsApi.getOne(id as string);
+    job.value = await jobsApi.getOne(jobId);
     wellId.value = job.value?.well_id ?? null;
   } catch (e) {
     ui.notifyError(e);
@@ -45,10 +48,10 @@ async function load() {
 }
 
 useSSERefresh(load, [
-  { event: "JOB_UPDATED", filter: (data) => String(data.job_id) === route.params.id },
-  { event: "JOB_DELETED", filter: (data) => String(data.job_id) === route.params.id },
-  { event: "JOB_STATUS_CHANGED", filter: (data) => String(data.job_id) === route.params.id },
-  "WELL_CREATED",
+  { event: "JOB_UPDATED", filter: (data) => String(data.job_id) === jobId },
+  { event: "JOB_DELETED", filter: (data) => String(data.job_id) === jobId },
+  { event: "JOB_STATUS_CHANGED", filter: (data) => String(data.job_id) === jobId },
+  { event: "WELL_CREATED", filter: (data) => !job.value || String(data.customer_id) === String(job.value.customer_id) },
 ]);
 
 const { on } = useSSE();
@@ -61,16 +64,6 @@ async function setStatus(status: DrillingJobStatus) {
   try {
     job.value = await jobsApi.updateStatus(job.value.job_id, status);
     if (status === "SUCCESS" || status === "FAILED" || status === "CLOSED") await load();
-  } catch (e) { ui.notifyError(e); }
-}
-
-async function createWellLog(form: any) {
-  if (!job.value) return;
-  try {
-    await wellsApi.create({ customer_id: job.value.customer_id, ...form });
-    showWellForm.value = false;
-    await load();
-    ui.notify("บันทึกข้อมูลเรียบร้อยแล้ว", "success");
   } catch (e) { ui.notifyError(e); }
 }
 
@@ -182,21 +175,20 @@ async function regenerateMagicLink() {
       </div>
     </v-card>
 
-    <!-- Well Log link -->
+    <!-- Well Log link — แสดงเฉพาะเมื่อมีข้อมูลบ่อแล้ว (บันทึกผ่าน Magic Link เท่านั้น) -->
     <v-card
-      v-if="job.status === 'SUCCESS'"
+      v-if="job.status === 'SUCCESS' && wellId"
       variant="tonal" color="primary"
       class="pa-5 cursor-pointer"
-      @click="wellId ? router.push(`/wells/${wellId}`) : (showWellForm = true)"
+      @click="router.push(`/wells/${wellId}`)"
     >
       <div class="d-flex align-center justify-space-between flex-wrap ga-2">
         <span class="font-weight-bold d-flex align-center ga-2">
           <v-icon icon="mdi-layers-outline" />
-          {{ wellId ? "ดูประวัติบ่อบาดาล" : "+ บันทึกประวัติบ่อบาดาล (เริ่มประกัน 2 ปี)" }}
+          ดูประวัติบ่อบาดาล
         </span>
         <div class="d-flex align-center ga-2">
           <v-btn
-            v-if="wellId"
             size="small"
             variant="flat"
             color="secondary"
@@ -209,8 +201,6 @@ async function regenerateMagicLink() {
         </div>
       </div>
     </v-card>
-
-    <WellLogFormDialog v-model="showWellForm" @submit="createWellLog" />
   </div>
 
 

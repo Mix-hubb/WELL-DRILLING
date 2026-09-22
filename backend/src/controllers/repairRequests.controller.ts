@@ -391,34 +391,67 @@ export async function addRecord(req: Request, res: Response) {
     completed_at,
   } = req.body;
 
-  const { rows } = await pool.query(
-    `SELECT * FROM repair_requests
-     WHERE repair_id = $1 AND (magic_link_expires_at IS NULL OR magic_link_expires_at > NOW())`,
-    [id]
-  );
-  if (!rows.length) return res.status(404).json({ error: "ไม่พบคำร้องหรือลิงก์หมดอายุ" });
-  if (magic_token && rows[0].magic_link_token !== magic_token) {
-    return res.status(403).json({ error: "Token ไม่ถูกต้อง" });
+  const client = await pool.connect();
+  let recordId: string;
+  let isNewRecord: boolean;
+  try {
+    await client.query("BEGIN");
+
+    // ล็อกแถวคำร้องนี้ไว้จนกว่า transaction จะจบ ป้องกันการ submit ซ้ำ (เช่น ช่างกดส่งฟอร์มซ้ำ
+    // หรือเปิดลิงก์เดิมส่งซ้ำ) ทำให้เกิดบันทึกการซ่อมซ้ำสองรายการจากคำขอที่แข่งกันมาพร้อมกัน
+    const { rows } = await client.query(
+      `SELECT * FROM repair_requests
+       WHERE repair_id = $1 AND (magic_link_expires_at IS NULL OR magic_link_expires_at > NOW())
+       FOR UPDATE`,
+      [id]
+    );
+    if (!rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "ไม่พบคำร้องหรือลิงก์หมดอายุ" });
+    }
+    if (magic_token && rows[0].magic_link_token !== magic_token) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({ error: "Token ไม่ถูกต้อง" });
+    }
+
+    const existingRecord = await client.query(
+      "SELECT record_id FROM repair_records WHERE repair_id = $1 ORDER BY created_at DESC LIMIT 1",
+      [id]
+    );
+    const completedAtValue = completed_at || new Date().toISOString().replace("T", " ").slice(0, 19);
+    const partsJson = parts?.length ? JSON.stringify(parts) : null;
+    const pumpJson = pump ? JSON.stringify(pump) : null;
+
+    if (existingRecord.rows.length) {
+      isNewRecord = false;
+      recordId = existingRecord.rows[0].record_id;
+      await client.query(
+        `UPDATE repair_records SET
+           final_price = $1, work_details = $2, parts = $3, pump = $4, is_warranty_claim = $5, completed_at = $6
+         WHERE record_id = $7`,
+        [final_price ?? null, work_details || null, partsJson, pumpJson, is_warranty_claim ? true : false, completedAtValue, recordId]
+      );
+    } else {
+      isNewRecord = true;
+      const recResult = await client.query(
+        `INSERT INTO repair_records (repair_id, final_price, work_details, parts, pump, is_warranty_claim, completed_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING record_id`,
+        [id, final_price ?? null, work_details || null, partsJson, pumpJson, is_warranty_claim ? true : false, completedAtValue]
+      );
+      recordId = recResult.rows[0].record_id;
+    }
+
+    await client.query("UPDATE repair_requests SET status = 'COMPLETED' WHERE repair_id = $1", [id]);
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
   }
 
-  const recResult = await pool.query(
-    `INSERT INTO repair_records (repair_id, final_price, work_details, parts, pump, is_warranty_claim, completed_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING record_id`,
-    [
-      id,
-      final_price ?? null,
-      work_details || null,
-      parts?.length ? JSON.stringify(parts) : null,
-      pump ? JSON.stringify(pump) : null,
-      is_warranty_claim ? true : false,
-      completed_at || new Date().toISOString().replace("T", " ").slice(0, 19),
-    ]
-  );
-
-  await pool.query("UPDATE repair_requests SET status = 'COMPLETED' WHERE repair_id = $1", [id]);
-
   const recs = await pool.query(
-    "SELECT * FROM repair_records WHERE record_id = $1", [recResult.rows[0].record_id]
+    "SELECT * FROM repair_records WHERE record_id = $1", [recordId]
   );
 
   const reqRow = await pool.query(
@@ -428,36 +461,39 @@ export async function addRecord(req: Request, res: Response) {
   if (reqRow.rows.length) {
     const cust = reqRow.rows[0];
     const orgId = cust.org_id;
-    broadcast({ type: "REPAIR_RECORD_ADDED", data: { repair_id: id }, orgId });
+    broadcast({ type: isNewRecord ? "REPAIR_RECORD_ADDED" : "REPAIR_RECORD_UPDATED", data: { repair_id: id }, orgId });
     broadcast({ type: "REPAIR_REQUEST_CHANGED", data: { repair_id: id, status: "COMPLETED" }, orgId });
 
-    // Send automatic receipt Flex card to customer
-    const baseUrl = getReqBaseUrl(req);
-    const pdfUrl = `${baseUrl.replace(/\/$/, "")}/api/public/repairs/${id}/receipt.pdf`;
-    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const receiptNo = `REC-${dateStr}-${String(id).slice(-4).toUpperCase()}`;
+    // ส่งใบเสร็จ/แจ้งเตือนลูกค้าทาง LINE เฉพาะตอนที่เป็นการบันทึกครั้งแรกจริงๆ เท่านั้น
+    // ถ้าช่างเปิดลิงก์เดิมส่งฟอร์มซ้ำ (แก้ไขบันทึกที่มีอยู่แล้ว) ไม่ควรแจ้งเตือนลูกค้าซ้ำ
+    if (isNewRecord) {
+      const baseUrl = getReqBaseUrl(req);
+      const pdfUrl = `${baseUrl.replace(/\/$/, "")}/api/public/repairs/${id}/receipt.pdf`;
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const receiptNo = `REC-${dateStr}-${String(id).slice(-4).toUpperCase()}`;
 
-    const receiptFlex = buildRepairReceiptFlex({
-      receiptNo,
-      customerName: cust.customer_name,
-      repairId: id,
-      wellName: cust.well_name,
-      workDetails: work_details,
-      parts: parts,
-      finalPrice: final_price,
-      isWarrantyClaim: Boolean(is_warranty_claim),
-      pdfUrl,
-    });
+      const receiptFlex = buildRepairReceiptFlex({
+        receiptNo,
+        customerName: cust.customer_name,
+        repairId: id,
+        wellName: cust.well_name,
+        workDetails: work_details,
+        parts: parts,
+        finalPrice: final_price,
+        isWarrantyClaim: Boolean(is_warranty_claim),
+        pdfUrl,
+      });
 
-    sendFlexToCustomer(cust.customer_id, "ใบเสร็จรับเงินการซ่อมบำรุง", receiptFlex, "STATUS", orgId).catch(() => {
-      const partsList = parts?.length
-        ? "\nรายการอะไหล่: " + parts.map((p: any) => `${p.name} x${p.qty}`).join(", ")
-        : "";
-      const msg = final_price != null
-        ? `แจ้งผลการซ่อมเสร็จเรียบร้อยแล้วครับ\n\nรายละเอียดงาน:\n${work_details || "-"}${partsList}\n\nราคาจบงาน ${Number(final_price).toLocaleString("th-TH")} บาท\n\nดาวน์โหลดใบเสร็จ (PDF):\n${pdfUrl}`
-        : `แจ้งผลการซ่อมเสร็จเรียบร้อยแล้วครับ\n\nรายละเอียดงาน:\n${work_details || "-"}${partsList}\n\nดาวน์โหลดใบเสร็จ (PDF):\n${pdfUrl}`;
-      sendTextToCustomer(cust.customer_id, msg, "STATUS", orgId).catch(() => {});
-    });
+      sendFlexToCustomer(cust.customer_id, "ใบเสร็จรับเงินการซ่อมบำรุง", receiptFlex, "STATUS", orgId).catch(() => {
+        const partsList = parts?.length
+          ? "\nรายการอะไหล่: " + parts.map((p: any) => `${p.name} x${p.qty}`).join(", ")
+          : "";
+        const msg = final_price != null
+          ? `แจ้งผลการซ่อมเสร็จเรียบร้อยแล้วครับ\n\nรายละเอียดงาน:\n${work_details || "-"}${partsList}\n\nราคาจบงาน ${Number(final_price).toLocaleString("th-TH")} บาท\n\nดาวน์โหลดใบเสร็จ (PDF):\n${pdfUrl}`
+          : `แจ้งผลการซ่อมเสร็จเรียบร้อยแล้วครับ\n\nรายละเอียดงาน:\n${work_details || "-"}${partsList}\n\nดาวน์โหลดใบเสร็จ (PDF):\n${pdfUrl}`;
+        sendTextToCustomer(cust.customer_id, msg, "STATUS", orgId).catch(() => {});
+      });
+    }
   }
 
   res.status(201).json(recs.rows[0]);

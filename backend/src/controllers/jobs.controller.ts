@@ -235,18 +235,6 @@ export async function completeWell(req: Request, res: Response) {
     control_boxes,
   } = req.body;
 
-  const jobs = await pool.query(
-    `SELECT * FROM drilling_jobs
-     WHERE job_id = $1 AND (magic_link_expires_at IS NULL OR magic_link_expires_at > NOW())`,
-    [id]
-  );
-  if (!jobs.rows.length) return res.status(404).json({ error: "ไม่พบงานหรือลิงก์หมดอายุ" });
-  const job = jobs.rows[0];
-
-  if (magic_token && job.magic_link_token !== magic_token) {
-    return res.status(403).json({ error: "Token ไม่ถูกต้อง" });
-  }
-
   if (Array.isArray(strata)) {
     const validRanges = strata
       .filter((s: any) => s.depth_from_m != null && s.depth_to_m != null)
@@ -256,9 +244,34 @@ export async function completeWell(req: Request, res: Response) {
   }
 
   const client = await pool.connect();
-  let wellId = job.well_id;
+  let wellId: number | null;
+  let isNewWell: boolean;
+  let job: any;
   try {
     await client.query("BEGIN");
+
+    // ล็อกแถวงานนี้ไว้จนกว่า transaction จะจบ ป้องกันการ submit ซ้ำ (เช่น driller
+    // กดส่งฟอร์มซ้ำ หรือเปิดลิงก์เดิมส่งซ้ำ) ทำให้เกิดบ่อซ้ำสองรายการจากคำขอที่แข่งกันมาพร้อมกัน
+    const jobs = await client.query(
+      `SELECT * FROM drilling_jobs
+       WHERE job_id = $1 AND (magic_link_expires_at IS NULL OR magic_link_expires_at > NOW())
+       FOR UPDATE`,
+      [id]
+    );
+    if (!jobs.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "ไม่พบงานหรือลิงก์หมดอายุ" });
+    }
+    job = jobs.rows[0];
+
+    if (magic_token && job.magic_link_token !== magic_token) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({ error: "Token ไม่ถูกต้อง" });
+    }
+
+    wellId = job.well_id;
+    isNewWell = !wellId;
+
     if (!wellId) {
       const wellResult = (result === "FAIL" || result === "FAILED") ? "FAIL" : "SUCCESS";
       const w = await client.query(
@@ -382,18 +395,25 @@ export async function completeWell(req: Request, res: Response) {
 
   const row = await getJobRow(id);
 
-  const wellResult = (result === "FAIL" || result === "FAILED") ? "FAILED" : "SUCCESS";
-  const msg = wellResult === "SUCCESS"
-    ? `แจ้งผลการเจาะ: เจาะสำเร็จแล้ว บ่อ ${row?.well_name || ""}\nข้อมูลอยู่ในระบบแล้วครับ`
-    : "แจ้งผลการเจาะ: การเจาะไม่สำเร็จ กรุณาติดต่อช่างเพื่อหารือแนวทางต่อไปครับ";
-
   const { rows: orgRows } = await pool.query(
     "SELECT org_id FROM customers WHERE customer_id = $1", [job.customer_id]
   );
-  sendTextToCustomer(job.customer_id, msg, "STATUS", orgRows[0]?.org_id).catch(() => {});
   const orgId = orgRows[0]?.org_id;
-  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: id, status: "SUCCESS" }, orgId });
-  broadcast({ type: "WELL_CREATED", data: { well_id: wellId, customer_id: job.customer_id }, orgId });
+
+  // แจ้งลูกค้าทาง LINE และ broadcast WELL_CREATED เฉพาะตอนที่เป็นการบันทึกครั้งแรกจริงๆ
+  // (isNewWell) เท่านั้น — ถ้า driller เปิดลิงก์เดิมส่งฟอร์มซ้ำ (แก้ไขข้อมูลบ่อที่มีอยู่แล้ว)
+  // จะเข้ามาที่นี่อีกครั้งแต่ไม่ควรแจ้งเตือนลูกค้าซ้ำหรือ broadcast ว่ามีบ่อใหม่อีกรอบ
+  if (isNewWell) {
+    const wellResult = (result === "FAIL" || result === "FAILED") ? "FAILED" : "SUCCESS";
+    const msg = wellResult === "SUCCESS"
+      ? `แจ้งผลการเจาะ: เจาะสำเร็จแล้ว บ่อ ${row?.well_name || ""}\nข้อมูลอยู่ในระบบแล้วครับ`
+      : "แจ้งผลการเจาะ: การเจาะไม่สำเร็จ กรุณาติดต่อช่างเพื่อหารือแนวทางต่อไปครับ";
+    sendTextToCustomer(job.customer_id, msg, "STATUS", orgId).catch(() => {});
+    broadcast({ type: "WELL_CREATED", data: { well_id: wellId, customer_id: job.customer_id }, orgId });
+  } else {
+    broadcast({ type: "WELL_UPDATED", data: { well_id: wellId, customer_id: job.customer_id }, orgId });
+  }
+  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: id, status: row?.status }, orgId });
 
   res.json(row);
 }

@@ -259,11 +259,12 @@ describe("completeWell", () => {
 
   function setUp(extraBranch: (sql: string) => { rows: any[] } | undefined) {
     mocks.poolQuery.mockImplementation(async (sql: string) => {
-      if (sql.includes("SELECT * FROM drilling_jobs")) return { rows: [jobWithoutWell] };
       if (sql.includes("FROM drilling_jobs j")) return { rows: [{ ...jobRow, well_id: 1 }] };
       return extraBranch(sql) || { rows: [] };
     });
+    // job lookup now happens inside the transaction (SELECT ... FOR UPDATE via client.query)
     client.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("SELECT * FROM drilling_jobs")) return { rows: [jobWithoutWell] };
       if (sql.includes("INSERT INTO wells")) return { rows: [{ well_id: 1 }] };
       if (sql.includes("UPDATE drilling_jobs")) return { rows: [] };
       return { rows: [] };
@@ -271,7 +272,7 @@ describe("completeWell", () => {
   }
 
   it("returns 404 when the job is missing", async () => {
-    mocks.poolQuery.mockImplementation(async (sql: string) => {
+    client.query.mockImplementation(async (sql: string) => {
       if (sql.includes("SELECT * FROM drilling_jobs")) return { rows: [] };
       return { rows: [] };
     });
@@ -288,7 +289,7 @@ describe("completeWell", () => {
       res
     );
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(mocks.poolConnect).not.toHaveBeenCalled();
+    expect(client.query).toHaveBeenCalledWith("ROLLBACK");
   });
 
   it("creates the well, updates the job and notifies the customer", async () => {
@@ -365,6 +366,49 @@ describe("completeWell", () => {
     );
     expect(res.status).toHaveBeenCalledWith(400);
     expect(mocks.poolConnect).not.toHaveBeenCalled();
+  });
+
+  it("resubmitting the same magic link updates the existing well instead of creating a duplicate, and does not notify the customer again", async () => {
+    const jobWithWell = { ...jobRow, well_id: 1, magic_link_token: "drill-tok", customer_id: 2 };
+    mocks.poolQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM drilling_jobs j")) return { rows: [{ ...jobRow, well_id: 1 }] };
+      return { rows: [] };
+    });
+    client.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("SELECT * FROM drilling_jobs")) return { rows: [jobWithWell] };
+      if (sql.includes("UPDATE wells")) return { rows: [] };
+      if (sql.includes("UPDATE drilling_jobs")) return { rows: [] };
+      return { rows: [] };
+    });
+
+    const res = createRes();
+    await jobs.completeWell(
+      createReq({
+        params: { id: "1" },
+        body: { total_depth_m: 120, strata: [], pipes: [], pumps: [], control_boxes: [] },
+      }),
+      res
+    );
+
+    expect(client.query).not.toHaveBeenCalledWith(expect.stringContaining("INSERT INTO wells"), expect.any(Array));
+    expect(client.query).toHaveBeenCalledWith(expect.stringContaining("UPDATE wells"), expect.any(Array));
+    expect(mocks.sendTextToCustomer).not.toHaveBeenCalled();
+    expect(mocks.broadcast).toHaveBeenCalledWith(expect.objectContaining({ type: "WELL_UPDATED" }));
+    expect(mocks.broadcast).not.toHaveBeenCalledWith(expect.objectContaining({ type: "WELL_CREATED" }));
+  });
+
+  it("locks the job row FOR UPDATE to serialize concurrent/duplicate submissions", async () => {
+    setUp(() => undefined);
+    const res = createRes();
+    await jobs.completeWell(
+      createReq({
+        params: { id: "1" },
+        body: { total_depth_m: 50, strata: [], pipes: [], pumps: [], control_boxes: [] },
+      }),
+      res
+    );
+    const lookup = client.query.mock.calls.find((c) => String(c[0]).includes("SELECT * FROM drilling_jobs"));
+    expect(String(lookup![0])).toContain("FOR UPDATE");
   });
 });
 
