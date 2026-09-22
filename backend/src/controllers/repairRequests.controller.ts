@@ -523,6 +523,12 @@ export async function generateMagicLink(req: Request, res: Response) {
     [req.params.id, ...params]
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบคำร้อง" });
+  const recCheck = await pool.query("SELECT record_id FROM repair_records WHERE repair_id = $1 LIMIT 1", [id]);
+  if (recCheck.rows.length) {
+    return res.status(409).json({
+      error: "คำร้องนี้บันทึกผลการซ่อมเรียบร้อยแล้ว ไม่สามารถสร้างลิงก์ใหม่ได้ กรุณาแก้ไขข้อมูลผ่านหน้าประวัติการซ่อมแทน",
+    });
+  }
   const token = generateMagicToken();
   await pool.query(
     "UPDATE repair_requests SET magic_link_token = $1, magic_link_expires_at = NOW() + INTERVAL '7 days' WHERE repair_id = $2",

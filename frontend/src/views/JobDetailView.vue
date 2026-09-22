@@ -128,7 +128,7 @@ async function regenerateMagicLink() {
           <span>จากคำร้องแจ้งเจาะ #{{ job.request_id }}</span>
         </div>
         <div class="pt-1">
-          <DrillerLinkChip :token="job.magic_link_token || null" path="/d/" @regenerate="regenerateMagicLink" />
+          <DrillerLinkChip :token="job.magic_link_token || null" path="/d/" :locked="!!wellId" @regenerate="regenerateMagicLink" />
         </div>
       </div>
 

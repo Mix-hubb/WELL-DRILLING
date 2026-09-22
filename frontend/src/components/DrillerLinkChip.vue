@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { useUiStore } from "@/stores/ui";
 
-const props = defineProps<{ token: string | null; path: string }>();
+const props = defineProps<{ token: string | null; path: string; locked?: boolean }>();
 const emit = defineEmits<{ regenerate: [] }>();
 const ui = useUiStore();
 
@@ -34,8 +34,11 @@ async function copy() {
     <v-btn v-if="token" size="x-small" variant="tonal" prepend-icon="mdi-content-copy" @click.stop="copy">
       copy
     </v-btn>
-    <v-btn size="x-small" variant="tonal" prepend-icon="mdi-refresh" @click.stop="emit('regenerate')">
+    <v-btn v-if="!locked" size="x-small" variant="tonal" prepend-icon="mdi-refresh" @click.stop="emit('regenerate')">
       {{ token ? "สร้างใหม่" : "สร้างลิงก์" }}
     </v-btn>
+    <v-chip v-else size="x-small" variant="tonal" color="success" prepend-icon="mdi-lock-check-outline">
+      บันทึกข้อมูลแล้ว
+    </v-chip>
   </div>
 </template>

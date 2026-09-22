@@ -431,4 +431,19 @@ describe("remove / generateMagicLink", () => {
       expect.objectContaining({ type: "JOB_MAGIC_LINK_CHANGED", orgId: "org-1" })
     );
   });
+
+  it("generateMagicLink rejects with 409 once the well has already been recorded", async () => {
+    mocks.poolQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM drilling_jobs j")) return { rows: [{ ...jobRow, well_id: 5 }] };
+      return { rows: [] };
+    });
+    const res = createRes();
+    await jobs.generateMagicLink(createReq({ params: { id: "1" } }), res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(mocks.poolQuery).not.toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE drilling_jobs SET magic_link_token"),
+      expect.any(Array)
+    );
+    expect(mocks.broadcast).not.toHaveBeenCalled();
+  });
 });

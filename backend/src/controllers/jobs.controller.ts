@@ -435,10 +435,15 @@ export async function generateMagicLink(req: Request, res: Response) {
   const { id } = req.params;
   const { sql, params } = userFilter(req, "c", 1);
   const existing = await pool.query(
-    `SELECT j.job_id FROM drilling_jobs j JOIN customers c ON c.customer_id = j.customer_id WHERE j.job_id = $1${sql}`,
+    `SELECT j.job_id, j.well_id FROM drilling_jobs j JOIN customers c ON c.customer_id = j.customer_id WHERE j.job_id = $1${sql}`,
     [req.params.id, ...params]
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบงาน" });
+  if (existing.rows[0].well_id) {
+    return res.status(409).json({
+      error: "งานนี้บันทึกข้อมูลบ่อเรียบร้อยแล้ว ไม่สามารถสร้างลิงก์ใหม่ได้ กรุณาแก้ไขข้อมูลผ่านหน้าประวัติบ่อบาดาลแทน",
+    });
+  }
   const token = generateMagicToken();
   await pool.query(
     "UPDATE drilling_jobs SET magic_link_token = $1, magic_link_expires_at = NOW() + INTERVAL '7 days' WHERE job_id = $2",

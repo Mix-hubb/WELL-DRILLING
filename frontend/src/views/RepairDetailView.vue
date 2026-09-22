@@ -270,7 +270,7 @@ async function handleSendReceipt() {
           <v-icon icon="mdi-calendar-check" size="16" class="mr-1" /> นัดซ่อม {{ fmtDate(request.scheduled_date) }}
         </div>
         <div class="pt-1">
-          <DrillerLinkChip :token="request.magic_link_token || null" path="/d/repair/" @regenerate="regenerateMagicLink" />
+          <DrillerLinkChip :token="request.magic_link_token || null" path="/d/repair/" :locked="!!request.records?.length" @regenerate="regenerateMagicLink" />
         </div>
       </v-card>
 

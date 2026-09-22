@@ -499,6 +499,22 @@ describe("generateMagicLink", () => {
       expect.objectContaining({ type: "REPAIR_MAGIC_LINK_CHANGED", orgId: "org-1" })
     );
   });
+
+  it("rejects with 409 once the repair has already been recorded", async () => {
+    mocks.poolQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM repair_requests r")) return { rows: [repairRow] };
+      if (sql.includes("SELECT record_id FROM repair_records")) return { rows: [{ record_id: "rec-1" }] };
+      return { rows: [] };
+    });
+    const res = createRes();
+    await repairRequests.generateMagicLink(createReq({ params: { id: "1" } }), res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(mocks.poolQuery).not.toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE repair_requests SET magic_link_token"),
+      expect.any(Array)
+    );
+    expect(mocks.broadcast).not.toHaveBeenCalled();
+  });
 });
 
 describe("createFromPublicForm", () => {
