@@ -20,12 +20,12 @@ export async function overview(req: Request, res: Response) {
 
       pool.query(`
         SELECT
-          COUNT(*) FILTER (WHERE j.status = 'QUEUED')    AS queued,
-          COUNT(*) FILTER (WHERE j.status = 'DRILLING')  AS drilling,
-          COUNT(*) FILTER (WHERE j.status = 'SUCCESS')   AS success,
-          COUNT(*) FILTER (WHERE j.status = 'FAILED')    AS failed,
-          COUNT(*) FILTER (WHERE j.status = 'CLOSED')    AS closed,
-          COUNT(*)                                        AS total
+          COUNT(*) FILTER (WHERE j.status = 'QUEUED')                                                AS queued,
+          COUNT(*) FILTER (WHERE j.status = 'DRILLING')                                              AS drilling,
+          COUNT(*) FILTER (WHERE j.status = 'SUCCESS' OR (j.status = 'CLOSED' AND j.result = 'SUCCESS')) AS success,
+          COUNT(*) FILTER (WHERE j.status = 'FAILED'  OR (j.status = 'CLOSED' AND j.result = 'FAILED'))  AS failed,
+          COUNT(*) FILTER (WHERE j.status = 'CLOSED')                                                 AS closed,
+          COUNT(*)                                                                                    AS total
         FROM drilling_jobs j
         JOIN customers c ON c.customer_id = j.customer_id
         WHERE 1=1 ${sql}

@@ -397,6 +397,30 @@ describe("completeWell", () => {
     expect(mocks.broadcast).not.toHaveBeenCalledWith(expect.objectContaining({ type: "WELL_CREATED" }));
   });
 
+  it("rejects submission via an old magic link once the job is already CLOSED", async () => {
+    const closedJob = { ...jobRow, well_id: 1, status: "CLOSED", magic_link_token: "drill-tok" };
+    client.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("SELECT * FROM drilling_jobs")) return { rows: [closedJob] };
+      return { rows: [] };
+    });
+
+    const res = createRes();
+    await jobs.completeWell(
+      createReq({
+        params: { id: "1" },
+        body: { total_depth_m: 120, strata: [], pipes: [], pumps: [], control_boxes: [] },
+      }),
+      res
+    );
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(client.query).toHaveBeenCalledWith("ROLLBACK");
+    expect(client.query).not.toHaveBeenCalledWith(expect.stringContaining("UPDATE wells"), expect.any(Array));
+    expect(client.query).not.toHaveBeenCalledWith(expect.stringContaining("INSERT INTO wells"), expect.any(Array));
+    expect(mocks.sendTextToCustomer).not.toHaveBeenCalled();
+    expect(mocks.broadcast).not.toHaveBeenCalled();
+  });
+
   it("locks the job row FOR UPDATE to serialize concurrent/duplicate submissions", async () => {
     setUp(() => undefined);
     const res = createRes();

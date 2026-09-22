@@ -430,6 +430,28 @@ describe("addRecord", () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
+  it("rejects submission via an old magic link once the request is already CLOSED", async () => {
+    client.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("SELECT * FROM repair_requests")) {
+        return { rows: [{ ...repairRow, status: "CLOSED", magic_link_token: "repair-abc123" }] };
+      }
+      return { rows: [] };
+    });
+    const res = createRes();
+    await repairRequests.addRecord(
+      createReq({ params: { id: "1" }, body: { magic_token: "repair-abc123", work_details: "x" } }),
+      res
+    );
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(client.query).toHaveBeenCalledWith("ROLLBACK");
+    expect(client.query).not.toHaveBeenCalledWith(expect.stringContaining("INSERT INTO repair_records"), expect.any(Array));
+    expect(client.query).not.toHaveBeenCalledWith(expect.stringContaining("UPDATE repair_records"), expect.any(Array));
+    expect(mocks.sendFlexToCustomer).not.toHaveBeenCalled();
+    expect(mocks.sendTextToCustomer).not.toHaveBeenCalled();
+    expect(mocks.broadcast).not.toHaveBeenCalled();
+  });
+
   it("locks the repair request row FOR UPDATE to serialize concurrent/duplicate submissions", async () => {
     client.query.mockImplementation(async (sql: string) => {
       if (sql.includes("SELECT * FROM repair_requests")) return { rows: [{ ...repairRow, magic_link_token: "repair-abc123" }] };

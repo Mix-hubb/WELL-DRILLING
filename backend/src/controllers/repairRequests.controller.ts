@@ -414,6 +414,15 @@ export async function addRecord(req: Request, res: Response) {
       return res.status(403).json({ error: "Token ไม่ถูกต้อง" });
     }
 
+    // คำร้องที่ปิดงานแล้ว (CLOSED) ถือว่าจบกระบวนการแล้ว ลิงก์เก่าที่เคยส่งให้ช่างต้องใช้
+    // บันทึก/แก้ไขข้อมูลไม่ได้อีกต่อไป แม้ magic_link_expires_at จะยังไม่หมดอายุก็ตาม
+    if (rows[0].status === "CLOSED") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({
+        error: "คำร้องนี้ปิดงานแล้ว ไม่สามารถบันทึกข้อมูลผ่านลิงก์นี้ได้อีก กรุณาแก้ไขข้อมูลผ่านหน้าประวัติการซ่อมแทน",
+      });
+    }
+
     const existingRecord = await client.query(
       "SELECT record_id FROM repair_records WHERE repair_id = $1 ORDER BY created_at DESC LIMIT 1",
       [id]

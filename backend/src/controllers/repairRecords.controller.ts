@@ -95,7 +95,7 @@ export async function update(req: Request, res: Response) {
 export async function remove(req: Request, res: Response) {
   const { sql, params } = userFilter(req, "c", 1);
   const existing = await pool.query(
-    `SELECT rec.record_id
+    `SELECT rec.record_id, rec.repair_id
      FROM repair_records rec
      JOIN repair_requests r ON r.repair_id = rec.repair_id
      JOIN customers c ON c.customer_id = r.customer_id
@@ -104,7 +104,11 @@ export async function remove(req: Request, res: Response) {
   );
   if (!existing.rows.length) return res.status(404).json({ error: "ไม่พบบันทึก" });
   await pool.query("DELETE FROM repair_records WHERE record_id = $1", [req.params.id]);
-  broadcast({ type: "REPAIR_RECORD_DELETED", data: { record_id: req.params.id }, orgId: req.user?.orgId });
+  broadcast({
+    type: "REPAIR_RECORD_DELETED",
+    data: { record_id: req.params.id, repair_id: existing.rows[0].repair_id },
+    orgId: req.user?.orgId,
+  });
   res.status(204).end();
 }
 

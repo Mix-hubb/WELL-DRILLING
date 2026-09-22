@@ -26,43 +26,47 @@ const showPipe      = ref(false);
 const showPump      = ref(false);
 const showCtrl      = ref(false);
 
-const wellId = () => String(route.params.id);
+// จับค่า id จาก URL ครั้งเดียวตอนเมานต์ ไม่อ่าน route.params.id ซ้ำในฟังก์ชันที่ถูกเรียก
+// จาก realtime event เพราะ route เป็น reactive object ตัวเดียวที่ใช้ร่วมกันทั้งแอป — ถ้า
+// ผู้ใช้กดออกจากหน้านี้พอดีตอน event กำลังจะทำงาน (debounce) route.params.id ตอนนั้นอาจ
+// กลายเป็นของหน้าอื่นไปแล้ว ทำให้ยิง GET /api/wells/undefined
+const wellId = String(route.params.id);
 
 async function refresh() {
   try {
-    await store.fetchOne(String(route.params.id));
+    await store.fetchOne(wellId);
   } catch (e) { ui.notifyError(e); }
 }
 
 useSSERefresh(refresh, [
-  { event: "WELL_UPDATED", filter: (data) => data.well_id === wellId() },
+  { event: "WELL_UPDATED", filter: (data) => String(data.well_id) === wellId },
 ]);
 
 const { on } = useSSE();
 on("WELL_DELETED", (data) => {
-  if (String(data.well_id) === wellId()) router.push("/wells");
+  if (String(data.well_id) === wellId) router.push("/wells");
 });
 
 async function addStrata(form: any) {
-  try { await store.addStrata(wellId(), form); showStrata.value = false; ui.notify("เพิ่มชั้นดิน/หินแล้ว", "success"); }
+  try { await store.addStrata(wellId, form); showStrata.value = false; ui.notify("เพิ่มชั้นดิน/หินแล้ว", "success"); }
   catch (e) { ui.notifyError(e); }
 }
 async function addPipe(form: any) {
-  try { await store.addPipe(wellId(), form); showPipe.value = false; ui.notify("เพิ่มท่อแล้ว", "success"); }
+  try { await store.addPipe(wellId, form); showPipe.value = false; ui.notify("เพิ่มท่อแล้ว", "success"); }
   catch (e) { ui.notifyError(e); }
 }
 async function addPump(form: any) {
-  try { await store.addPump(wellId(), form); showPump.value = false; ui.notify("เพิ่มปั๊มแล้ว", "success"); }
+  try { await store.addPump(wellId, form); showPump.value = false; ui.notify("เพิ่มปั๊มแล้ว", "success"); }
   catch (e) { ui.notifyError(e); }
 }
 async function addControlBox(form: any) {
-  try { await store.addControlBox(wellId(), form); showCtrl.value = false; ui.notify("เพิ่มตู้คอนโทรลแล้ว", "success"); }
+  try { await store.addControlBox(wellId, form); showCtrl.value = false; ui.notify("เพิ่มตู้คอนโทรลแล้ว", "success"); }
   catch (e) { ui.notifyError(e); }
 }
-async function removeStrata(id: number) { try { await store.removeStrata(wellId(), id); } catch (e) { ui.notifyError(e); } }
-async function removePipe(id: number)   { try { await store.removePipe(wellId(), id); } catch (e) { ui.notifyError(e); } }
-async function removePump(id: number)   { try { await store.removePump(wellId(), id); } catch (e) { ui.notifyError(e); } }
-async function removeControlBox(id: number) { try { await store.removeControlBox(wellId(), id); } catch (e) { ui.notifyError(e); } }
+async function removeStrata(id: number) { try { await store.removeStrata(wellId, id); } catch (e) { ui.notifyError(e); } }
+async function removePipe(id: number)   { try { await store.removePipe(wellId, id); } catch (e) { ui.notifyError(e); } }
+async function removePump(id: number)   { try { await store.removePump(wellId, id); } catch (e) { ui.notifyError(e); } }
+async function removeControlBox(id: number) { try { await store.removeControlBox(wellId, id); } catch (e) { ui.notifyError(e); } }
 
 const downloadingReport = ref(false);
 
@@ -70,7 +74,7 @@ async function downloadReport() {
   try {
     downloadingReport.value = true;
     ui.notify("กำลังเตรียมรายงาน PDF...", "info");
-    await api.download(`/wells/${wellId()}/report.pdf`, `report-${wellId()}.pdf`);
+    await api.download(`/wells/${wellId}/report.pdf`, `report-${wellId}.pdf`);
     ui.notify("ดาวน์โหลดรายงาน PDF สำเร็จ", "success");
   } catch (e) {
     ui.notifyError(e);

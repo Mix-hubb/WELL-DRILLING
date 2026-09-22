@@ -75,4 +75,17 @@ describe("overview", () => {
     expect(output.requests).toEqual({ new: 0, quoted: 0, accepted: 0 });
     expect(output.jobs).toEqual({ queued: 0, drilling: 0, success: 0, failed: 0, closed: 0, total: 0 });
   });
+
+  it("counts CLOSED jobs into success/failed by their actual result, not as a separate untracked bucket", async () => {
+    // ป้องกันการถอยกลับไปนับด้วย j.status ตรงๆ อย่างเดียว ซึ่งจะทำให้งานที่ปิดคิวแล้ว
+    // (ไม่ว่าจะเจาะสำเร็จหรือไม่สำเร็จ) หายไปจากสัดส่วนกราฟหน้าแดชบอร์ดทั้งหมด
+    const res = createRes();
+    await stats.overview(createReq(), res);
+
+    const jobCountsCall = poolQuery.mock.calls.find((c) => String(c[0]).includes("FROM drilling_jobs j"));
+    expect(jobCountsCall).toBeDefined();
+    const jobCountsSql = String(jobCountsCall![0]);
+    expect(jobCountsSql).toContain("j.status = 'SUCCESS' OR (j.status = 'CLOSED' AND j.result = 'SUCCESS')");
+    expect(jobCountsSql).toContain("j.status = 'FAILED'  OR (j.status = 'CLOSED' AND j.result = 'FAILED')");
+  });
 });

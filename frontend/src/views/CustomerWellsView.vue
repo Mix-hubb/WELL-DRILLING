@@ -19,9 +19,17 @@ const showEditCustomer = ref(false);
 
 const customer = computed(() => data.value?.customer);
 
+// จับค่า id จาก URL ครั้งเดียวตอนเมานต์ ไม่อ่าน route.params.id ซ้ำใน refresh() เพราะ route
+// เป็น reactive object ตัวเดียวที่ใช้ร่วมกันทั้งแอป — ถ้าผู้ใช้กดออกจากหน้านี้พอดีตอนที่
+// realtime event (ซึ่งหน้านี้ subscribe แบบไม่กรองเลย จึงมีโอกาสเกิดบ่อยมาก) กำลังจะสั่ง
+// refresh() route.params.id ตอนนั้นอาจกลายเป็นของหน้าอื่นไปแล้ว ทำให้ยิง
+// GET /api/customers/undefined/overview
+const customerId = route.params.id as string | undefined;
+
 async function refresh() {
+  if (!customerId) return;
   try {
-    data.value = await customersApi.overview(route.params.id as string);
+    data.value = await customersApi.overview(customerId);
   } catch (e) {
     ui.notifyError(e);
   } finally {

@@ -37,10 +37,16 @@ const photoPreviewDlg = computed({
 
 const canQuote = computed(() => request.value && !request.value.quotation && request.value.status === "NEW");
 
+// จับค่า id จาก URL ครั้งเดียวตอนเมานต์ ไม่อ่าน route.params.id ซ้ำในฟังก์ชันที่ถูกเรียกจาก
+// realtime event/polling เพราะ route เป็น reactive object ตัวเดียวที่ใช้ร่วมกันทั้งแอป — ถ้า
+// ผู้ใช้กดออกจากหน้านี้พอดีตอน event กำลังจะทำงาน route.params.id ตอนนั้นอาจกลายเป็นของหน้า
+// อื่นไปแล้ว ทำให้ยิง GET /api/repair-requests/undefined
+const repairId = route.params.id as string | undefined;
+
 async function reload() {
-  if (!route.params.id) return;
+  if (!repairId) return;
   try {
-    request.value = await repairRequestsApi.getOne(route.params.id as string);
+    request.value = await repairRequestsApi.getOne(repairId);
   } catch (e) {
     ui.notifyError(e);
   }
@@ -51,20 +57,22 @@ onMounted(async () => {
   loading.value = false;
   connect();
   on("REPAIR_REQUEST_CHANGED", (data) => {
-    if (String(data.repair_id) === route.params.id) reload();
+    if (String(data.repair_id) === repairId) reload();
   });
   on("REPAIR_REQUEST_UPDATED", (data) => {
-    if (String(data.repair_id) === route.params.id) reload();
+    if (String(data.repair_id) === repairId) reload();
   });
   on("REPAIR_REQUEST_DELETED", (data) => {
-    if (String(data.repair_id) === route.params.id) reload();
+    if (String(data.repair_id) === repairId) reload();
   });
   on("REPAIR_RECORD_ADDED", (data) => {
-    if (String(data.repair_id) === route.params.id) reload();
+    if (String(data.repair_id) === repairId) reload();
   });
-  on("REPAIR_RECORD_DELETED", () => reload());
+  on("REPAIR_RECORD_DELETED", (data) => {
+    if (String(data.repair_id) === repairId) reload();
+  });
   on("REPAIR_RECORD_UPDATED", (data) => {
-    if (String(data.repair_id) === route.params.id) reload();
+    if (String(data.repair_id) === repairId) reload();
   });
   on("REPAIR_MAGIC_LINK_CHANGED", (data) => {
     if (request.value && String(data.repair_id) === String(request.value.repair_id)) {
@@ -77,7 +85,7 @@ onMounted(async () => {
   on("QUOTATION_CHANGED", () => reload());
   on("QUOTATION_DELETED", () => reload());
 
-  if (!route.params.id) return;
+  if (!repairId) return;
 
   if (!connected.value) startPolling();
 

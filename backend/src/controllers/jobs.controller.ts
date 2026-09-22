@@ -269,6 +269,16 @@ export async function completeWell(req: Request, res: Response) {
       return res.status(403).json({ error: "Token ไม่ถูกต้อง" });
     }
 
+    // งานที่ปิดคิวแล้ว (CLOSED) ถือว่าจบกระบวนการแล้ว ลิงก์เก่าที่เคยส่งให้ช่างต้องใช้
+    // บันทึก/แก้ไขข้อมูลไม่ได้อีกต่อไป แม้ magic_link_expires_at จะยังไม่หมดอายุก็ตาม —
+    // ป้องกันไม่ให้ช่างเปิดลิงก์เก่าของงานที่ปิดไปแล้วมากรอกข้อมูลซ้ำจนงานถูกเปิดขึ้นมาใหม่
+    if (job.status === "CLOSED") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({
+        error: "งานนี้ปิดคิวแล้ว ไม่สามารถบันทึกข้อมูลผ่านลิงก์นี้ได้อีก กรุณาแก้ไขข้อมูลผ่านหน้าประวัติบ่อบาดาลแทน",
+      });
+    }
+
     wellId = job.well_id;
     isNewWell = !wellId;
 

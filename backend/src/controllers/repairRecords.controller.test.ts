@@ -94,4 +94,42 @@ describe("repairRecords.controller", () => {
       );
     });
   });
+
+  describe("remove", () => {
+    it("should return 404 if record does not exist or unauthorized", async () => {
+      const req = {
+        params: { id: "99" },
+        user: { userId: "u-1", role: "ADMIN", orgId: "org-1" },
+      } as unknown as Request;
+      const res = createRes();
+
+      mocks.poolQuery.mockResolvedValueOnce({ rows: [] });
+
+      await repairRecords.remove(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    it("deletes the record and broadcasts with repair_id so the detail page can filter correctly", async () => {
+      const req = {
+        params: { id: "10" },
+        user: { userId: "u-1", role: "ADMIN", orgId: "org-1" },
+      } as unknown as Request;
+      const res = createRes();
+
+      mocks.poolQuery.mockResolvedValueOnce({ rows: [{ record_id: "10", repair_id: 5 }] });
+      mocks.poolQuery.mockResolvedValueOnce({ rows: [] });
+
+      await repairRecords.remove(req, res);
+
+      expect(mocks.broadcast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "REPAIR_RECORD_DELETED",
+          data: { record_id: "10", repair_id: 5 },
+          orgId: "org-1",
+        })
+      );
+      expect(res.status).toHaveBeenCalledWith(204);
+    });
+  });
 });
