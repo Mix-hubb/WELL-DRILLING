@@ -9,7 +9,7 @@ import { fmtShortDate as fmtDate } from "@/utils/date";
 import type { StatsOverview } from "@/types";
 import { JOB_STATUS_HEX } from "@/constants";
 import StatCard   from "@/components/StatCard.vue";
-import DonutChart from "@/components/DonutChart.vue";
+import BarChart   from "@/components/BarChart.vue";
 import StatusChip from "@/components/StatusChip.vue";
 import OnboardingWizard from "@/components/OnboardingWizard.vue";
 
@@ -29,6 +29,10 @@ async function refreshStats() {
   }
 }
 
+// หน้านี้ฟัง event เกือบทุกโดเมนเพราะสถิติเป็นภาพรวมทั้งองค์กร กรอง filter ไม่ได้จริง ๆ —
+// ยืด debounce เป็น 800ms (จาก default 80ms) แทน เพื่อรวบการแก้ไขข้อมูลเป็นชุด (bulk) ให้
+// เหลือ refetch ครั้งเดียว โดยไม่กระทบการใช้งานจริงเพราะเป็นแค่ตัวเลขสรุปพื้นหลัง ไม่ต้อง
+// อัปเดตไวระดับ 80ms
 useSSERefresh(refreshStats, [
   "JOB_CREATED",
   "JOB_UPDATED",
@@ -52,7 +56,7 @@ useSSERefresh(refreshStats, [
   "REPAIR_RECORD_DELETED",
   "WELL_CREATED",
   "WELL_UPDATED",
-]);
+], 800);
 
 onMounted(async () => {
   loading.value = false;
@@ -143,10 +147,10 @@ const todayLabel = new Date().toLocaleDateString("th-TH", {
         <v-col cols="12" md="5">
           <v-card class="pa-4 h-100">
             <div class="d-flex align-center ga-2 mb-3">
-              <div class="section-head-icon"><v-icon icon="mdi-chart-donut" size="18" /></div>
+              <div class="section-head-icon"><v-icon icon="mdi-chart-bar" size="18" /></div>
               <div class="text-subtitle-1 font-display font-weight-bold">สัดส่วนสถานะคิวงาน</div>
             </div>
-            <DonutChart :segments="statusSegments" />
+            <BarChart :segments="statusSegments" />
           </v-card>
         </v-col>
         <v-col cols="12" md="7">

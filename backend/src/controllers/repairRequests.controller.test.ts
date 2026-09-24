@@ -400,17 +400,10 @@ describe("addRecord", () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  it("resubmitting the same magic link updates the existing record instead of creating a duplicate, and does not re-send the receipt", async () => {
+  it("rejects submission via an old magic link once a repair record has already been recorded once", async () => {
     client.query.mockImplementation(async (sql: string) => {
       if (sql.includes("SELECT * FROM repair_requests")) return { rows: [{ ...repairRow, magic_link_token: "repair-abc123" }] };
       if (sql.includes("SELECT record_id FROM repair_records")) return { rows: [{ record_id: "rec-1" }] };
-      if (sql.includes("UPDATE repair_records")) return { rows: [] };
-      if (sql.includes("UPDATE repair_requests SET status")) return { rows: [] };
-      return { rows: [] };
-    });
-    mocks.poolQuery.mockImplementation(async (sql: string) => {
-      if (sql.includes("SELECT * FROM repair_records")) return { rows: [{ record_id: "rec-1", repair_id: 1, final_price: 700, work_details: "แก้ไขราคา" }] };
-      if (sql.includes("repair_requests r JOIN customers")) return { rows: [{ customer_id: 2, org_id: "org-1" }] };
       return { rows: [] };
     });
     const res = createRes();
@@ -422,12 +415,13 @@ describe("addRecord", () => {
       res
     );
 
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(client.query).toHaveBeenCalledWith("ROLLBACK");
     expect(client.query).not.toHaveBeenCalledWith(expect.stringContaining("INSERT INTO repair_records"), expect.any(Array));
-    expect(client.query).toHaveBeenCalledWith(expect.stringContaining("UPDATE repair_records"), expect.any(Array));
+    expect(client.query).not.toHaveBeenCalledWith(expect.stringContaining("UPDATE repair_records"), expect.any(Array));
     expect(mocks.sendFlexToCustomer).not.toHaveBeenCalled();
     expect(mocks.sendTextToCustomer).not.toHaveBeenCalled();
-    expect(mocks.broadcast).toHaveBeenCalledWith(expect.objectContaining({ type: "REPAIR_RECORD_UPDATED" }));
-    expect(res.status).toHaveBeenCalledWith(201);
+    expect(mocks.broadcast).not.toHaveBeenCalled();
   });
 
   it("rejects submission via an old magic link once the request is already CLOSED", async () => {

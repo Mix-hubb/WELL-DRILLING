@@ -220,7 +220,7 @@ describe("updateStatus", () => {
     );
     expect(mocks.broadcast).toHaveBeenCalledWith({
       type: "JOB_STATUS_CHANGED",
-      data: { job_id: "1", status: "DRILLING" },
+      data: { job_id: "1", status: "DRILLING", customer_id: jobRow.customer_id },
       orgId: "org-1",
     });
     expect(res.json).toHaveBeenCalledWith(jobRow);
@@ -368,16 +368,10 @@ describe("completeWell", () => {
     expect(mocks.poolConnect).not.toHaveBeenCalled();
   });
 
-  it("resubmitting the same magic link updates the existing well instead of creating a duplicate, and does not notify the customer again", async () => {
+  it("rejects submission via an old magic link once the well has already been recorded once", async () => {
     const jobWithWell = { ...jobRow, well_id: 1, magic_link_token: "drill-tok", customer_id: 2 };
-    mocks.poolQuery.mockImplementation(async (sql: string) => {
-      if (sql.includes("FROM drilling_jobs j")) return { rows: [{ ...jobRow, well_id: 1 }] };
-      return { rows: [] };
-    });
     client.query.mockImplementation(async (sql: string) => {
       if (sql.includes("SELECT * FROM drilling_jobs")) return { rows: [jobWithWell] };
-      if (sql.includes("UPDATE wells")) return { rows: [] };
-      if (sql.includes("UPDATE drilling_jobs")) return { rows: [] };
       return { rows: [] };
     });
 
@@ -390,11 +384,12 @@ describe("completeWell", () => {
       res
     );
 
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(client.query).toHaveBeenCalledWith("ROLLBACK");
     expect(client.query).not.toHaveBeenCalledWith(expect.stringContaining("INSERT INTO wells"), expect.any(Array));
-    expect(client.query).toHaveBeenCalledWith(expect.stringContaining("UPDATE wells"), expect.any(Array));
+    expect(client.query).not.toHaveBeenCalledWith(expect.stringContaining("UPDATE wells"), expect.any(Array));
     expect(mocks.sendTextToCustomer).not.toHaveBeenCalled();
-    expect(mocks.broadcast).toHaveBeenCalledWith(expect.objectContaining({ type: "WELL_UPDATED" }));
-    expect(mocks.broadcast).not.toHaveBeenCalledWith(expect.objectContaining({ type: "WELL_CREATED" }));
+    expect(mocks.broadcast).not.toHaveBeenCalled();
   });
 
   it("rejects submission via an old magic link once the job is already CLOSED", async () => {

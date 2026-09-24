@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { repairRequestsApi, repairRecordsApi } from "@/api/repairRequests";
 import { quotationsApi } from "@/api/quotations";
@@ -7,7 +7,8 @@ import { api } from "@/api/client";
 import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import { fmtDate } from "@/utils/date";
-import { useSSE, connected } from "@/composables/useSSE";
+import { useSSE } from "@/composables/useSSE";
+import { useSSERefresh } from "@/composables/useSSERefresh";
 import type { RepairRequest, RepairRecord } from "@/types";
 import { REPAIR_STATUS, QUOTATION_STATUS, money } from "@/constants";
 import StatusChip from "@/components/StatusChip.vue";
@@ -18,7 +19,7 @@ const route = useRoute();
 const router = useRouter();
 const ui = useUiStore();
 const auth = useAuthStore();
-const { connect, on } = useSSE();
+const { on } = useSSE();
 const request = ref<RepairRequest | null>(null);
 const loading = ref(true);
 
@@ -54,72 +55,29 @@ async function reload() {
   }
 }
 
-onMounted(async () => {
+async function reloadAndFlagLoaded() {
   await reload();
   loading.value = false;
-  connect();
-  on("REPAIR_REQUEST_CHANGED", (data) => {
-    if (String(data.repair_id) === repairId) reload();
-  });
-  on("REPAIR_REQUEST_UPDATED", (data) => {
-    if (String(data.repair_id) === repairId) reload();
-  });
-  on("REPAIR_REQUEST_DELETED", (data) => {
-    if (String(data.repair_id) === repairId) reload();
-  });
-  on("REPAIR_RECORD_ADDED", (data) => {
-    if (String(data.repair_id) === repairId) reload();
-  });
-  on("REPAIR_RECORD_DELETED", (data) => {
-    if (String(data.repair_id) === repairId) reload();
-  });
-  on("REPAIR_RECORD_UPDATED", (data) => {
-    if (String(data.repair_id) === repairId) reload();
-  });
+}
+
+useSSERefresh(reloadAndFlagLoaded, [
+  { event: "REPAIR_REQUEST_CHANGED", filter: (d) => String(d.repair_id) === repairId },
+  { event: "REPAIR_REQUEST_UPDATED", filter: (d) => String(d.repair_id) === repairId },
+  { event: "REPAIR_REQUEST_DELETED", filter: (d) => String(d.repair_id) === repairId },
+  { event: "REPAIR_RECORD_ADDED", filter: (d) => String(d.repair_id) === repairId },
+  { event: "REPAIR_RECORD_DELETED", filter: (d) => String(d.repair_id) === repairId },
+  { event: "REPAIR_RECORD_UPDATED", filter: (d) => String(d.repair_id) === repairId },
+  { event: "QUOTATION_CREATED", filter: (d) => d.kind === "REPAIR" },
+  "QUOTATION_CHANGED",
+  "QUOTATION_DELETED",
+]);
+
+onMounted(() => {
   on("REPAIR_MAGIC_LINK_CHANGED", (data) => {
     if (request.value && String(data.repair_id) === String(request.value.repair_id)) {
       request.value.magic_link_token = data.token;
     }
   });
-  on("QUOTATION_CREATED", (data) => {
-    if (data.kind === "REPAIR") reload();
-  });
-  on("QUOTATION_CHANGED", () => reload());
-  on("QUOTATION_DELETED", () => reload());
-
-  if (!repairId) return;
-
-  if (!connected.value) startPolling();
-
-  watch(connected, (isConnected) => {
-    if (isConnected) {
-      stopPolling();
-    } else {
-      startPolling();
-    }
-  });
-});
-
-const POLL_INTERVAL = 30_000;
-let pollTimer: ReturnType<typeof setInterval> | null = null;
-
-function startPolling() {
-  if (pollTimer) return;
-  pollTimer = setInterval(() => {
-    if (!route.params.id) return;
-    reload();
-  }, POLL_INTERVAL);
-}
-
-function stopPolling() {
-  if (pollTimer) {
-    clearInterval(pollTimer);
-    pollTimer = null;
-  }
-}
-
-onUnmounted(() => {
-  stopPolling();
 });
 
 async function setStatus(status: RepairRequest["status"]) {

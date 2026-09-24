@@ -23,9 +23,8 @@ const customer = computed(() => data.value?.customer);
 
 // จับค่า id จาก URL ครั้งเดียวตอนเมานต์ ไม่อ่าน route.params.id ซ้ำใน refresh() เพราะ route
 // เป็น reactive object ตัวเดียวที่ใช้ร่วมกันทั้งแอป — ถ้าผู้ใช้กดออกจากหน้านี้พอดีตอนที่
-// realtime event (ซึ่งหน้านี้ subscribe แบบไม่กรองเลย จึงมีโอกาสเกิดบ่อยมาก) กำลังจะสั่ง
-// refresh() route.params.id ตอนนั้นอาจกลายเป็นของหน้าอื่นไปแล้ว ทำให้ยิง
-// GET /api/customers/undefined/overview
+// realtime event กำลังจะสั่ง refresh() route.params.id ตอนนั้นอาจกลายเป็นของหน้าอื่นไปแล้ว
+// ทำให้ยิง GET /api/customers/undefined/overview
 const customerId = route.params.id as string | undefined;
 
 async function refresh() {
@@ -39,13 +38,19 @@ async function refresh() {
   }
 }
 
+// !d.customer_id ยอมให้ผ่าน filter เสมอ กันพลาดกรณี payload เก่า/บาง endpoint ยังไม่ส่ง
+// customer_id มาด้วย (ดีกว่าพลาด update จริงเพราะกรองผิด)
+function forThisCustomer(d: any) {
+  return !d.customer_id || String(d.customer_id) === customerId;
+}
+
 useSSERefresh(refresh, [
-  "WELL_CREATED",
-  "WELL_UPDATED",
-  "JOB_STATUS_CHANGED",
-  "CUSTOMER_CREATED",
-  "CUSTOMER_UPDATED",
-  "CUSTOMER_DELETED",
+  { event: "WELL_CREATED", filter: forThisCustomer },
+  { event: "WELL_UPDATED", filter: forThisCustomer },
+  { event: "JOB_STATUS_CHANGED", filter: forThisCustomer },
+  { event: "CUSTOMER_CREATED", filter: (d) => String(d.customer_id) === customerId },
+  { event: "CUSTOMER_UPDATED", filter: (d) => String(d.customer_id) === customerId },
+  { event: "CUSTOMER_DELETED", filter: (d) => String(d.customer_id) === customerId },
 ]);
 
 async function handleUpdateCustomer(formData: Partial<Customer>) {

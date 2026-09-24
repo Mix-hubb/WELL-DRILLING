@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { pumpCatalogApi } from "@/api/pumpCatalog";
 import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
@@ -13,6 +13,8 @@ const models = ref<PumpCatalogModel[]>([]);
 const loading = ref(true);
 const search = ref("");
 const selectedBrand = ref<string>("ALL");
+const page = ref(1);
+const perPage = ref(5);
 
 // Dialogs
 const showDialog = ref(false);
@@ -60,6 +62,28 @@ const filteredModels = computed(() => {
       (m.series || "").toLowerCase().includes(q) ||
       (m.motor_power || "").toLowerCase().includes(q)
   );
+});
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredModels.value.length / perPage.value)));
+
+// กันหน้าค้างเกินขอบ เช่น ลบการ์ดสุดท้ายของหน้าสุดท้ายไป หรือเปลี่ยนจำนวนต่อหน้าแล้วหน้าเดิมเกินไป
+const clampedPage = computed(() => Math.min(page.value, totalPages.value));
+
+const pagedModels = computed(() => {
+  const start = (clampedPage.value - 1) * perPage.value;
+  return filteredModels.value.slice(start, start + perPage.value);
+});
+
+const rangeStart = computed(() => (filteredModels.value.length ? (clampedPage.value - 1) * perPage.value + 1 : 0));
+const rangeEnd = computed(() => Math.min(clampedPage.value * perPage.value, filteredModels.value.length));
+
+// เปลี่ยนตัวกรอง/คำค้น/จำนวนต่อหน้า ต้องกลับไปหน้า 1 เสมอ ไม่งั้นอาจค้างอยู่หน้าที่ไม่มีผลลัพธ์แล้ว
+watch([search, selectedBrand, perPage], () => {
+  page.value = 1;
+});
+
+watch(totalPages, (tp) => {
+  if (page.value > tp) page.value = tp;
 });
 
 async function load() {
@@ -213,7 +237,7 @@ async function handleDelete() {
     <!-- Models List -->
     <div v-else-if="filteredModels.length" class="d-flex flex-column ga-3">
       <v-card
-        v-for="m in filteredModels"
+        v-for="m in pagedModels"
         :key="m.model_id"
         variant="outlined"
         class="pa-4"
@@ -254,6 +278,32 @@ async function handleDelete() {
           <strong>คุณสมบัติ:</strong> {{ m.features }}
         </div>
       </v-card>
+
+      <!-- Pagination -->
+      <div class="d-flex flex-wrap align-center justify-space-between ga-3 mt-2 pt-3" style="border-top: 1px solid rgb(var(--v-theme-surface-variant))">
+        <span class="text-caption text-medium-emphasis">
+          แสดง <strong class="font-mono">{{ rangeStart }}-{{ rangeEnd }}</strong> จาก <strong class="font-mono">{{ filteredModels.length }}</strong> รายการ
+        </span>
+        <v-pagination
+          v-if="totalPages > 1"
+          v-model="page"
+          :length="totalPages"
+          :total-visible="5"
+          density="comfortable"
+          size="small"
+        />
+        <div class="d-flex align-center ga-2">
+          <span class="text-caption text-medium-emphasis">ต่อหน้า</span>
+          <v-select
+            v-model="perPage"
+            :items="[5, 10, 20]"
+            density="compact"
+            variant="outlined"
+            hide-details
+            style="width: 76px"
+          />
+        </div>
+      </div>
     </div>
 
     <div v-else class="text-center py-10 text-medium-emphasis">

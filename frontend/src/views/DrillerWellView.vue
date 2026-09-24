@@ -7,7 +7,7 @@ import { requiredField } from "@/utils/validation";
 const route = useRoute();
 const token = route.params.token as string;
 const {
-  job, loading, submitting, saved, form,
+  job, loading, submitting, saved, locked, form,
   methodOptions, waterOptions, hardnessOptions, lithologyOptions,
   materialOptions, pipeTypeOptions, protectionOptions, PIPE_SIZE_OPTIONS,
   addStrata, addPipe, addPump, addControlBox,
@@ -24,6 +24,18 @@ const {
       <v-icon icon="mdi-check-circle" size="80" color="success" class="mb-4" />
       <div class="text-h5 font-weight-bold" style="color: #2E2418;">บันทึกสำเร็จ</div>
     </div>
+
+    <!-- เคยบันทึกผลผ่านลิงก์นี้ไปแล้ว / งานถูกปิดคิวแล้ว — ล็อกไว้ ไม่ให้กรอกซ้ำ -->
+    <v-card v-else-if="locked" class="pa-6 text-center">
+      <v-icon icon="mdi-lock-check-outline" size="64" color="secondary" class="mb-3" />
+      <div class="text-h6 font-display font-weight-bold">บันทึกข้อมูลไปแล้ว</div>
+      <div class="text-body-2 text-medium-emphasis mt-2">
+        ลิงก์นี้ถูกใช้บันทึกผลการเจาะไปแล้ว ไม่สามารถกรอกซ้ำได้อีก
+      </div>
+      <div class="text-caption text-medium-emphasis mt-1">
+        หากต้องการแก้ไขข้อมูล กรุณาติดต่อผู้ดูแลระบบ
+      </div>
+    </v-card>
 
     <v-card v-else-if="job" class="pa-5">
       <div class="text-center mb-4">

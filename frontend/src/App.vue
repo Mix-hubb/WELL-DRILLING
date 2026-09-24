@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from "vue";
-import { connectSSE, disconnectSSE } from "@/composables/useSSE";
+import { connectSSE, disconnectSSE, ensureConnected } from "@/composables/useSSE";
 import { useDisplay, useTheme } from "vuetify";
 import { useRoute, useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import AppNavDrawer from "@/components/AppNavDrawer.vue";
 import AppBottomNav from "@/components/AppBottomNav.vue";
+import ConnectionStatusBanner from "@/components/ConnectionStatusBanner.vue";
 
 const ui = useUiStore();
 const auth = useAuthStore();
@@ -37,6 +38,15 @@ onMounted(async () => {
       }
     }
   }
+
+  // The realtime websocket can die silently while the tab is backgrounded or
+  // the network drops, with no CHANNEL_ERROR/CLOSED ever firing — re-verify
+  // the connection whenever the tab becomes visible again or the browser
+  // reports it's back online.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") ensureConnected();
+  });
+  window.addEventListener("online", ensureConnected);
 });
 
 function toggleTheme() {
@@ -78,6 +88,8 @@ const pageTitle = computed(() => (route.meta.label as string) || "ระบบ�
         <v-btn :icon="ui.theme === 'lightTheme' ? 'mdi-weather-night' : 'mdi-white-balance-sunny'" variant="text" @click="toggleTheme" />
       </v-app-bar>
     </template>
+
+    <ConnectionStatusBanner v-if="auth.isLoggedIn" />
 
     <v-main>
       <v-container fluid :class="isAuthPage ? '' : 'pa-4 pa-md-6 page-container'" :style="isAuthPage ? 'background: transparent' : ''">

@@ -12,10 +12,11 @@
 - จัดการคำร้องซ่อม ใบเสนอราคา นัดหมาย และประวัติซ่อม
 - บันทึกรายละเอียดบ่อ: ชั้นดิน/หิน โปรแกรมท่อ ปั๊ม และตู้ควบคุม
 - สร้างรายงานบ่อเป็น PDF
-- หน้า Driller สำหรับกรอกผลเจาะและบันทึกงานซ่อมผ่าน magic link
+- หน้า Driller สำหรับกรอกผลเจาะและบันทึกงานซ่อมผ่าน magic link (ล็อกอัตโนมัติหลังบันทึกครั้งแรก ป้องกันกรอกซ้ำ แก้ไขภายหลังทำผ่านหน้าเว็บของผู้ดูแลระบบแทน)
 - LINE LIFF สำหรับแจ้งเจาะและแจ้งซ่อม
 - LINE webhook สำหรับตอบข้อมูลบ่อ สถานะประกัน และประวัติซ่อมเป็น Flex card
-- Server-Sent Events (SSE) สำหรับ refresh ข้อมูลแบบ realtime ในหน้าหลัก
+- อัปเดตข้อมูลแบบเรียลไทม์ผ่าน Supabase Realtime Broadcast พร้อม auto-reconnect เมื่อเน็ตหลุด/แท็บถูกพัก และแถบแจ้งเตือนเมื่อขาดการเชื่อมต่อ
+- แคตตาล็อกปั๊มน้ำกลาง (ใช้ร่วมกันทุกองค์กร) พร้อมแบ่งหน้าเมื่อมีรายการเยอะ
 - รองรับ light/dark theme และ responsive layout
 
 ## โครงสร้างโปรเจกต์
@@ -110,6 +111,7 @@ npm run preview
 | `APP_URL`                                                        | URL ที่ใช้สร้างลิงก์กลับไป frontend            |
 | `LINE_CHANNEL_SECRET`                                            | LINE channel secret แบบ legacy/single-org      |
 | `LINE_CHANNEL_ACCESS_TOKEN`                                      | LINE access token แบบ legacy/single-org        |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`                              | ยิง Realtime Broadcast event ไปยัง Supabase (ถ้าไม่ตั้งค่า realtime จะปิดตัวเงียบ ๆ) |
 | `RESEND_API_KEY`, `RESEND_FROM`                                  | ส่ง email reset password ผ่าน Resend           |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` | ส่ง SMS OTP                                    |
 
@@ -122,6 +124,7 @@ npm run preview
 | `VITE_API_URL`          | URL ของ backend API                          |
 | `VITE_LIFF_ID_DRILLING` | LIFF สำหรับแจ้งเจาะ ถ้าไม่ได้ใช้ค่าจากองค์กร |
 | `VITE_LIFF_ID_REPAIR`   | LIFF สำหรับแจ้งซ่อม ถ้าไม่ได้ใช้ค่าจากองค์กร |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | subscribe Realtime Broadcast event จาก Supabase |
 
 ## API และ realtime
 
@@ -134,10 +137,11 @@ Backend ใช้ prefix `/api` ตัวอย่าง endpoint หลัก:
 | `GET`  | `/api/wells`          | รายการบ่อ           |
 | `GET`  | `/api/customers`      | รายการลูกค้า        |
 | `GET`  | `/api/stats/overview` | สถิติ dashboard     |
-| `GET`  | `/api/events`         | SSE realtime stream |
 | `POST` | `/api/webhooks/line`  | LINE webhook        |
 
-หน้า dashboard, jobs, requests, wells และรายละเอียดที่เกี่ยวข้องจะ refresh เมื่อได้รับ event จาก SSE เช่น job, request, quotation, well, customer และ repair record changes
+การอัปเดตแบบเรียลไทม์ไม่ได้ผ่าน REST endpoint ของ backend — เมื่อมีการแก้ไขข้อมูล (งาน คำร้อง ใบเสนอราคา บ่อ ลูกค้า ฯลฯ) backend จะ broadcast เหตุการณ์ไปยัง Supabase Realtime channel `org:<org_id>` ของแต่ละองค์กร (และ `global` สำหรับข้อมูลที่ใช้ร่วมกันทุกองค์กร เช่น แคตตาล็อกปั๊ม) ฝั่ง frontend subscribe ทั้งสอง channel นี้ตรงกับ Supabase แล้ว refresh ข้อมูลที่เกี่ยวข้องอัตโนมัติ พร้อม auto-reconnect และแถบแจ้งเตือนสถานะการเชื่อมต่อ
+
+หน้า dashboard, jobs, requests, wells และรายละเอียดที่เกี่ยวข้องจะ refresh เมื่อได้รับ broadcast event เช่น job, request, quotation, well, customer และ repair record changes
 
 ## LINE
 

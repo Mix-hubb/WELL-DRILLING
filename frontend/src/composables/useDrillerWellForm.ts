@@ -1,4 +1,4 @@
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { jobsApi } from "@/api/jobs";
 import { useUiStore } from "@/stores/ui";
 import type { DrillingJob, PumpCatalogModel } from "@/types";
@@ -82,6 +82,10 @@ export function useDrillerWellForm(token: string) {
     strata: [] as StrataEntry[], pipes: [] as PipeEntry[], pumps: [] as PumpEntry[],
     control_boxes: [] as ControlBoxEntry[],
   });
+
+  // เคยบันทึกผลผ่านลิงก์นี้ไปแล้วครั้งหนึ่ง (มี well_id แล้ว) หรืองานถูกปิดคิวไปแล้ว —
+  // ล็อกฟอร์มทั้งหมดตั้งแต่โหลดหน้า ไม่ให้ช่างกรอกซ้ำแล้วมาเจอ error ตอนกดบันทึก
+  const locked = computed(() => !!job.value && (!!job.value.well_id || job.value.status === "CLOSED"));
 
   onMounted(async () => {
     try {
@@ -193,7 +197,7 @@ export function useDrillerWellForm(token: string) {
   }
 
   return {
-    job, loading, submitting, saved, form,
+    job, loading, submitting, saved, locked, form,
     methodOptions, waterOptions, hardnessOptions, lithologyOptions,
     materialOptions, pipeTypeOptions, protectionOptions, PIPE_SIZE_OPTIONS,
     addStrata, addPipe, addPump, addControlBox,

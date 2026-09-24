@@ -6,7 +6,7 @@ import { requiredField } from "@/utils/validation";
 
 const route = useRoute();
 const token    = route.params.token as string;
-const { request, loading, submitting, saved, form, addPart, removePart, submit } = useDrillerRepairForm(token);
+const { request, loading, submitting, saved, locked, form, addPart, removePart, submit } = useDrillerRepairForm(token);
 </script>
 
 <template>
@@ -18,6 +18,18 @@ const { request, loading, submitting, saved, form, addPart, removePart, submit }
       <v-icon icon="mdi-check-circle" size="80" color="success" class="mb-4" />
       <div class="text-h5 font-weight-bold" style="color: #2E2418;">บันทึกสำเร็จ</div>
     </div>
+
+    <!-- เคยบันทึกผลการซ่อมผ่านลิงก์นี้ไปแล้ว / งานถูกปิดไปแล้ว — ล็อกไว้ ไม่ให้กรอกซ้ำ -->
+    <v-card v-else-if="locked" class="pa-6 text-center">
+      <v-icon icon="mdi-lock-check-outline" size="64" color="secondary" class="mb-3" />
+      <div class="text-h6 font-display font-weight-bold">บันทึกข้อมูลไปแล้ว</div>
+      <div class="text-body-2 text-medium-emphasis mt-2">
+        ลิงก์นี้ถูกใช้บันทึกผลการซ่อมไปแล้ว ไม่สามารถกรอกซ้ำได้อีก
+      </div>
+      <div class="text-caption text-medium-emphasis mt-1">
+        หากต้องการแก้ไขข้อมูล กรุณาติดต่อผู้ดูแลระบบ
+      </div>
+    </v-card>
 
     <v-card v-else-if="request" class="pa-5">
       <div class="text-center mb-4">

@@ -210,7 +210,7 @@ export async function updateStatus(req: Request, res: Response) {
     await pool.query("UPDATE drilling_jobs SET status = $1 WHERE job_id = $2", [status, id]);
   }
   const row = await getJobRow(id, req.user?.orgId);
-  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: id, status }, orgId: req.user?.orgId });
+  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: id, status, customer_id: existing.customer_id }, orgId: req.user?.orgId });
   res.json(row);
 }
 
@@ -244,8 +244,7 @@ export async function completeWell(req: Request, res: Response) {
   }
 
   const client = await pool.connect();
-  let wellId: number | null;
-  let isNewWell: boolean;
+  let wellId: number;
   let job: any;
   try {
     await client.query("BEGIN");
@@ -279,119 +278,99 @@ export async function completeWell(req: Request, res: Response) {
       });
     }
 
-    wellId = job.well_id;
-    isNewWell = !wellId;
-
-    if (!wellId) {
-      const wellResult = (result === "FAIL" || result === "FAILED") ? "FAIL" : "SUCCESS";
-      const w = await client.query(
-        `INSERT INTO wells
-          (customer_id, well_name, total_depth_m, requested_depth_m, drilling_method, formation_water_type,
-           water_quantity_m3hr, driller_name, completion_date,
-           result, failure_reason, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING well_id`,
-        [
-          job.customer_id,
-          well_name || `บ่อลูกค้า #${job.customer_id}`,
-          total_depth_m ?? null,
-          requested_depth_m ?? null,
-          drilling_method || null,
-          formation_water_type || "UNKNOWN",
-          water_quantity_m3hr ?? null,
-          driller_name || null,
-          completion_date || new Date().toISOString().slice(0, 10),
-          wellResult,
-          failure_reason || null,
-          notes || null,
-        ]
-      );
-      wellId = w.rows[0].well_id;
-
-      // wells.result เก็บเป็น 'SUCCESS'/'FAIL' แต่ drilling_jobs.status และ drilling_jobs.result เก็บเป็น 'SUCCESS'/'FAILED'
-      const jobStatusValue = wellResult === "FAIL" ? "FAILED" : "SUCCESS";
-      await client.query(
-        "UPDATE drilling_jobs SET well_id = $1, status = $2, result = $3 WHERE job_id = $4",
-        [wellId, jobStatusValue, jobStatusValue, id]
-      );
-    } else {
-      const wellResult = (result === "FAIL" || result === "FAILED") ? "FAIL" : "SUCCESS";
-      await client.query(
-        `UPDATE wells SET
-           well_name = $1, total_depth_m = $2, requested_depth_m = $3, drilling_method = $4, formation_water_type = $5,
-           water_quantity_m3hr = $6, driller_name = $7,
-           completion_date = $8, result = $9, failure_reason = $10, notes = $11
-         WHERE well_id = $12`,
-        [
-          well_name || null, total_depth_m ?? null, requested_depth_m ?? null, drilling_method || null,
-          formation_water_type || "UNKNOWN", water_quantity_m3hr ?? null, driller_name || null,
-          completion_date || new Date().toISOString().slice(0, 10),
-          wellResult, failure_reason || null, notes || null, wellId,
-        ]
-      );
-      const jobStatusValue = wellResult === "FAIL" ? "FAILED" : "SUCCESS";
-      await client.query(
-        "UPDATE drilling_jobs SET status = $1, result = $2 WHERE job_id = $3",
-        [jobStatusValue, jobStatusValue, id]
-      );
+    // เคยบันทึกผลผ่านลิงก์นี้ไปแล้วครั้งหนึ่ง (well_id ถูกตั้งค่าแล้ว) ล็อกไม่ให้กรอกซ้ำอีก
+    // ฟอร์มของช่างเริ่มจากช่องว่างทุกครั้ง ไม่ได้โหลดข้อมูลเดิมมาให้แก้ การกรอกซ้ำจึงเสี่ยง
+    // เขียนทับข้อมูลชุดที่ถูกต้องแล้วด้วยข้อมูลใหม่ที่อาจตกหล่น — การแก้ไขหลังจากนี้ให้เป็น
+    // หน้าที่ของผู้ดูแลระบบผ่านหน้าเว็บ (ประวัติบ่อบาดาล) แทน
+    if (job.well_id) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({
+        error: "งานนี้บันทึกข้อมูลไปแล้ว ไม่สามารถกรอกซ้ำผ่านลิงก์นี้ได้อีก กรุณาแก้ไขข้อมูลผ่านหน้าประวัติบ่อบาดาลแทน",
+      });
     }
 
-    if (wellId) {
-      if (Array.isArray(strata)) {
-        await client.query("DELETE FROM well_strata_logs WHERE well_id = $1", [wellId]);
-        for (const s of strata) {
-          if (s.depth_from_m == null || s.depth_to_m == null) continue;
-          await client.query(
-            `INSERT INTO well_strata_logs
-              (well_id, depth_from_m, depth_to_m, lithology_type, lithology_name, color_hex, hardness, water_bearing, description)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-            [
-              wellId, s.depth_from_m, s.depth_to_m,
-              s.lithology_type || null, s.lithology_name || null, s.color_hex || null,
-              s.hardness || null, s.water_bearing ? true : false, s.description || null,
-            ]
-          );
-        }
-      }
+    const wellResult = (result === "FAIL" || result === "FAILED") ? "FAIL" : "SUCCESS";
+    const w = await client.query(
+      `INSERT INTO wells
+        (customer_id, well_name, total_depth_m, requested_depth_m, drilling_method, formation_water_type,
+         water_quantity_m3hr, driller_name, completion_date,
+         result, failure_reason, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING well_id`,
+      [
+        job.customer_id,
+        well_name || `บ่อลูกค้า #${job.customer_id}`,
+        total_depth_m ?? null,
+        requested_depth_m ?? null,
+        drilling_method || null,
+        formation_water_type || "UNKNOWN",
+        water_quantity_m3hr ?? null,
+        driller_name || null,
+        completion_date || new Date().toISOString().slice(0, 10),
+        wellResult,
+        failure_reason || null,
+        notes || null,
+      ]
+    );
+    wellId = w.rows[0].well_id;
 
-      if (Array.isArray(pipes)) {
-        await client.query("DELETE FROM well_pipes WHERE well_id = $1", [wellId]);
-        for (const p of pipes) {
-          if (p.depth_from_m == null || p.depth_to_m == null) continue;
-          await client.query(
-            `INSERT INTO well_pipes (well_id, material, pipe_type, size_mm, depth_from_m, depth_to_m, quantity, notes)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-            [wellId, p.material || null, p.pipe_type || null, p.size_mm ?? null, p.depth_from_m, p.depth_to_m, p.quantity || 1, p.notes || null]
-          );
-        }
-      }
+    // wells.result เก็บเป็น 'SUCCESS'/'FAIL' แต่ drilling_jobs.status และ drilling_jobs.result เก็บเป็น 'SUCCESS'/'FAILED'
+    const jobStatusValue = wellResult === "FAIL" ? "FAILED" : "SUCCESS";
+    await client.query(
+      "UPDATE drilling_jobs SET well_id = $1, status = $2, result = $3 WHERE job_id = $4",
+      [wellId, jobStatusValue, jobStatusValue, id]
+    );
 
-      if (Array.isArray(pumps)) {
-        await client.query("DELETE FROM well_pumps WHERE well_id = $1", [wellId]);
-        for (const p of pumps) {
-          await client.query(
-            `INSERT INTO well_pumps
-              (well_id, pump_type, brand, pump_model, horsepower, power_kw, impeller_stages, installation_depth_m,
-               voltage, phase, discharge_size_mm, rated_flow_m3hr, rated_head_m, installed_date, notes)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-            [
-              wellId, p.pump_type || null, p.brand || null, p.pump_model || null, p.horsepower ?? null,
-              p.power_kw ?? null, p.impeller_stages ?? null, p.installation_depth_m ?? null, p.voltage || null,
-              p.phase ?? null, p.discharge_size_mm ?? null, p.rated_flow_m3hr ?? null, p.rated_head_m ?? null,
-              p.installed_date || null, p.notes || null,
-            ]
-          );
-        }
+    if (Array.isArray(strata)) {
+      for (const s of strata) {
+        if (s.depth_from_m == null || s.depth_to_m == null) continue;
+        await client.query(
+          `INSERT INTO well_strata_logs
+            (well_id, depth_from_m, depth_to_m, lithology_type, lithology_name, color_hex, hardness, water_bearing, description)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            wellId, s.depth_from_m, s.depth_to_m,
+            s.lithology_type || null, s.lithology_name || null, s.color_hex || null,
+            s.hardness || null, s.water_bearing ? true : false, s.description || null,
+          ]
+        );
       }
+    }
 
-      if (Array.isArray(control_boxes)) {
-        await client.query("DELETE FROM well_control_boxes WHERE well_id = $1", [wellId]);
-        for (const c of control_boxes) {
-          await client.query(
-            `INSERT INTO well_control_boxes (well_id, brand, model, capacity, voltage, protection_type, features, installed_date, notes)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-            [wellId, c.brand || null, c.model || null, c.capacity || null, c.voltage || null, c.protection_type || null, c.features || null, c.installed_date || null, c.notes || null]
-          );
-        }
+    if (Array.isArray(pipes)) {
+      for (const p of pipes) {
+        if (p.depth_from_m == null || p.depth_to_m == null) continue;
+        await client.query(
+          `INSERT INTO well_pipes (well_id, material, pipe_type, size_mm, depth_from_m, depth_to_m, quantity, notes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [wellId, p.material || null, p.pipe_type || null, p.size_mm ?? null, p.depth_from_m, p.depth_to_m, p.quantity || 1, p.notes || null]
+        );
+      }
+    }
+
+    if (Array.isArray(pumps)) {
+      for (const p of pumps) {
+        await client.query(
+          `INSERT INTO well_pumps
+            (well_id, pump_type, brand, pump_model, horsepower, power_kw, impeller_stages, installation_depth_m,
+             voltage, phase, discharge_size_mm, rated_flow_m3hr, rated_head_m, installed_date, notes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+          [
+            wellId, p.pump_type || null, p.brand || null, p.pump_model || null, p.horsepower ?? null,
+            p.power_kw ?? null, p.impeller_stages ?? null, p.installation_depth_m ?? null, p.voltage || null,
+            p.phase ?? null, p.discharge_size_mm ?? null, p.rated_flow_m3hr ?? null, p.rated_head_m ?? null,
+            p.installed_date || null, p.notes || null,
+          ]
+        );
+      }
+    }
+
+    if (Array.isArray(control_boxes)) {
+      for (const c of control_boxes) {
+        await client.query(
+          `INSERT INTO well_control_boxes (well_id, brand, model, capacity, voltage, protection_type, features, installed_date, notes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [wellId, c.brand || null, c.model || null, c.capacity || null, c.voltage || null, c.protection_type || null, c.features || null, c.installed_date || null, c.notes || null]
+        );
       }
     }
 
@@ -410,20 +389,14 @@ export async function completeWell(req: Request, res: Response) {
   );
   const orgId = orgRows[0]?.org_id;
 
-  // แจ้งลูกค้าทาง LINE และ broadcast WELL_CREATED เฉพาะตอนที่เป็นการบันทึกครั้งแรกจริงๆ
-  // (isNewWell) เท่านั้น — ถ้า driller เปิดลิงก์เดิมส่งฟอร์มซ้ำ (แก้ไขข้อมูลบ่อที่มีอยู่แล้ว)
-  // จะเข้ามาที่นี่อีกครั้งแต่ไม่ควรแจ้งเตือนลูกค้าซ้ำหรือ broadcast ว่ามีบ่อใหม่อีกรอบ
-  if (isNewWell) {
-    const wellResult = (result === "FAIL" || result === "FAILED") ? "FAILED" : "SUCCESS";
-    const msg = wellResult === "SUCCESS"
-      ? `แจ้งผลการเจาะ: เจาะสำเร็จแล้ว บ่อ ${row?.well_name || ""}\nข้อมูลอยู่ในระบบแล้วครับ`
-      : "แจ้งผลการเจาะ: การเจาะไม่สำเร็จ กรุณาติดต่อช่างเพื่อหารือแนวทางต่อไปครับ";
-    sendTextToCustomer(job.customer_id, msg, "STATUS", orgId).catch(() => {});
-    broadcast({ type: "WELL_CREATED", data: { well_id: wellId, customer_id: job.customer_id }, orgId });
-  } else {
-    broadcast({ type: "WELL_UPDATED", data: { well_id: wellId, customer_id: job.customer_id }, orgId });
-  }
-  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: id, status: row?.status }, orgId });
+  // ผ่านการล็อกกันกรอกซ้ำด้านบนมาแล้ว จุดนี้จึงเป็นการบันทึกครั้งแรกของงานนี้เสมอ
+  const wellResult = (result === "FAIL" || result === "FAILED") ? "FAILED" : "SUCCESS";
+  const msg = wellResult === "SUCCESS"
+    ? `แจ้งผลการเจาะ: เจาะสำเร็จแล้ว บ่อ ${row?.well_name || ""}\nข้อมูลอยู่ในระบบแล้วครับ`
+    : "แจ้งผลการเจาะ: การเจาะไม่สำเร็จ กรุณาติดต่อช่างเพื่อหารือแนวทางต่อไปครับ";
+  sendTextToCustomer(job.customer_id, msg, "STATUS", orgId).catch(() => {});
+  broadcast({ type: "WELL_CREATED", data: { well_id: wellId, customer_id: job.customer_id }, orgId });
+  broadcast({ type: "JOB_STATUS_CHANGED", data: { job_id: id, status: row?.status, customer_id: job.customer_id }, orgId });
 
   res.json(row);
 }

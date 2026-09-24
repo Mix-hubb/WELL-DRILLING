@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
@@ -16,6 +17,7 @@ function jsonResponse(body: unknown, opts: Partial<{ status: number; ok: boolean
 }
 
 beforeEach(() => {
+  setActivePinia(createPinia());
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
   localStorage.clear();

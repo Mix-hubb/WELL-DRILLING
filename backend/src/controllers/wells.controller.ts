@@ -211,7 +211,7 @@ export async function addStrata(req: Request, res: Response) {
   }
   const { sql, params } = userFilter(req, "c", 1);
   const ownershipCheck = await pool.query(
-    `SELECT w.well_id, w.total_depth_m FROM wells w JOIN customers c ON c.customer_id = w.customer_id WHERE w.well_id = $1${sql}`,
+    `SELECT w.well_id, w.total_depth_m, w.customer_id FROM wells w JOIN customers c ON c.customer_id = w.customer_id WHERE w.well_id = $1${sql}`,
     [wellId, ...params]
   );
   if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบบ่อหรือไม่มีสิทธิ์" });
@@ -230,13 +230,14 @@ export async function addStrata(req: Request, res: Response) {
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
     [wellId, depth_from_m, depth_to_m, lithology_type || null, lithology_name || null, color_hex || null, hardness || null, water_bearing ? true : false, description || null]
   );
-  broadcast({ type: "WELL_UPDATED", data: { well_id: wellId }, orgId: req.user?.orgId });
+  broadcast({ type: "WELL_UPDATED", data: { well_id: wellId, customer_id: ownershipCheck.rows[0].customer_id }, orgId: req.user?.orgId });
   res.status(201).json(rows[0]);
 }
 
 export async function removeStrata(req: Request, res: Response) {
+  const well = await pool.query("SELECT customer_id FROM wells WHERE well_id = $1", [req.params.wellId]);
   await pool.query("DELETE FROM well_strata_logs WHERE strata_id = $1", [req.params.strataId]);
-  broadcast({ type: "WELL_UPDATED", data: { well_id: req.params.wellId }, orgId: req.user?.orgId });
+  broadcast({ type: "WELL_UPDATED", data: { well_id: req.params.wellId, customer_id: well.rows[0]?.customer_id }, orgId: req.user?.orgId });
   res.status(204).end();
 }
 
@@ -248,7 +249,7 @@ export async function addPipe(req: Request, res: Response) {
   }
   const { sql, params } = userFilter(req, "c", 1);
   const ownershipCheck = await pool.query(
-    `SELECT w.well_id FROM wells w JOIN customers c ON c.customer_id = w.customer_id WHERE w.well_id = $1${sql}`,
+    `SELECT w.well_id, w.customer_id FROM wells w JOIN customers c ON c.customer_id = w.customer_id WHERE w.well_id = $1${sql}`,
     [wellId, ...params]
   );
   if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบบ่อหรือไม่มีสิทธิ์" });
@@ -258,13 +259,14 @@ export async function addPipe(req: Request, res: Response) {
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
     [wellId, material || null, pipe_type || null, size_mm ?? null, depth_from_m, depth_to_m, quantity || 1, notes || null]
   );
-  broadcast({ type: "WELL_UPDATED", data: { well_id: wellId }, orgId: req.user?.orgId });
+  broadcast({ type: "WELL_UPDATED", data: { well_id: wellId, customer_id: ownershipCheck.rows[0].customer_id }, orgId: req.user?.orgId });
   res.status(201).json(rows[0]);
 }
 
 export async function removePipe(req: Request, res: Response) {
+  const well = await pool.query("SELECT customer_id FROM wells WHERE well_id = $1", [req.params.wellId]);
   await pool.query("DELETE FROM well_pipes WHERE pipe_id = $1", [req.params.pipeId]);
-  broadcast({ type: "WELL_UPDATED", data: { well_id: req.params.wellId }, orgId: req.user?.orgId });
+  broadcast({ type: "WELL_UPDATED", data: { well_id: req.params.wellId, customer_id: well.rows[0]?.customer_id }, orgId: req.user?.orgId });
   res.status(204).end();
 }
 
@@ -276,7 +278,7 @@ export async function addPump(req: Request, res: Response) {
   } = req.body;
   const { sql, params } = userFilter(req, "c", 1);
   const ownershipCheck = await pool.query(
-    `SELECT w.well_id FROM wells w JOIN customers c ON c.customer_id = w.customer_id WHERE w.well_id = $1${sql}`,
+    `SELECT w.well_id, w.customer_id FROM wells w JOIN customers c ON c.customer_id = w.customer_id WHERE w.well_id = $1${sql}`,
     [wellId, ...params]
   );
   if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบบ่อหรือไม่มีสิทธิ์" });
@@ -293,13 +295,14 @@ export async function addPump(req: Request, res: Response) {
       installed_date || null, notes || null,
     ]
   );
-  broadcast({ type: "WELL_UPDATED", data: { well_id: wellId }, orgId: req.user?.orgId });
+  broadcast({ type: "WELL_UPDATED", data: { well_id: wellId, customer_id: ownershipCheck.rows[0].customer_id }, orgId: req.user?.orgId });
   res.status(201).json(rows[0]);
 }
 
 export async function removePump(req: Request, res: Response) {
+  const well = await pool.query("SELECT customer_id FROM wells WHERE well_id = $1", [req.params.wellId]);
   await pool.query("DELETE FROM well_pumps WHERE pump_id = $1", [req.params.pumpId]);
-  broadcast({ type: "WELL_UPDATED", data: { well_id: req.params.wellId }, orgId: req.user?.orgId });
+  broadcast({ type: "WELL_UPDATED", data: { well_id: req.params.wellId, customer_id: well.rows[0]?.customer_id }, orgId: req.user?.orgId });
   res.status(204).end();
 }
 
@@ -308,7 +311,7 @@ export async function addControlBox(req: Request, res: Response) {
   const { brand, model, capacity, voltage, protection_type, features, installed_date, notes } = req.body;
   const { sql, params } = userFilter(req, "c", 1);
   const ownershipCheck = await pool.query(
-    `SELECT w.well_id FROM wells w JOIN customers c ON c.customer_id = w.customer_id WHERE w.well_id = $1${sql}`,
+    `SELECT w.well_id, w.customer_id FROM wells w JOIN customers c ON c.customer_id = w.customer_id WHERE w.well_id = $1${sql}`,
     [wellId, ...params]
   );
   if (!ownershipCheck.rows.length) return res.status(404).json({ error: "ไม่พบบ่อหรือไม่มีสิทธิ์" });
@@ -318,13 +321,14 @@ export async function addControlBox(req: Request, res: Response) {
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
     [wellId, brand || null, model || null, capacity || null, voltage || null, protection_type || null, features || null, installed_date || null, notes || null]
   );
-  broadcast({ type: "WELL_UPDATED", data: { well_id: wellId }, orgId: req.user?.orgId });
+  broadcast({ type: "WELL_UPDATED", data: { well_id: wellId, customer_id: ownershipCheck.rows[0].customer_id }, orgId: req.user?.orgId });
   res.status(201).json(rows[0]);
 }
 
 export async function removeControlBox(req: Request, res: Response) {
+  const well = await pool.query("SELECT customer_id FROM wells WHERE well_id = $1", [req.params.wellId]);
   await pool.query("DELETE FROM well_control_boxes WHERE control_box_id = $1", [req.params.controlBoxId]);
-  broadcast({ type: "WELL_UPDATED", data: { well_id: req.params.wellId }, orgId: req.user?.orgId });
+  broadcast({ type: "WELL_UPDATED", data: { well_id: req.params.wellId, customer_id: well.rows[0]?.customer_id }, orgId: req.user?.orgId });
   res.status(204).end();
 }
 

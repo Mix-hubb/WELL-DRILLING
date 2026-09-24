@@ -22,12 +22,13 @@ export function requestContext(req: Request, res: Response, next: NextFunction) 
   next();
 }
 
-export function logError(error: unknown, requestId?: string) {
+export function logError(error: unknown, requestId?: string, context?: Record<string, unknown>) {
   const err = error instanceof Error ? error : new Error(String(error));
   console.error(JSON.stringify({
     event: "application_error",
     request_id: requestId || null,
     error: err.message,
     stack: err.stack,
+    ...context,
   }));
 }

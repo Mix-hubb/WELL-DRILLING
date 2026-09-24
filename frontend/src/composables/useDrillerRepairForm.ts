@@ -1,4 +1,4 @@
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { repairRequestsApi } from "@/api/repairRequests";
 import { useUiStore } from "@/stores/ui";
 import type { PumpCatalogModel, RepairRequest } from "@/types";
@@ -23,6 +23,12 @@ export function useDrillerRepairForm(token: string) {
     completed_at: new Date().toISOString().slice(0, 10),
     pump: null as PumpCatalogModel | null,
   });
+
+  // เคยบันทึกผลการซ่อมผ่านลิงก์นี้ไปแล้วครั้งหนึ่ง (มี record แล้ว) หรืองานถูกปิดไปแล้ว —
+  // ล็อกฟอร์มทั้งหมดตั้งแต่โหลดหน้า ไม่ให้ช่างกรอกซ้ำแล้วมาเจอ error ตอนกดบันทึก
+  const locked = computed(
+    () => !!request.value && (!!request.value.records?.length || request.value.status === "CLOSED")
+  );
 
   onMounted(async () => {
     try {
@@ -60,5 +66,5 @@ export function useDrillerRepairForm(token: string) {
     }
   }
 
-  return { request, loading, submitting, saved, form, addPart, removePart, submit };
+  return { request, loading, submitting, saved, locked, form, addPart, removePart, submit };
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { defineComponent } from "vue";
 import { mount } from "@vue/test-utils";
-import { useSSE, disconnectSSE } from "./useSSE";
+import { useSSE, disconnectSSE, ensureConnected } from "./useSSE";
 
 function createMockChannel(name: string) {
   const broadcastHandlers: Array<{
@@ -83,7 +83,7 @@ describe("useSSE", () => {
     expect(wrapper.vm.connected).toBe(false);
   });
 
-  it("creates org and global channels and flips connected on SUBSCRIBED", async () => {
+  it("creates org and global channels and only flips connected once BOTH are SUBSCRIBED", async () => {
     localStorage.setItem("welldrill-token", "tok.eyJvcmdJZCI6Im9yZy0xIn0.");
     const wrapper = mount(Host);
     wrapper.vm.connect();
@@ -94,6 +94,10 @@ describe("useSSE", () => {
     expect(wrapper.vm.connected).toBe(false);
 
     mockChannels[0]._fireSubscribe("SUBSCRIBED");
+    await Promise.resolve();
+    expect(wrapper.vm.connected).toBe(false); // global channel hasn't reported yet
+
+    mockChannels[1]._fireSubscribe("SUBSCRIBED");
     await Promise.resolve();
     expect(wrapper.vm.connected).toBe(true);
   });
@@ -141,14 +145,26 @@ describe("useSSE", () => {
     expect(mockChannels[0]._broadcastHandlers[0].filter.event).toBe("*");
   });
 
-  it("disconnect removes channels and clears listeners", () => {
+  it("disconnect tears down channels but PRESERVES listeners (survives logout -> login)", () => {
     localStorage.setItem("welldrill-token", "tok.eyJvcmdJZCI6Im9yZy0xIn0.");
     const wrapper = mount(Host);
-    wrapper.vm.on("JOB_CREATED", () => {});
+    const cb = vi.fn();
+    wrapper.vm.on("JOB_CREATED", cb);
     wrapper.vm.connect();
 
     wrapper.vm.disconnect();
     expect(wrapper.vm.connected).toBe(false);
+    expect(mockChannels).toHaveLength(2);
+
+    // Reconnect (e.g. a fresh login) WITHOUT re-registering the listener —
+    // it must still fire, since disconnect() must not clear the shared
+    // listener map (a component that stayed mounted across logout->login
+    // previously went silently deaf here).
+    wrapper.vm.connect();
+    expect(mockChannels).toHaveLength(4);
+    const newOrgChannel = mockChannels[2];
+    newOrgChannel._fireBroadcast("JOB_CREATED", { job_id: 42 });
+    expect(cb).toHaveBeenCalledWith({ job_id: 42 });
   });
 
   it("closes the connection on unmount when no listeners remain", () => {
@@ -188,5 +204,56 @@ describe("useSSE", () => {
 
     mockChannels[1]._fireBroadcast("PUMP_CATALOG_UPDATED", { id: 5 });
     expect(cb).toHaveBeenCalledWith({ id: 5 });
+  });
+
+  it("reconnects automatically after a CHANNEL_ERROR, with backoff", () => {
+    vi.useFakeTimers();
+    try {
+      localStorage.setItem("welldrill-token", "tok.eyJvcmdJZCI6Im9yZy0xIn0.");
+      const wrapper = mount(Host);
+      wrapper.vm.connect();
+      expect(mockChannels).toHaveLength(2);
+
+      mockChannels[0]._fireSubscribe("CHANNEL_ERROR");
+      // both channels are torn down and a reconnect is scheduled — no new
+      // channel yet until the backoff delay elapses
+      expect(mockChannels).toHaveLength(2);
+
+      vi.advanceTimersByTime(2999);
+      expect(mockChannels).toHaveLength(2);
+
+      vi.advanceTimersByTime(1);
+      expect(mockChannels).toHaveLength(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ensureConnected is a no-op once fully connected", async () => {
+    localStorage.setItem("welldrill-token", "tok.eyJvcmdJZCI6Im9yZy0xIn0.");
+    const wrapper = mount(Host);
+    wrapper.vm.connect();
+    mockChannels[0]._fireSubscribe("SUBSCRIBED");
+    mockChannels[1]._fireSubscribe("SUBSCRIBED");
+    await Promise.resolve();
+    expect(wrapper.vm.connected).toBe(true);
+
+    ensureConnected();
+    expect(mockChannels).toHaveLength(2);
+  });
+
+  it("ensureConnected forces a reconnect when not connected (e.g. tab woke from sleep)", () => {
+    localStorage.setItem("welldrill-token", "tok.eyJvcmdJZCI6Im9yZy0xIn0.");
+    const wrapper = mount(Host);
+    wrapper.vm.connect(); // channels open but never report SUBSCRIBED — stuck
+    expect(mockChannels).toHaveLength(2);
+
+    ensureConnected();
+    expect(mockChannels).toHaveLength(4);
+  });
+
+  it("ensureConnected does nothing without a token", () => {
+    ensureConnected();
+    expect(mockChannels).toHaveLength(0);
   });
 });

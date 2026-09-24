@@ -1,3 +1,5 @@
+import { useAuthStore } from "@/stores/auth";
+
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 const TOKEN_KEY = "welldrill-token";
 
@@ -11,7 +13,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, { ...options, headers: { ...headers, ...options.headers as any } });
 
   if (res.status === 401) {
-    localStorage.removeItem(TOKEN_KEY);
+    // Clear via the Pinia store (not localStorage directly) so App.vue's
+    // watch(() => auth.token, ...) fires and tears down the realtime
+    // connection too — a raw localStorage.removeItem here is invisible to
+    // Vue's reactivity and left SSE channels open after the session died.
+    useAuthStore().clearAuth();
     throw new Error("เซสชันหมดอายุ");
   }
 
